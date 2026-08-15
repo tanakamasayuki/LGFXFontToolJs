@@ -1,0 +1,68 @@
+{
+  "name": "lgfx-font-tool",
+  "version": "0.0.1",
+  "description": "JavaScript toolkit for embedded bitmap fonts - decode, encode, convert, render and generate.",
+  "type": "module",
+  "license": "MIT",
+  "author": "TANAKA Masayuki",
+  "sideEffects": false,
+  "main": "dist/lgfx-font-tool.js",
+  "module": "dist/lgfx-font-tool.js",
+  "browser": "dist/lgfx-font-tool.min.js",
+  "unpkg": "dist/lgfx-font-tool.min.js",
+  "jsdelivr": "dist/lgfx-font-tool.min.js",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./dist/lgfx-font-tool.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "types",
+    "README.md",
+    "README.ja.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "font",
+    "bitmap-font",
+    "u8g2",
+    "gfxfont",
+    "adafruit-gfx",
+    "bdf",
+    "vlw",
+    "lovyangfx",
+    "embedded"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanakamasayuki/LGFXFontToolJs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tanakamasayuki/LGFXFontToolJs/issues"
+  },
+  "homepage": "https://tanakamasayuki.github.io/LGFXFontToolJs/",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "test:watch": "node --test --watch \"test/*.test.js\"",
+    "typecheck": "tsc --noEmit",
+    "lint:layers": "node scripts/check-layers.js",
+    "check": "npm run test && npm run typecheck && npm run lint:layers",
+    "extract-fonts": "node scripts/extract-fonts.js",
+    "serve": "node scripts/serve.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  }
+}
