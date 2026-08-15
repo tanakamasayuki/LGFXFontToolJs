@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,34 +8,37 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>LGFX Font Tool JS <span class="sub">Viewer</span></h1>
-    <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs">GitHub</a>
+    <h1>LGFX Font Tool JS <span class="sub" data-i18n="app.subtitle">Viewer</span></h1>
+    <div class="topbar-right">
+      <select id="lang" data-i18n-title="controls.language"></select>
+      <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs">GitHub</a>
+    </div>
   </header>
 
   <main class="layout">
     <aside class="sidebar">
-      <input id="search" type="search" placeholder="フォントを検索 (186)" autocomplete="off">
+      <input id="search" type="search" data-i18n-placeholder="search.placeholder" autocomplete="off">
       <ul id="font-list" class="font-list"></ul>
     </aside>
 
     <section class="content">
       <div class="controls">
-        <label class="grow">テキスト
+        <label class="grow"><span data-i18n="controls.text">Text</span>
           <input id="text" type="text" value="Hello 日本語 123 こんにちは">
         </label>
-        <label>倍率 X
+        <label><span data-i18n="controls.sizeX">Scale X</span>
           <input id="size-x" type="number" value="1" min="0.25" max="8" step="0.25">
         </label>
-        <label>倍率 Y
+        <label><span data-i18n="controls.sizeY">Scale Y</span>
           <input id="size-y" type="number" value="1" min="0.25" max="8" step="0.25">
         </label>
-        <label>datum
+        <label><span data-i18n="controls.datum">Datum</span>
           <select id="datum"></select>
         </label>
-        <label>ズーム
+        <label><span data-i18n="controls.zoom">Zoom</span>
           <input id="zoom" type="range" value="3" min="1" max="12" step="1">
         </label>
-        <label class="check">グリッド
+        <label class="check"><span data-i18n="controls.grid">Grid</span>
           <input id="grid" type="checkbox" checked>
         </label>
       </div>

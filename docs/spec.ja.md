@@ -731,7 +731,9 @@ FontToolError (base)              — code: string, details?: object
 
 ## 14. Web リファレンスアプリ
 
-esp-flashjs Web と同じ構え: UI フレームワークなし（Custom Elements + 極小 store）、i18n（en / ja、`navigator.languages` 自動判定、辞書は `web/locales/`）、GitHub Pages 配信。
+esp-flashjs Web と同じ構え: UI フレームワークなし（Custom Elements + 極小 store）、GitHub Pages 配信。
+
+i18n は en / ja / zh-Hans / zh-Hant。`navigator.languages` から自動判定し（優先順位: `?lang=` > localStorage > ブラウザ言語）、対応がなければ英語。辞書は `web/locales/<id>.json` で、**言語の追加 = `SUPPORTED_LOCALES` に 1 エントリ + 辞書ファイル 1 枚**になるよう保つ。キー欠落とプレースホルダ不整合は `scripts/check-locales.js` が CI で検査する。ライブラリ本体（`src/`）は文言を持たない（設計判断 #11）。
 
 | 画面 | 内容 | 使う API |
 | --- | --- | --- |

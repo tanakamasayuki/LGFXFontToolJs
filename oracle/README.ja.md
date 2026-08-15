@@ -1,8 +1,14 @@
 # oracle/ — LovyanGFX オラクルハーネス
 
-実物の LovyanGFX（v1.2.26、lang-ship:host コアでネイティブビルド）で
-全内蔵フォント × 文字列 × 倍率 × datum を描画し、JS 実装が完全一致すべき
-正解ビットマップ（fixture）を生成する（仕様 §13.1）。
+実物の LovyanGFX（v1.2.26、lang-ship:host コアでネイティブビルド）を正解として
+fixture を生成する 2 本のハーネス:
+
+- **oracle_dump**（仕様 §13.1）— 全内蔵フォント × 文字列 × 倍率 × datum を描画し、
+  デコーダと描画エンジンが完全一致すべき正解ビットマップを吐く
+- **oracle_encoded**（仕様 §13.3）— 本ライブラリの**エンコーダが出力した**
+  u8g2 / GFXfont バイナリを LovyanGFX に読み込ませて描画する。往復テストでは
+  検出できない「書き方の解釈ずれ」（u8g2 のジャンプ表など、自前デコーダが
+  読み飛ばす構造）を落とす。再生成は `npm run oracle:encoded`
 
 fixture は `test/fixtures/oracle/` にコミットしてあり、通常のテスト
 （`npm test` / CI）は **このハーネスを実行しない**。再生成が必要なのは

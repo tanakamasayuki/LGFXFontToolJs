@@ -1,0 +1,22 @@
+{
+  "app.subtitle": "Viewer",
+  "app.docTitle": "LGFX Font Tool JS — Viewer",
+  "search.placeholder": "Search {count} fonts",
+  "controls.text": "Text",
+  "controls.sizeX": "Scale X",
+  "controls.sizeY": "Scale Y",
+  "controls.datum": "Datum",
+  "controls.zoom": "Zoom",
+  "controls.grid": "Grid",
+  "controls.language": "Language",
+  "info.textWidth": "textWidth",
+  "info.fontHeight": "fontHeight",
+  "info.advance": "advance",
+  "info.ascentDescent": "ascent / descent",
+  "info.lineHeight": "lineHeight",
+  "info.glyphCount": "Glyphs",
+  "info.data": "Data",
+  "info.coverage": "Coverage",
+  "list.meta": "{format} · {height}px · {kb} KB",
+  "license.line": "{license} — {copyright}"
+}

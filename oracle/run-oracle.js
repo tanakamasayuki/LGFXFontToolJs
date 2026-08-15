@@ -6,23 +6,26 @@
  * 最初の TCP クライアント接続を待ってから setup() に入る。
  * このスクリプトが起動→接続→完了待ちまでを面倒みる。
  *
- * 使い方: node oracle/run-oracle.js <path-to-oracle_dump.ino.out>
- * 出力: test/fixtures/oracle/ に oracle-index.jsonl と oracle-bitmaps.bin
+ * 使い方: node oracle/run-oracle.js <実行ファイル> [出力ディレクトリ]
+ * 出力: 指定ディレクトリ（既定 test/fixtures/oracle/）に
+ *       oracle-index.jsonl と oracle-bitmaps.bin
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { connect } from 'node:net';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const exe = process.argv[2];
 if (!exe) {
-  console.error('usage: node oracle/run-oracle.js <oracle_dump.ino.out>');
+  console.error('usage: node oracle/run-oracle.js <harness.out> [out-dir]');
   process.exit(1);
 }
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const outDir = join(repoRoot, 'test', 'fixtures', 'oracle');
+const outDir = process.argv[3]
+  ? resolve(process.argv[3])
+  : join(repoRoot, 'test', 'fixtures', 'oracle');
 mkdirSync(outDir, { recursive: true });
 
 const launcher = spawn(exe, [], { cwd: outDir });

@@ -1,0 +1,22 @@
+{
+  "app.subtitle": "檢視器",
+  "app.docTitle": "LGFX Font Tool JS — 檢視器",
+  "search.placeholder": "搜尋字型（共 {count} 款）",
+  "controls.text": "文字",
+  "controls.sizeX": "水平縮放",
+  "controls.sizeY": "垂直縮放",
+  "controls.datum": "基準點",
+  "controls.zoom": "顯示倍率",
+  "controls.grid": "網格",
+  "controls.language": "語言",
+  "info.textWidth": "textWidth",
+  "info.fontHeight": "fontHeight",
+  "info.advance": "advance",
+  "info.ascentDescent": "上伸 / 下伸",
+  "info.lineHeight": "行距",
+  "info.glyphCount": "字形數",
+  "info.data": "資料",
+  "info.coverage": "涵蓋",
+  "list.meta": "{format} · {height}px · {kb} KB",
+  "license.line": "{license} — {copyright}"
+}

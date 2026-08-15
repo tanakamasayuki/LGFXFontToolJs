@@ -1,0 +1,22 @@
+{
+  "app.subtitle": "ビューア",
+  "app.docTitle": "LGFX Font Tool JS — ビューア",
+  "search.placeholder": "フォントを検索（{count} 本）",
+  "controls.text": "テキスト",
+  "controls.sizeX": "倍率 X",
+  "controls.sizeY": "倍率 Y",
+  "controls.datum": "基準点",
+  "controls.zoom": "ズーム",
+  "controls.grid": "グリッド",
+  "controls.language": "言語",
+  "info.textWidth": "textWidth",
+  "info.fontHeight": "fontHeight",
+  "info.advance": "advance",
+  "info.ascentDescent": "アセント / ディセント",
+  "info.lineHeight": "行送り",
+  "info.glyphCount": "グリフ数",
+  "info.data": "データ",
+  "info.coverage": "収録",
+  "list.meta": "{format} · {height}px · {kb} KB",
+  "license.line": "{license} — {copyright}"
+}

@@ -56,10 +56,12 @@
     "test:watch": "node --test --watch \"test/*.test.js\"",
     "typecheck": "tsc --noEmit",
     "lint:layers": "node scripts/check-layers.js",
-    "check": "npm run test && npm run typecheck && npm run lint:layers",
+    "lint:locales": "node scripts/check-locales.js",
+    "check": "npm run test && npm run typecheck && npm run lint:layers && npm run lint:locales",
     "build:site": "node scripts/build-site.js",
     "extract-fonts": "node scripts/extract-fonts.js",
     "oracle": "node oracle/gen-fonts-table.js && arduino-cli compile --profile host --build-path .cache/oracle-build oracle/oracle_dump && node oracle/run-oracle.js .cache/oracle-build/oracle_dump.ino.out",
+    "oracle:encoded": "node oracle/gen-encoded-fonts.js && arduino-cli compile --profile host --build-path .cache/oracle-enc-build oracle/oracle_encoded && node oracle/run-oracle.js .cache/oracle-enc-build/oracle_encoded.ino.out test/fixtures/oracle-encoded",
     "serve": "node scripts/serve.js"
   },
   "devDependencies": {

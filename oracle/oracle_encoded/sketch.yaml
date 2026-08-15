@@ -1,0 +1,11 @@
+# §13.3 実物一致ハーネス。バージョン固定は oracle_dump と同じ。
+profiles:
+  host:
+    fqbn: lang-ship:host:host:mode=lgfx
+    platforms:
+      - platform: lang-ship:host (1.4.7)
+        platform_index_url: https://tanakamasayuki.github.io/lang-ship-arduino-core/package_lang-ship_index.json
+    libraries:
+      - LovyanGFX (1.2.26)
+
+default_profile: host

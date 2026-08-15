@@ -2,8 +2,8 @@
 /**
  * 形式レジストリ。decode の入口と形式判定（仕様 §6.1）。
  */
-import { decodeU8g2, readU8g2Header } from './u8g2.js';
-import { decodeGfx } from './gfxfont.js';
+import { decodeU8g2, readU8g2Header, encodeU8g2, canEncodeU8g2 } from './u8g2.js';
+import { decodeGfx, encodeGfx, canEncodeGfx } from './gfxfont.js';
 import { decodeGlcd } from './glcd.js';
 import { decodeFixedBmp } from './fixedbmp.js';
 import { decodeBmpFont } from './bmpfont.js';
@@ -32,8 +32,8 @@ import { DetectFailedError, FormatError } from '../util/errors.js';
 
 /** @type {FormatInfo[]} */
 const FORMATS = [
-  { id: 'u8g2', name: 'u8g2', decode: true, encode: false, note: 'encoder is Phase 2' },
-  { id: 'gfx', name: 'GFXfont (GFX1 container)', decode: true, encode: false, note: 'encoder is Phase 2' },
+  { id: 'u8g2', name: 'u8g2', decode: true, encode: true },
+  { id: 'gfx', name: 'GFXfont (GFX1 container)', decode: true, encode: true },
   { id: 'glcd', name: 'GLCDfont (raw + params)', decode: true, encode: false },
   { id: 'fixedbmp', name: 'FixedBMPfont (raw + params)', decode: true, encode: false },
   { id: 'bmp', name: 'BMPfont (LBMP container)', decode: true, encode: false },
@@ -141,5 +141,55 @@ export function decode(input, opts = {}) {
       return decodeRleFont(input, opts);
     default:
       throw new FormatError('UNKNOWN_FORMAT', `unknown format id: ${format}`, { format });
+  }
+}
+
+/**
+ * 中立モデルを指定形式へエンコードできるか（仕様 §7.1）。
+ * @param {Font} font
+ * @param {string} format
+ * @returns {{ok: boolean, issues: EncodeIssue[]}}
+ */
+export function canEncode(font, format) {
+  switch (format) {
+    case 'u8g2':
+      return canEncodeU8g2(font);
+    case 'gfx':
+      return canEncodeGfx(font);
+    default: {
+      const info = FORMATS.find((f) => f.id === format);
+      if (!info) throw new FormatError('UNKNOWN_FORMAT', `unknown format id: ${format}`, { format });
+      return {
+        ok: false,
+        issues: [{ level: 'error', code: 'ENCODER_NOT_IMPLEMENTED', params: { format } }],
+      };
+    }
+  }
+}
+
+/**
+ * 中立モデルを指定形式のバイト列へエンコードする（仕様 §7.2）。
+ * 制約違反があれば EncodeConstraintError を投げる。切り詰めない。
+ * @param {Font} font
+ * @param {{format: string, dropInvalid?: boolean}} opts
+ * @returns {Uint8Array}
+ */
+export function encode(font, opts) {
+  switch (opts.format) {
+    case 'u8g2':
+      return encodeU8g2(font, opts);
+    case 'gfx':
+      return encodeGfx(font, opts);
+    default: {
+      const info = FORMATS.find((f) => f.id === opts.format);
+      if (!info) {
+        throw new FormatError('UNKNOWN_FORMAT', `unknown format id: ${opts.format}`, {
+          format: opts.format,
+        });
+      }
+      throw new FormatError('ENCODER_NOT_IMPLEMENTED', `no encoder for ${opts.format}`, {
+        format: opts.format,
+      });
+    }
   }
 }

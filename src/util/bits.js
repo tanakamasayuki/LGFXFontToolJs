@@ -47,7 +47,8 @@ export class BitWriterLsb {
   constructor() {
     /** @type {number[]} */
     this.bytes = [];
-    this.bitPos = 0;
+    this.cur = 0;
+    this.nbits = 0;
   }
 
   /**
@@ -55,28 +56,18 @@ export class BitWriterLsb {
    * @param {number} cnt
    */
   writeUnsigned(value, cnt) {
-    value &= (1 << cnt) - 1;
-    if (this.bitPos === 0) this.bytes.push(0);
-    const idx = this.bytes.length - 1;
-    this.bytes[idx] |= (value << this.bitPos) & 0xff;
-    const next = this.bitPos + cnt;
-    if (next >= 8) {
-      const written = 8 - this.bitPos;
-      const rest = value >> written;
-      if (next > 8) {
-        this.bytes.push(rest & 0xff);
+    for (let i = 0; i < cnt; i++) {
+      if ((value >> i) & 1) this.cur |= 1 << this.nbits;
+      if (++this.nbits === 8) {
+        this.bytes.push(this.cur);
+        this.cur = 0;
+        this.nbits = 0;
       }
-      this.bitPos = next - 8;
-      if (next === 8) this.bitPos = 0;
-      if (next > 8 && this.bitPos === 0) {
-        // rest がちょうど収まった
-      }
-    } else {
-      this.bitPos = next;
     }
   }
 
   /**
+   * バイアス表現の符号付き（デコーダは unsigned - (1 << (cnt-1)) で読む）。
    * @param {number} value
    * @param {number} cnt
    */
@@ -84,8 +75,10 @@ export class BitWriterLsb {
     this.writeUnsigned(value + (1 << (cnt - 1)), cnt);
   }
 
-  /** @returns {Uint8Array} */
+  /** 端数ビットを 0 詰めした現在の内容（非破壊）。 @returns {Uint8Array} */
   toUint8Array() {
-    return Uint8Array.from(this.bytes);
+    const out = [...this.bytes];
+    if (this.nbits) out.push(this.cur);
+    return Uint8Array.from(out);
   }
 }

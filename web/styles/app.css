@@ -28,6 +28,15 @@ body {
 .topbar h1 { margin: 0; font-size: 16px; }
 .topbar .sub { color: var(--muted); font-weight: normal; }
 .topbar .link { color: var(--accent); text-decoration: none; font-size: 13px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-right select {
+  padding: 4px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+}
 
 .layout {
   display: grid;

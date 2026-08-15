@@ -16,10 +16,16 @@ export {
 export { subset, merge } from './model/subset.js';
 export { serializeFont, deserializeFont } from './model/serialize.js';
 
-// デコード / 形式
-export { decode, detect, listFormats } from './format/registry.js';
-export { decodeU8g2 } from './format/u8g2.js';
-export { decodeGfx, packGfxContainer, unpackGfxContainer } from './format/gfxfont.js';
+// デコード / エンコード / 形式
+export { decode, detect, listFormats, canEncode, encode } from './format/registry.js';
+export { decodeU8g2, encodeU8g2, canEncodeU8g2 } from './format/u8g2.js';
+export {
+  decodeGfx,
+  encodeGfx,
+  canEncodeGfx,
+  packGfxContainer,
+  unpackGfxContainer,
+} from './format/gfxfont.js';
 export { decodeGlcd } from './format/glcd.js';
 export { decodeFixedBmp } from './format/fixedbmp.js';
 export { decodeBmpFont } from './format/bmpfont.js';
