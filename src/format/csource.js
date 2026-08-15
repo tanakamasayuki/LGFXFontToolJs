@@ -10,11 +10,12 @@
  * 生成物の先頭には帰属表示を必ず埋め込む（仕様 §6.3 / §8.4）。OFL や Apache は
  * 派生フォントデータに表示の同伴を要求しており、生成された配列は派生データである。
  */
-import { encodeU8g2 } from './u8g2.js';
-import { encodeGfx, unpackGfxContainer } from './gfxfont.js';
+import { encodeU8g2, decodeU8g2 } from './u8g2.js';
+import { encodeGfx, decodeGfx, unpackGfxContainer, packGfxContainer } from './gfxfont.js';
 import { FormatError } from '../util/errors.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
+/** @typedef {import('./gfxfont.js').GfxGlyphRec} GfxGlyphRec */
 
 /** @param {number} b */
 const HEX = (b) => '0x' + b.toString(16).padStart(2, '0');
@@ -257,4 +258,241 @@ export function encodeCSource(font, opts) {
         format: opts.format,
       });
   }
+}
+
+//----------------------------------------------------------------------------
+// C/C++ ソースの読み込み（仕様 §6.3、UC5）。
+// GitHub や Arduino ライブラリで配布される .h / .c を貼り付けたら読める、を
+// 実現する。C プリプロセッサの完全実装はしない（実在のフォント配布ファイルが
+// 読めれば足りる）。
+
+/** @param {string} text */
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+}
+
+/**
+ * `{ ... }` の中の数値リストをバイト列にする。
+ * @param {string} body
+ */
+function parseByteList(body) {
+  const bytes = [];
+  const re = /0[xX][0-9a-fA-F]+|\d+/g;
+  let m;
+  while ((m = re.exec(body)) !== null) bytes.push(Number(m[0]) & 0xff);
+  return Uint8Array.from(bytes);
+}
+
+/**
+ * C 文字列リテラル（連結可・8進/16進エスケープ対応）をバイト列にする。
+ * u8g2 の bdfconv が出力する形式。
+ * @param {string} text
+ * @param {number} start - `=` の直後
+ * @returns {Uint8Array}
+ */
+function parseCStringLiterals(text, start) {
+  const bytes = [];
+  let i = start;
+  const n = text.length;
+  let inString = false;
+  while (i < n) {
+    const ch = text[i];
+    if (!inString) {
+      if (ch === '"') {
+        inString = true;
+        i++;
+      } else if (ch === ';') {
+        break;
+      } else {
+        i++;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = false;
+      i++;
+      continue;
+    }
+    if (ch === '\\') {
+      i++;
+      const e = text[i];
+      if (e >= '0' && e <= '7') {
+        let oct = '';
+        while (oct.length < 3 && text[i] >= '0' && text[i] <= '7') oct += text[i++];
+        bytes.push(parseInt(oct, 8) & 0xff);
+      } else if (e === 'x') {
+        i++;
+        let hex = '';
+        while (/[0-9a-fA-F]/.test(text[i])) hex += text[i++];
+        bytes.push(parseInt(hex, 16) & 0xff);
+      } else {
+        i++;
+        const map = { n: 10, t: 9, r: 13, a: 7, b: 8, f: 12, v: 11, '\\': 92, '"': 34, "'": 39, '?': 63 };
+        const v = map[/** @type {keyof typeof map} */ (e)];
+        bytes.push(v ?? e.charCodeAt(0));
+      }
+    } else {
+      bytes.push(ch.charCodeAt(0));
+      i++;
+    }
+  }
+  return Uint8Array.from(bytes);
+}
+
+/**
+ * `uint8_t NAME[...] = {...};` / `= "...";` をすべて集める。
+ * @param {string} text - コメント除去済み
+ * @returns {Map<string, Uint8Array>}
+ */
+function collectByteArrays(text) {
+  /** @type {Map<string, Uint8Array>} */
+  const out = new Map();
+  // 配列名の後ろには PROGMEM / LGFXFT_PROGMEM / U8G2_FONT_SECTION("...") などの
+  // 修飾マクロ（引数付き含む）が来ることがある
+  const declRe =
+    /(?:const|constexpr|static|PROGMEM|unsigned|\s)*(?:uint8_t|unsigned\s+char)\s+(\w+)\s*\[[^\]]*\]\s*(?:\w+(?:\([^)]*\))?\s*)*=\s*/g;
+  let m;
+  while ((m = declRe.exec(text)) !== null) {
+    const name = m[1];
+    const at = declRe.lastIndex;
+    // 直後が '{' なら数値リスト、'"'（空白を挟むかもしれない）なら文字列リテラル
+    const rest = text.slice(at, at + 8);
+    if (rest.trimStart().startsWith('{')) {
+      const open = text.indexOf('{', at);
+      const close = text.indexOf('};', open);
+      if (open < 0 || close < 0) continue;
+      out.set(name, parseByteList(text.slice(open + 1, close)));
+      declRe.lastIndex = close;
+    } else if (rest.trimStart().startsWith('"')) {
+      out.set(name, parseCStringLiterals(text, at));
+    }
+  }
+  return out;
+}
+
+/**
+ * `GFXglyph NAME[] = { {..}, ... };` をすべて集める。
+ * @param {string} text
+ * @returns {Map<string, GfxGlyphRec[]>}
+ */
+function collectGlyphArrays(text) {
+  /** @type {Map<string, GfxGlyphRec[]>} */
+  const out = new Map();
+  const declRe = /GFXglyph\s+(\w+)\s*\[[^\]]*\]\s*(?:\w+\s*)*=\s*\{/g;
+  let m;
+  while ((m = declRe.exec(text)) !== null) {
+    const close = text.indexOf('};', declRe.lastIndex);
+    if (close < 0) continue;
+    const body = text.slice(declRe.lastIndex, close);
+    /** @type {GfxGlyphRec[]} */
+    const glyphs = [];
+    const tupleRe = /\{\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\}/g;
+    let tm;
+    while ((tm = tupleRe.exec(body)) !== null) {
+      glyphs.push({
+        bitmapOffset: Number(tm[1]),
+        width: Number(tm[2]),
+        height: Number(tm[3]),
+        xAdvance: Number(tm[4]),
+        xOffset: Number(tm[5]),
+        yOffset: Number(tm[6]),
+      });
+    }
+    out.set(m[1], glyphs);
+  }
+  return out;
+}
+
+/**
+ * `EncodeRange NAME[] = { {s,e,b}, ... };` をすべて集める。
+ * @param {string} text
+ * @returns {Map<string, {start: number, end: number, base: number}[]>}
+ */
+function collectRangeArrays(text) {
+  /** @type {Map<string, {start: number, end: number, base: number}[]>} */
+  const out = new Map();
+  const declRe = /EncodeRange\s+(\w+)\s*\[[^\]]*\]\s*(?:\w+\s*)*=\s*\{/g;
+  let m;
+  while ((m = declRe.exec(text)) !== null) {
+    const close = text.indexOf('};', declRe.lastIndex);
+    if (close < 0) continue;
+    const body = text.slice(declRe.lastIndex, close);
+    const ranges = [];
+    const tupleRe = /\{\s*(0[xX][0-9a-fA-F]+|\d+)\s*,\s*(0[xX][0-9a-fA-F]+|\d+)\s*,\s*(0[xX][0-9a-fA-F]+|\d+)\s*\}/g;
+    let tm;
+    while ((tm = tupleRe.exec(body)) !== null) {
+      ranges.push({ start: Number(tm[1]), end: Number(tm[2]), base: Number(tm[3]) });
+    }
+    out.set(m[1], ranges);
+  }
+  return out;
+}
+
+/**
+ * C/C++ ソーステキストからフォントをデコードする（1 ファイル複数フォント対応）。
+ *
+ * 対応:
+ * - GFXfont 構造体（Adafruit GFX の .h、LovyanGFX 拡張の EncodeRange 付き含む）
+ * - u8g2 のバイト配列（数値リスト・文字列リテラルのどちらも。bdfconv / fontgen /
+ *   本ライブラリの出力）
+ *
+ * @param {string} source
+ * @returns {{name: string, format: 'gfx' | 'u8g2', font: Font}[]}
+ */
+export function decodeCSource(source) {
+  const text = stripComments(source);
+  const arrays = collectByteArrays(text);
+  const glyphArrays = collectGlyphArrays(text);
+  const rangeArrays = collectRangeArrays(text);
+
+  /** @type {{name: string, format: 'gfx' | 'u8g2', font: Font}[]} */
+  const fonts = [];
+  const used = new Set();
+
+  // --- GFXfont 構造体 ---
+  const structRe = /GFXfont\s+(\w+)\s*(?:\w+\s*)*=\s*\{([\s\S]*?)\};/g;
+  let m;
+  while ((m = structRe.exec(text)) !== null) {
+    const name = m[1];
+    const body = m[2];
+    // 参照している配列名（bitmap → glyph → range の出現順）
+    const refs = [...body.matchAll(/\b(\w+)\b/g)].map((r) => r[1]);
+    const bitmapSym = refs.find((r) => arrays.has(r));
+    const glyphSym = refs.find((r) => glyphArrays.has(r));
+    const rangeSym = refs.find((r) => rangeArrays.has(r));
+    if (!bitmapSym || !glyphSym) continue;
+    const nums = body.match(/(?<![\w.])(?:0[xX][0-9a-fA-F]+|\d+)(?![\w.])/g)?.map(Number) ?? [];
+    // 数値は first, last, yAdvance [, rangeNum] の順で現れる
+    if (nums.length < 3) continue;
+    const [first, last, yAdvance] = nums;
+    used.add(bitmapSym);
+    fonts.push({
+      name,
+      format: 'gfx',
+      font: decodeGfx(
+        packGfxContainer({
+          first,
+          last,
+          yAdvance,
+          ranges: rangeSym ? rangeArrays.get(rangeSym) ?? [] : [],
+          glyphs: glyphArrays.get(glyphSym) ?? [],
+          bitmap: arrays.get(bitmapSym) ?? new Uint8Array(0),
+        }),
+        { familyName: name },
+      ),
+    });
+  }
+
+  // --- 残りのバイト配列を u8g2 として試す ---
+  for (const [name, bytes] of arrays) {
+    if (used.has(name) || bytes.length < 30) continue;
+    try {
+      const font = decodeU8g2(bytes, { familyName: name });
+      if (font.glyphs.size > 0) fonts.push({ name, format: 'u8g2', font });
+    } catch {
+      // u8g2 ではない配列（画像など）は黙って読み飛ばす
+    }
+  }
+
+  return fonts;
 }

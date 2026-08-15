@@ -4,6 +4,8 @@
  */
 import { decodeU8g2, readU8g2Header, encodeU8g2, canEncodeU8g2 } from './u8g2.js';
 import { decodeGfx, encodeGfx, canEncodeGfx } from './gfxfont.js';
+import { decodeBdf, encodeBdf, canEncodeBdf } from './bdf.js';
+import { decodeCSource } from './csource.js';
 import { decodeGlcd } from './glcd.js';
 import { decodeFixedBmp } from './fixedbmp.js';
 import { decodeBmpFont } from './bmpfont.js';
@@ -34,6 +36,8 @@ import { DetectFailedError, FormatError } from '../util/errors.js';
 const FORMATS = [
   { id: 'u8g2', name: 'u8g2', decode: true, encode: true },
   { id: 'gfx', name: 'GFXfont (GFX1 container)', decode: true, encode: true },
+  { id: 'bdf', name: 'BDF 2.1 (text)', decode: true, encode: true },
+  { id: 'csource', name: 'C/C++ source', decode: true, encode: true, note: 'decodeCSource / encodeCSource' },
   { id: 'glcd', name: 'GLCDfont (raw + params)', decode: true, encode: false },
   { id: 'fixedbmp', name: 'FixedBMPfont (raw + params)', decode: true, encode: false },
   { id: 'bmp', name: 'BMPfont (LBMP container)', decode: true, encode: false },
@@ -64,7 +68,11 @@ export function detect(input) {
   /** @type {{format: string, confidence: number}[]} */
   const results = [];
   if (typeof input === 'string') {
-    return results; // BDF / C ソースは Phase 3
+    if (/^\s*STARTFONT\b/.test(input)) results.push({ format: 'bdf', confidence: 1.0 });
+    else if (/\bGFXfont\b|\b(?:uint8_t|unsigned\s+char)\s+\w+\s*\[/.test(input)) {
+      results.push({ format: 'csource', confidence: 0.8 });
+    }
+    return results;
   }
   if (hasMagic(input, 'GFX1')) results.push({ format: 'gfx', confidence: 1.0 });
   if (hasMagic(input, 'LBMP')) results.push({ format: 'bmp', confidence: 1.0 });
@@ -118,7 +126,28 @@ export function decode(input, opts = {}) {
     format = candidates[0].format;
   }
   if (typeof input === 'string') {
-    throw new FormatError('UNSUPPORTED_FEATURE', 'text formats (BDF / C source) are Phase 3');
+    switch (format) {
+      case 'bdf':
+        return decodeBdf(input, opts);
+      case 'csource': {
+        const fonts = decodeCSource(input);
+        if (fonts.length === 0) {
+          throw new FormatError('NO_FONTS_FOUND', 'no fonts found in C source');
+        }
+        if (fonts.length > 1) {
+          throw new FormatError(
+            'MULTIPLE_FONTS',
+            `C source contains ${fonts.length} fonts; use decodeCSource()`,
+            { names: fonts.map((f) => f.name) },
+          );
+        }
+        return fonts[0].font;
+      }
+      default:
+        throw new FormatError('UNKNOWN_FORMAT', `text input needs format 'bdf' or 'csource'`, {
+          format,
+        });
+    }
   }
   switch (format) {
     case 'u8g2':
@@ -156,6 +185,8 @@ export function canEncode(font, format) {
       return canEncodeU8g2(font);
     case 'gfx':
       return canEncodeGfx(font);
+    case 'bdf':
+      return canEncodeBdf(font);
     default: {
       const info = FORMATS.find((f) => f.id === format);
       if (!info) throw new FormatError('UNKNOWN_FORMAT', `unknown format id: ${format}`, { format });
@@ -180,6 +211,10 @@ export function encode(font, opts) {
       return encodeU8g2(font, opts);
     case 'gfx':
       return encodeGfx(font, opts);
+    case 'bdf':
+      // BDF はテキスト形式。ファイルとして扱えるよう UTF-8 バイト列で返す
+      // （テキストが欲しい場合は encodeBdf() を直接使う）
+      return new TextEncoder().encode(encodeBdf(font, opts));
     default: {
       const info = FORMATS.find((f) => f.id === opts.format);
       if (!info) {

@@ -739,7 +739,7 @@ i18n は en / ja / zh-Hans / zh-Hant。`navigator.languages` から自動判定�
 | --- | --- | --- |
 | **Viewer** | 内蔵 186 本のカタログ閲覧、任意テキストのピクセル一致プレビュー（拡大・グリッド表示）、ライセンス表示 | `fontCatalog` / `loadFont` / `drawString` |
 | **Converter** | フォントファイル / C ソースを放り込む → detect → 変換 → ダウンロード。「入らない」は issues をそのまま可視化 | `decode` / `canEncode` / `encode` |
-| **Generator** | TTF → u8g2 / GFXfont。文字集合選択、閾値プレビュー、C ソース出力。**最終的に LGFXScreenBuilder fontgen.html 相当まで作り込む**（決定済み）: Google Fonts 等の再配布可能書体（OFL / Apache-2.0）からの選択、欠落文字の別書体からの補完（`merge` + FALLBACK_CHAIN）、ライブプレビュー。フォント取得のネットワークアクセスはアプリ側の責務（§2.3）で、ライブラリは `generateFont` に読み込み済みファミリを渡せる口だけ持つ | `generateFont` / `subset` / `merge` / `encode` / `encodeCSource` |
+| **Generator** | TTF → u8g2 / GFXfont。文字集合選択、閾値プレビュー、C ソース出力。**最終的に LGFXScreenBuilder fontgen.html 相当まで作り込む**（決定済み）: Google Fonts 等の再配布可能書体（OFL / Apache-2.0）からの選択（実装済み）、欠落文字の別書体からの補完（`merge` + FALLBACK_CHAIN。未実装）、ライブプレビュー。**現状の UI は暫定で、fontgen.html の UI を手本に全面リデザインする**（利用者フィードバック 2026-08）。フォント取得のネットワークアクセスはアプリ側の責務（§2.3）で、ライブラリは `generateFont` に読み込み済みファミリを渡せる口だけ持つ | `generateFont` / `subset` / `merge` / `encode` / `encodeCSource` |
 | **Inspector** | カバレッジ、メトリクス、全形式サイズ比較表 | `inspect` / `estimateSize` |
 
 `examples/` には各 1 ファイルの最小サンプルを置く（§4.2）。アプリの多機能さとは独立に、「この API はこれだけで動く」を示すのが目的。
