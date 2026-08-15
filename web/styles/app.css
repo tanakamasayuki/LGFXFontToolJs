@@ -131,3 +131,61 @@ body {
 .info dd { margin: 0 0 8px; }
 
 .license { color: var(--muted); font-size: 12px; }
+
+.nav { display: flex; gap: 10px; font-size: 13px; }
+.nav a { color: var(--muted); text-decoration: none; }
+.nav a.current { color: var(--text); font-weight: 600; }
+.nav a:hover { color: var(--accent); }
+
+.gen-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 480px) 1fr;
+  gap: 18px;
+  padding: 14px 18px;
+  height: calc(100vh - 45px);
+  overflow: hidden;
+}
+.gen-form, .gen-result { overflow-y: auto; min-height: 0; }
+
+.gen-form button, .gen-result button {
+  padding: 7px 16px;
+  background: var(--accent);
+  color: #0b1420;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gen-form button:disabled, .gen-result button:disabled { opacity: 0.4; cursor: default; }
+
+.charsets { margin: 4px 0 14px; }
+.charsets summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.charsets fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0 0 8px;
+  padding: 6px 10px 8px;
+}
+.charsets legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.set-check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin: 2px 12px 2px 0; }
+.tier-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
+.tier-row span { min-width: 9em; color: var(--muted); }
+.tier-row select {
+  padding: 4px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.status { color: var(--muted); font-size: 13px; min-height: 1.2em; }
+.issues { list-style: none; margin: 10px 0; padding: 0; font-size: 12px; font-family: ui-monospace, monospace; }
+.issues li { padding: 2px 0; }
+.issues li.error { color: #ff8080; }
+.issues li.warning { color: #e0b060; }
+.issues li.ok { color: #7fd77f; }
+
+@media (max-width: 900px) {
+  .layout, .gen-layout { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+}

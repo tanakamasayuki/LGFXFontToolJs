@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LGFX Font Tool JS — Generator</title>
+  <link rel="stylesheet" href="./styles/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>LGFX Font Tool JS <span class="sub" data-i18n="gen.subtitle">Generator</span></h1>
+    <div class="topbar-right">
+      <nav class="nav">
+        <a href="./index.html" data-i18n="nav.viewer">Viewer</a>
+        <a href="./generator.html" class="current" data-i18n="nav.generator">Generator</a>
+      </nav>
+      <select id="lang" data-i18n-title="controls.language"></select>
+      <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs">GitHub</a>
+    </div>
+  </header>
+
+  <main class="gen-layout">
+    <section class="gen-form">
+      <div class="controls">
+        <label class="grow"><span data-i18n="gen.file">Font file</span>
+          <input id="file" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
+        </label>
+        <label><span data-i18n="gen.px">Character height (px)</span>
+          <input id="px" type="number" value="24" min="6" max="120" step="1">
+        </label>
+        <label><span data-i18n="gen.weight">Weight</span>
+          <select id="weight">
+            <option value="400" selected>400</option>
+            <option value="700">700</option>
+          </select>
+        </label>
+        <label class="check"><span data-i18n="gen.italic">Italic</span>
+          <input id="italic" type="checkbox">
+        </label>
+        <label><span data-i18n="gen.threshold">Threshold</span>
+          <input id="threshold" type="range" value="128" min="16" max="240" step="8">
+        </label>
+      </div>
+
+      <div class="controls">
+        <label><span data-i18n="gen.template">Template</span>
+          <select id="template"></select>
+        </label>
+        <label class="grow"><span data-i18n="gen.customText">Extra characters</span>
+          <input id="custom-text" type="text" value="">
+        </label>
+        <label class="grow"><span data-i18n="gen.customRanges">Extra ranges</span>
+          <input id="custom-ranges" type="text" value="">
+        </label>
+      </div>
+
+      <details class="charsets" open>
+        <summary><span data-i18n="gen.charsets">Character sets</span> — <span id="selected-count"></span></summary>
+        <div id="axes"></div>
+      </details>
+
+      <div class="controls">
+        <label><span data-i18n="gen.format">Output format</span>
+          <select id="format">
+            <option value="u8g2" selected>u8g2</option>
+            <option value="gfx">GFXfont</option>
+          </select>
+        </label>
+        <label><span data-i18n="gen.symbolName">C identifier</span>
+          <input id="symbol" type="text" value="MyFont24">
+        </label>
+        <label class="grow"><span data-i18n="gen.typeface">Typeface</span>
+          <input id="typeface" type="text" value="">
+        </label>
+        <label class="grow"><span data-i18n="gen.licenseName">License</span>
+          <input id="license" type="text" value="">
+        </label>
+        <label class="check"><span data-i18n="gen.dropInvalid">Drop violating glyphs</span>
+          <input id="drop-invalid" type="checkbox">
+        </label>
+        <button id="generate" data-i18n="gen.generate">Generate</button>
+      </div>
+
+      <p id="status" class="status"></p>
+    </section>
+
+    <section class="gen-result" id="result" hidden>
+      <div class="controls">
+        <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
+          <input id="preview-text" type="text" value="">
+        </label>
+        <button id="dl-h" data-i18n="gen.downloadH">Download .h</button>
+        <button id="dl-bin" data-i18n="gen.downloadBin">Download binary</button>
+      </div>
+      <div class="preview-wrap"><canvas id="preview"></canvas></div>
+      <dl id="info" class="info"></dl>
+      <ul id="issues" class="issues"></ul>
+    </section>
+  </main>
+
+  <script type="module" src="./generator.js"></script>
+</body>
+</html>

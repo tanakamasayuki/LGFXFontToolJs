@@ -26,6 +26,7 @@ export {
   packGfxContainer,
   unpackGfxContainer,
 } from './format/gfxfont.js';
+export { encodeCSource, sanitizeIdent, licenseNotice, summarizeRanges } from './format/csource.js';
 export { decodeGlcd } from './format/glcd.js';
 export { decodeFixedBmp } from './format/fixedbmp.js';
 export { decodeBmpFont } from './format/bmpfont.js';
@@ -36,6 +37,25 @@ export { packLegacyContainer, unpackLegacyContainer } from './format/legacy.js';
 export { drawString, drawChar } from './render/draw.js';
 export { textWidth, fontHeight, measureText, codepointsOf } from './render/measure.js';
 export { DATUM, resolveDatum } from './render/datum.js';
+
+// 文字集合
+export {
+  parseRanges,
+  codepointsOfSet,
+  resolveCharset,
+  toggleSet,
+  splitBmp,
+  countOf,
+  tierSiblings,
+  AXES,
+  TEMPLATES,
+  templateById,
+  ALL_SET_IDS,
+} from './charsets/charsets.js';
+
+// 生成（ブラウザ専用。Node で呼ぶと CapabilityError）
+export { generateFont } from './gen/generate.js';
+export { loadTtf, unloadTtf, rasterizeSet, measureTtf, ensureRasterizer } from './gen/rasterize.js';
 
 // 内蔵フォントコレクション
 export { fontCatalog, collectionInfo } from './fonts/catalog.js';
