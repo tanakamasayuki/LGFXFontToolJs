@@ -1,0 +1,12 @@
+# オラクルハーネス（仕様 §13.1）。LovyanGFX のバージョンは仕様の照合対象
+# （v1.2.26）に固定する。scripts/extract-fonts.js の LGFX_VERSION と一致させること。
+profiles:
+  host:
+    fqbn: lang-ship:host:host:mode=lgfx
+    platforms:
+      - platform: lang-ship:host (1.4.7)
+        platform_index_url: https://tanakamasayuki.github.io/lang-ship-arduino-core/package_lang-ship_index.json
+    libraries:
+      - LovyanGFX (1.2.26)
+
+default_profile: host

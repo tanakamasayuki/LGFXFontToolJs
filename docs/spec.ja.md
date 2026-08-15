@@ -759,7 +759,7 @@ esp-flashjs の方式を踏襲する。
 
 | 経路 | 内容 |
 | --- | --- |
-| npm | 単一パッケージ。`files` = `dist` / `src` / `types` / フォントデータ / NOTICE。フォントデータがサイズの大半（数 MB 想定。抽出時に実測し README に記載）を占めるが、それがこのパッケージの価値なので許容する |
+| npm | 単一パッケージ。`files` = `dist` / `src` / `types` / NOTICE。**フォントデータの配布方法は未決**（§18）— 実測 42.2MB（efont 系 80 本が各 13,000 グリフ超）であり、npm 同梱は重い。リポジトリには全量コミットする（リポジトリサイズは許容と決定済み） |
 | CDN (jsDelivr 等) | `dist/lgfx-font-tool.min.js`。フォントデータは `dist/fonts/` から相対解決されるので CDN でもそのまま動く。バージョン固定を README で必須と明記 |
 | GitHub Pages | リファレンスアプリ + examples + ドキュメント |
 | GitHub Actions | `ci.yml`（check + build）/ `pages.yml` / `release.yml`（npm publish） |
@@ -807,6 +807,7 @@ esp-flashjs の方式を踏襲する。
 | 論点 | 内容 | 現時点の傾き |
 | --- | --- | --- |
 | npm パッケージ名 | リポジトリは `LGFXFontToolJs`。npm 名は要決定 | `lgfx-font-tool`（本書のコード例はこれで書いてある） |
+| **内蔵フォントデータの配布方法** | 実測 42.2MB あり npm 同梱は重い。候補: ①npm 同梱（そのまま / gzip。`DecompressionStream` なら依存ゼロを保てる）②GitHub Pages 等から実行時ダウンロード（`loadFont` の解決先を差し替え可能にする）③データ別パッケージ（`lgfx-font-tool-fonts`） | 未決。リポジトリへの全量コミットは決定済み。よく使うフォントだけ同梱し残りをリモート解決とする折衷も検討 |
 | オラクル fixture の CI 再生成 | ローカル手順にとどめるか、workflow_dispatch でホストビルドまで回すか | まずローカル + コミット運用。ハーネスが安定したら CI 化 |
 | 収録外文字の描画挙動 | 何も描かず送りゼロか、tofu か。LovyanGFX の実挙動確認待ち | オラクルで確定し §9.2 を更新 |
 | BFF | 未文書で仕様が安定していない。カーニング・可変 bpp を持つ | Phase 4 で再評価 |

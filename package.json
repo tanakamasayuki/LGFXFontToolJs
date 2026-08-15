@@ -58,6 +58,7 @@
     "lint:layers": "node scripts/check-layers.js",
     "check": "npm run test && npm run typecheck && npm run lint:layers",
     "extract-fonts": "node scripts/extract-fonts.js",
+    "oracle": "node oracle/gen-fonts-table.js && arduino-cli compile --profile host --build-path .cache/oracle-build oracle/oracle_dump && node oracle/run-oracle.js .cache/oracle-build/oracle_dump.ino.out",
     "serve": "node scripts/serve.js"
   },
   "devDependencies": {
