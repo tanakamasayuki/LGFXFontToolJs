@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "lib": ["es2022", "dom"]
   },
-  "include": ["src/**/*.js", "scripts/**/*.js", "test/**/*.js", "oracle/**/*.js"]
+  "include": ["src/**/*.js", "scripts/**/*.js", "test/**/*.js", "oracle/**/*.js", "web/**/*.js"]
 }

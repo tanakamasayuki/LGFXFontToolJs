@@ -16,9 +16,16 @@ specification (Japanese; English version will follow once it stabilizes).
 ```sh
 npm install
 npm run check          # tests + typecheck + layer lint
-npm test               # node:test
+npm test               # node:test (includes the oracle exact-match suite)
+npm run serve          # Viewer at http://localhost:8080/web/, samples at /examples/
+npm run build:site     # site/ (what GitHub Pages serves)
 npm run extract-fonts  # re-extract bundled fonts from LovyanGFX sources
+npm run oracle         # regenerate oracle fixtures with a native LovyanGFX build
 ```
+
+Rendering correctness is guaranteed by byte-exact comparison against 1,860 cases
+drawn by the real LovyanGFX (built natively with the lang-ship:host core) —
+see [oracle/](./oracle/README.ja.md).
 
 ## License
 

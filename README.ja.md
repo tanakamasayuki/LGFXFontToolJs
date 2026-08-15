@@ -15,9 +15,15 @@ LovyanGFX v1.2.26 の内蔵フォント 186 本の同梱コレクションから
 ```sh
 npm install
 npm run check          # テスト・型検査・レイヤ検査
-npm test               # node:test
+npm test               # node:test（オラクル完全一致テスト込み）
+npm run serve          # http://localhost:8080/web/ で Viewer、/examples/ でサンプル
+npm run build:site     # site/（GitHub Pages が配信するもの）
 npm run extract-fonts  # LovyanGFX ソースから内蔵フォントを再抽出
+npm run oracle         # LovyanGFX ホストビルドでオラクル fixture を再生成
 ```
+
+描画の正しさは、実物の LovyanGFX（lang-ship:host コアでネイティブビルド）が描いた
+1,860 ケースとのバイト列完全一致で担保しています（[oracle/](./oracle/README.ja.md)）。
 
 ## ライセンス
 

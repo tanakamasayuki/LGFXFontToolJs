@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>render-text — LGFX Font Tool JS</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    canvas { border: 1px solid #ccc; image-rendering: pixelated; }
+    label { display: block; margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>render-text</h1>
+  <p>内蔵フォントで文字列を 1bpp 描画し、ImageData にして Canvas へ貼る最小例。</p>
+
+  <label>フォント <select id="font"></select></label>
+  <label>テキスト <input id="text" value="こんにちは、世界! Hello 123" size="40"></label>
+  <canvas id="out"></canvas>
+
+  <script type="module">
+    import {
+      fontCatalog, loadFont, createBitmap, getPixel, drawString, textWidth, fontHeight,
+    } from '../src/index.js';
+
+    const fontEl = document.getElementById('font');
+    const textEl = document.getElementById('text');
+    const canvas = document.getElementById('out');
+
+    // かなを収録しているフォントを候補にする
+    for (const e of fontCatalog.filter((e) => e.coverage.includes('kana'))) {
+      const opt = document.createElement('option');
+      opt.value = e.name;
+      opt.textContent = `${e.name} (${e.lineHeight}px)`;
+      fontEl.appendChild(opt);
+    }
+    fontEl.value = 'lgfxJapanGothic_24';
+
+    async function render() {
+      const font = await loadFont(fontEl.value);
+      const text = textEl.value;
+
+      // 1bpp のビットマップに描く（デバイスに送るのと同じデータ）
+      const w = textWidth(font, text) + 4;
+      const h = fontHeight(font) + 4;
+      const bmp = createBitmap(w, h, 1);
+      drawString(bmp, font, text, 2, 2);
+
+      // ImageData 化は利用側の仕事（仕様 §9.1）。ここがそのヘルパの実例
+      const zoom = 2;
+      canvas.width = w * zoom;
+      canvas.height = h * zoom;
+      const ctx = canvas.getContext('2d');
+      const img = ctx.createImageData(w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const v = getPixel(bmp, x, y) ? 0 : 255; // 黒文字・白地
+          const i = (y * w + x) * 4;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+          img.data[i + 3] = 255;
+        }
+      }
+      const off = new OffscreenCanvas(w, h);
+      off.getContext('2d').putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+    }
+
+    fontEl.addEventListener('input', render);
+    textEl.addEventListener('input', render);
+    render();
+  </script>
+</body>
+</html>
