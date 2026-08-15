@@ -31,14 +31,15 @@ const lines = (await readFile(new URL('oracle-index.jsonl', base), 'utf8'))
 const bin = new Uint8Array(await readFile(new URL('oracle-bitmaps.bin', base)));
 
 test('実物一致: エンコード結果を LovyanGFX が読んだ描画と一致する', async () => {
-  assert.equal(lines.length, 20);
+  assert.equal(lines.length, 28);
   /** @type {Map<string, import('../src/model/font.js').Font>} */
   const cache = new Map();
   for (const c of lines) {
     let font = cache.get(c.file);
     if (!font) {
       const bytes = new Uint8Array(await readFile(new URL(c.file, base)));
-      font = decode(bytes, { format: c.file.endsWith('.u8g2') ? 'u8g2' : 'gfx' });
+      const format = c.file.endsWith('.u8g2') ? 'u8g2' : c.file.endsWith('.vlw') ? 'vlw' : 'gfx';
+      font = decode(bytes, { format });
       cache.set(c.file, font);
     }
     const text = TEXTS[/** @type {keyof typeof TEXTS} */ (c.text)];

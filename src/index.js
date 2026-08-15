@@ -27,6 +27,7 @@ export {
   unpackGfxContainer,
 } from './format/gfxfont.js';
 export { decodeBdf, encodeBdf, canEncodeBdf } from './format/bdf.js';
+export { decodeVlw, encodeVlw, canEncodeVlw } from './format/vlw.js';
 export {
   encodeCSource,
   decodeCSource,

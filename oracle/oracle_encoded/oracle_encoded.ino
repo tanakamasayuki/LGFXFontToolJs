@@ -31,6 +31,8 @@ static const Case kCases[] = {
   { "fonts/font8.u8g2" },
   { "fonts/freesans12-re.gfx1" },
   { "fonts/gothic12-cjk.gfx1" },
+  { "fonts/gothic16-sub.vlw" },
+  { "fonts/gothic16-nospace.vlw" },
 };
 
 static uint8_t* readAll(const char* path, size_t* outSize)
@@ -71,10 +73,14 @@ void setup()
 
     const lgfx::v1::IFont* font = nullptr;
     LoadedGfx gfx;
-    lgfx::v1::U8g2font* u8g2 = nullptr;
     if (strstr(file, ".u8g2")) {
-      u8g2 = new lgfx::v1::U8g2font(data);
-      font = u8g2;
+      font = new lgfx::v1::U8g2font(data);
+    } else if (strstr(file, ".vlw")) {
+      // 実行時ロード形式。PointerWrapper 経由で実物の loadFont に読ませる
+      auto vlw = new lgfx::v1::VLWfont();
+      auto wrap = new lgfx::v1::PointerWrapper(data, (uint32_t)size);
+      if (!vlw->loadFont(wrap)) { printf("FATAL vlw loadFont %s\n", file); exit(1); }
+      font = vlw;
     } else {
       if (!loadGfx1(data, size, &gfx)) { printf("FATAL bad gfx1 %s\n", file); exit(1); }
       font = gfx.font;

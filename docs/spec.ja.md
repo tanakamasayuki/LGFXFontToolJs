@@ -1,8 +1,8 @@
 # LGFXFontToolJs 仕様書 v0.1（草案）
 
 - 対象読者: 本リポジトリの実装者
-- ステータス: **草案。未実装。** 本書はレビューと議論のためのたたき台であり、確定事項ではない
-- 最終更新: 2026-08-15
+- ステータス: **実装進行中（Phase 1〜2 完了、Phase 3 はコア完了・UI 残）。** 本書は実装に合わせて更新する
+- 最終更新: 2026-08-16
 
 参考資料: 形式ごとの制約と実測データの出典は [FONT_FORMATS.ja.md（LGFXScreenBuilder）](https://github.com/tanakamasayuki/LGFXScreenBuilder/blob/main/docs/FONT_FORMATS.ja.md)。
 

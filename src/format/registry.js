@@ -5,6 +5,7 @@
 import { decodeU8g2, readU8g2Header, encodeU8g2, canEncodeU8g2 } from './u8g2.js';
 import { decodeGfx, encodeGfx, canEncodeGfx } from './gfxfont.js';
 import { decodeBdf, encodeBdf, canEncodeBdf } from './bdf.js';
+import { decodeVlw, encodeVlw, canEncodeVlw } from './vlw.js';
 import { decodeCSource } from './csource.js';
 import { decodeGlcd } from './glcd.js';
 import { decodeFixedBmp } from './fixedbmp.js';
@@ -37,6 +38,7 @@ const FORMATS = [
   { id: 'u8g2', name: 'u8g2', decode: true, encode: true },
   { id: 'gfx', name: 'GFXfont (GFX1 container)', decode: true, encode: true },
   { id: 'bdf', name: 'BDF 2.1 (text)', decode: true, encode: true },
+  { id: 'vlw', name: 'VLW (Processing / TFT_eSPI Smooth Font)', decode: true, encode: true },
   { id: 'csource', name: 'C/C++ source', decode: true, encode: true, note: 'decodeCSource / encodeCSource' },
   { id: 'glcd', name: 'GLCDfont (raw + params)', decode: true, encode: false },
   { id: 'fixedbmp', name: 'FixedBMPfont (raw + params)', decode: true, encode: false },
@@ -154,6 +156,8 @@ export function decode(input, opts = {}) {
       return decodeU8g2(input, opts);
     case 'gfx':
       return decodeGfx(input, opts);
+    case 'vlw':
+      return decodeVlw(input, opts);
     case 'glcd': {
       if (!opts.glcd) throw new FormatError('MISSING_PARAMS', 'glcd format needs opts.glcd params');
       return decodeGlcd(input, opts.glcd, opts);
@@ -187,6 +191,8 @@ export function canEncode(font, format) {
       return canEncodeGfx(font);
     case 'bdf':
       return canEncodeBdf(font);
+    case 'vlw':
+      return canEncodeVlw(font);
     default: {
       const info = FORMATS.find((f) => f.id === format);
       if (!info) throw new FormatError('UNKNOWN_FORMAT', `unknown format id: ${format}`, { format });
@@ -215,6 +221,8 @@ export function encode(font, opts) {
       // BDF はテキスト形式。ファイルとして扱えるよう UTF-8 バイト列で返す
       // （テキストが欲しい場合は encodeBdf() を直接使う）
       return new TextEncoder().encode(encodeBdf(font, opts));
+    case 'vlw':
+      return encodeVlw(font, opts);
     default: {
       const info = FORMATS.find((f) => f.id === opts.format);
       if (!info) {

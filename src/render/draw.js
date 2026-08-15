@@ -7,8 +7,9 @@
  * ゼロ初期化した対象への描画結果は fill モードと画素単位で一致する。
  *
  * 倍率適用時のピクセル境界の量子化は元形式ごとに癖が異なるため、
- * font.meta.drawProfile（'gfx' | 'u8g2' | 'rle' | 'bmp' | 'glcd'）で再現する。
+ * font.meta.drawProfile（'gfx' | 'u8g2' | 'rle' | 'bmp' | 'glcd' | 'vlw'）で再現する。
  * 整数倍率ではどのプロファイルも同じ結果になる。プロファイル未指定は 'gfx'。
+ * 8bpp の描画先には被覆値（1bpp グリフは 255）を書く。
  */
 import { fillRect, drawRect, getPixel } from '../model/bitmap.js';
 import { resolveDatum } from './datum.js';
@@ -93,7 +94,7 @@ function drawGlyphGfx(dst, glyph, gx, yTop, boxRow, sx, sy) {
       const x0 = (run.start * sx) >> 16;
       const x1 = (run.end * sx) >> 16;
       const fw = x1 < limitWidth && x1 === x0 ? 1 : x1 - x0;
-      fillRect(dst, gx + x0, yTop + y0, fw, fh, 1);
+      fillRect(dst, gx + x0, yTop + y0, fw, fh, dst.bpp === 8 ? 255 : 1);
     }
   }
 }
@@ -122,7 +123,7 @@ function drawGlyphU8g2(dst, glyph, gx, yTop, boxRow, sx, sy) {
       if (!run.value) continue;
       const x0 = (run.start * sx) >> 16;
       const x1 = (run.end * sx) >> 16;
-      if (x0 < x1) fillRect(dst, gx + x0, yTop + y0, x1 - x0, y1 - y0, 1);
+      if (x0 < x1) fillRect(dst, gx + x0, yTop + y0, x1 - x0, y1 - y0, dst.bpp === 8 ? 255 : 1);
     }
   }
 }
@@ -153,7 +154,38 @@ function drawGlyphBmp(dst, glyph, gx, yTop, sx, sy) {
       const x0 = (run.start * sx) >> 16;
       let x1 = (run.end * sx) >> 16;
       if (x1 === x0) x1++;
-      fillRect(dst, gx + x0, yTop + y0, x1 - x0, fh, 1);
+      fillRect(dst, gx + x0, yTop + y0, x1 - x0, fh, dst.bpp === 8 ? 255 : 1);
+    }
+  }
+}
+
+/**
+ * VLWfont::drawChar の前景描画部の移植。8bpp の被覆値をピクセル単位で置く。
+ * 1bpp の描画先には「被覆値が 1 以上なら点灯」（LGFX が黒地に白でブレンド
+ * した結果を 2 値化したものと一致する）。潰れたピクセルは描かない。
+ * @param {Bitmap} dst
+ * @param {Glyph} glyph
+ * @param {number} gx
+ * @param {number} yTop
+ * @param {number} boxRow
+ * @param {number} sx
+ * @param {number} sy
+ */
+function drawGlyphVlw(dst, glyph, gx, yTop, boxRow, sx, sy) {
+  const bmp = glyph.bitmap;
+  const w = bmp.width;
+  const h = bmp.height;
+  for (let i = 0; i < h; i++) {
+    const y0 = ((boxRow + i) * sy) >> 16;
+    const y1 = ((boxRow + i + 1) * sy) >> 16;
+    if (y1 <= y0) continue;
+    for (let j = 0; j < w; j++) {
+      const a = getPixel(bmp, j, i);
+      if (a === 0) continue;
+      const x0 = (j * sx) >> 16;
+      const x1 = ((j + 1) * sx) >> 16;
+      if (x1 <= x0) continue;
+      fillRect(dst, gx + x0, yTop + y0, x1 - x0, y1 - y0, dst.bpp === 8 ? a : 1);
     }
   }
 }
@@ -181,7 +213,7 @@ function drawGlyphGlcd(dst, glyph, gx, yTop, sx, sy) {
       if (!run.value) continue;
       const y0 = (run.start * sy) >> 16;
       const y1v = (run.end * sy) >> 16;
-      fillRect(dst, gx + x0, yTop + y0, cw, y1v - y0, 1);
+      fillRect(dst, gx + x0, yTop + y0, cw, y1v - y0, dst.bpp === 8 ? 255 : 1);
     }
   }
 }
@@ -196,7 +228,7 @@ function drawGlyphGlcd(dst, glyph, gx, yTop, sx, sy) {
  */
 function drawDummy(dst, x, yTop, w, h) {
   if (w > 2 && h > 2) {
-    drawRect(dst, x + 1, yTop + 1, w - 2, h - 2, 1);
+    drawRect(dst, x + 1, yTop + 1, w - 2, h - 2, dst.bpp === 8 ? 255 : 1);
   }
 }
 
@@ -228,12 +260,28 @@ function drawGlyphAt(dst, font, glyph, x, yTop, sx, sy) {
     case 'glcd':
       drawGlyphGlcd(dst, glyph, gx, yTop, sx, sy);
       break;
+    case 'vlw':
+      drawGlyphVlw(dst, glyph, gx, yTop, boxRow, sx, sy);
+      break;
     case 'gfx':
     default:
       drawGlyphGfx(dst, glyph, gx, yTop, boxRow, sx, sy);
       break;
   }
   return xAdvance;
+}
+
+/**
+ * VLW の空白の癖（LGFX VLWfont::drawChar）: U+0020 はグリフの有無に関わらず
+ * 何も描かず spaceWidth だけ送る。該当時は送り幅（未スケール）を返す。
+ * @param {Font} font
+ * @param {number} cp
+ * @returns {number | null}
+ */
+function vlwSpaceAdvance(font, cp) {
+  if (cp !== 0x20 || font.meta.drawProfile !== 'vlw') return null;
+  const vlw = /** @type {{vlw?: {spaceWidth: number}}} */ (font.meta.format ?? {}).vlw;
+  return vlw ? vlw.spaceWidth : null;
 }
 
 /**
@@ -280,6 +328,11 @@ export function drawString(dst, font, text, x, y, style = {}) {
   }
 
   for (const cp of cps) {
+    const spaceAdv = vlwSpaceAdvance(font, cp);
+    if (spaceAdv !== null) {
+      sumX += (spaceAdv * sx) >> 16;
+      continue;
+    }
     const glyph = font.glyphs.get(cp) ?? font.glyphs.get(0);
     if (glyph) {
       sumX += drawGlyphAt(dst, font, glyph, x + sumX, y, sx, sy);
@@ -309,6 +362,8 @@ export function drawString(dst, font, text, x, y, style = {}) {
 export function drawChar(dst, font, codepoint, x, y, style = {}) {
   const sx = toFixed16(style.sizeX ?? 1);
   const sy = toFixed16(style.sizeY ?? 1);
+  const spaceAdv = vlwSpaceAdvance(font, codepoint);
+  if (spaceAdv !== null) return (spaceAdv * sx) >> 16;
   const glyph = font.glyphs.get(codepoint) ?? font.glyphs.get(0);
   if (glyph) return drawGlyphAt(dst, font, glyph, x, y, sx, sy);
   const fb = font.meta.fallback ?? { advance: 0, width: 0, xOffset: 0 };

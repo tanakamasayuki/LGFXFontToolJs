@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { loadFont } from '../src/fonts/loader.js';
 import { encodeU8g2 } from '../src/format/u8g2.js';
 import { encodeGfx } from '../src/format/gfxfont.js';
+import { encodeVlw } from '../src/format/vlw.js';
 import { subset } from '../src/model/subset.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,5 +38,16 @@ put('font8.u8g2', encodeU8g2(await loadFont('Font8')));
 put('freesans12-re.gfx1', encodeGfx(await loadFont('FreeSans12pt7b')));
 // GFX: 飛び飛びの CJK 集合（EncodeRange の線形走査を LovyanGFX に回させる）
 put('gothic12-cjk.gfx1', encodeGfx(await loadFont('lgfxJapanGothic_12')));
+
+// VLW: 空白グリフ「あり」（LGFX は描画時に無視して spaceWidth で送る癖の検証）
+put(
+  'gothic16-sub.vlw',
+  encodeVlw(subset(await loadFont('lgfxJapanGothic_16'), 'Ag9 !~日本語あア漢')),
+);
+// VLW: 空白グリフ「なし」（spaceWidth 合成の検証）
+put(
+  'gothic16-nospace.vlw',
+  encodeVlw(subset(await loadFont('lgfxJapanGothic_16'), 'Ag9!~日本語あア漢')),
+);
 
 console.log('done');
