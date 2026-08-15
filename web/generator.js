@@ -31,6 +31,7 @@ import {
   t,
   SUPPORTED_LOCALES,
 } from './i18n.js';
+import { FONTS, findFont, loadGoogleFont } from './googlefonts.js';
 
 /** @param {string} id */
 function $(id) {
@@ -40,6 +41,10 @@ function $(id) {
 }
 
 const langEl = /** @type {HTMLSelectElement} */ ($('lang'));
+const sourceEl = /** @type {HTMLSelectElement} */ ($('source'));
+const gfontEl = /** @type {HTMLSelectElement} */ ($('gfont'));
+const gfontRowEl = $('gfont-row');
+const fileRowEl = $('file-row');
 const fileEl = /** @type {HTMLInputElement} */ ($('file'));
 const pxEl = /** @type {HTMLInputElement} */ ($('px'));
 const weightEl = /** @type {HTMLSelectElement} */ ($('weight'));
@@ -70,6 +75,9 @@ let sets = ['ascii'];
 let sampleText = 'Hello 123';
 /** @type {ArrayBuffer | null} */
 let fontData = null;
+/** Google Fonts の部分読み込みの続き（文字集合を広げた再生成用）
+ * @type {{key: string, family: string, loaded: Set<string>} | null} */
+let gfState = null;
 /** @type {import('../src/model/font.js').Font | null} */
 let generated = null;
 let generatedMissing = 0;
@@ -89,8 +97,55 @@ function applyLanguage() {
   langEl.value = currentLocale();
   renderTemplates();
   renderAxes();
+  renderGoogleFonts();
   renderSelectedCount();
 }
+
+// --- フォントソース ------------------------------------------------------------
+
+function renderGoogleFonts() {
+  const cur = gfontEl.value || 'Noto Sans JP';
+  gfontEl.textContent = '';
+  for (const script of ['latin', 'display', 'japanese', 'cjk', 'symbol']) {
+    const group = document.createElement('optgroup');
+    group.label = t(`gscript.${script}`);
+    for (const f of FONTS.filter((f) => f.script === script)) {
+      const opt = document.createElement('option');
+      opt.value = f.family;
+      opt.textContent = `${f.family} — ${f.by} (${f.license.id})`;
+      group.appendChild(opt);
+    }
+    gfontEl.appendChild(group);
+  }
+  gfontEl.value = cur;
+}
+
+function syncSourceRows() {
+  const google = sourceEl.value === 'google';
+  gfontRowEl.hidden = !google;
+  fileRowEl.hidden = google;
+}
+
+/** 選択中のソースに合わせて帰属表示と識別子を埋める */
+function syncAttribution() {
+  if (sourceEl.value === 'google') {
+    const f = findFont(gfontEl.value);
+    if (f) {
+      typefaceEl.value = f.family;
+      licenseEl.value = f.license.name;
+      symbolEl.value = sanitizeIdent(`${f.family}_${pxEl.value}`);
+    }
+  }
+}
+
+sourceEl.addEventListener('input', () => {
+  syncSourceRows();
+  syncAttribution();
+});
+gfontEl.addEventListener('input', () => {
+  gfState = null;
+  syncAttribution();
+});
 
 // --- 文字集合 UI --------------------------------------------------------------
 
@@ -204,18 +259,37 @@ fileEl.addEventListener('input', async () => {
 });
 
 generateEl.addEventListener('click', async () => {
-  if (!fontData) {
+  const useGoogle = sourceEl.value === 'google';
+  if (!useGoogle && !fontData) {
     statusEl.textContent = t('gen.needFile');
     return;
   }
   const { bmp, dropped } = splitBmp(currentCodepoints());
   generateEl.disabled = true;
   try {
+    const weight = Number(weightEl.value);
+    const italic = italicEl.checked;
+    /** @type {{source?: ArrayBuffer, family?: string}} */
+    const src = {};
+    if (useGoogle) {
+      // 要求文字に掛かるサブセットだけ取得。文字集合を広げた再生成は続きから
+      statusEl.textContent = t('gen.fetching');
+      const key = `${gfontEl.value}|${weight}|${italic}`;
+      const loaded = await loadGoogleFont(gfontEl.value, bmp, {
+        weight,
+        italic,
+        into: gfState?.key === key ? gfState : null,
+      });
+      gfState = { key, family: loaded.family, loaded: loaded.loaded };
+      src.family = loaded.family;
+    } else {
+      src.source = /** @type {ArrayBuffer} */ (fontData).slice(0);
+    }
     const { font, missing } = await generateFont({
-      source: fontData.slice(0),
+      ...src,
       px: Number(pxEl.value) || 24,
       codepoints: bmp,
-      style: { weight: Number(weightEl.value), italic: italicEl.checked },
+      style: { weight, italic },
       threshold: Number(thresholdEl.value) || 128,
       familyName: typefaceEl.value,
       onProgress: ({ done, total }) => {
@@ -328,13 +402,18 @@ function download(content, name, type) {
 dlHEl.addEventListener('click', () => {
   if (!generated) return;
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
+  // Google Fonts 選択時はキュレーション情報から帰属表示を完全に埋める
+  const curated = sourceEl.value === 'google' ? findFont(gfontEl.value) : null;
   const src = encodeCSource(generated, {
     format: /** @type {'u8g2' | 'gfx'} */ (formatEl.value),
     symbolName: ident,
     dropInvalid: dropInvalidEl.checked,
     attribution: {
-      typeface: typefaceEl.value || undefined,
-      license: licenseEl.value || undefined,
+      typeface: typefaceEl.value || curated?.family,
+      license: licenseEl.value || curated?.license.name,
+      licenseUrl: curated?.license.url,
+      author: curated?.by,
+      origin: curated ? `Google Fonts (${curated.family})` : undefined,
     },
   });
   download(src, `${ident}.h`, 'text/plain');
@@ -361,6 +440,12 @@ langEl.addEventListener('input', async () => {
   applyLanguage();
 });
 
+pxEl.addEventListener('input', () => {
+  if (sourceEl.value === 'google') syncAttribution();
+});
+
 await initI18n();
 applyLanguage();
+syncSourceRows();
+syncAttribution();
 renderSelectedCount();

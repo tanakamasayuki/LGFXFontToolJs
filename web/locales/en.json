@@ -21,7 +21,6 @@
   "info.coverage": "Coverage",
   "list.meta": "{format} · {height}px · {kb} KB",
   "license.line": "{license} — {copyright}",
-
   "gen.docTitle": "LGFX Font Tool JS — Generator",
   "gen.subtitle": "Generator",
   "gen.file": "Font file (TTF / OTF / WOFF)",
@@ -53,7 +52,6 @@
   "gen.downloadH": "Download .h",
   "gen.downloadBin": "Download binary",
   "gen.previewText": "Preview text",
-
   "axis.latin": "Latin & Europe",
   "axis.kana": "Kana",
   "axis.han": "Han (kanji / hanzi / hanja)",
@@ -66,7 +64,6 @@
   "lang.all": "Everything",
   "lang.hangul": "Syllables",
   "tier.none": "(none)",
-
   "set.digits": "Digits",
   "set.ascii": "ASCII",
   "set.latinExt": "Latin-1 accents & signs",
@@ -96,7 +93,6 @@
   "set.symCurrency": "Currency",
   "set.symEnclosed": "Circled & enclosed",
   "set.symMisc": "Misc. marks",
-
   "tpl.clock": "Clock",
   "tpl.clockJa": "Clock (Japanese)",
   "tpl.sensor": "Sensor readout",
@@ -106,5 +102,15 @@
   "tpl.chineseUi": "Chinese UI (Simpl.)",
   "tpl.chineseTwUi": "Chinese UI (Trad.)",
   "tpl.koreanUi": "Korean UI",
-  "tpl.multilingual": "Multilingual"
+  "tpl.multilingual": "Multilingual",
+  "gen.source": "Source",
+  "gen.sourceGoogle": "Google Fonts (redistributable)",
+  "gen.sourceFile": "Local file",
+  "gen.gfont": "Typeface",
+  "gen.fetching": "Fetching font subsets…",
+  "gscript.latin": "Latin UI",
+  "gscript.display": "Display / clock",
+  "gscript.japanese": "Japanese",
+  "gscript.cjk": "Chinese / Korean",
+  "gscript.symbol": "Symbols"
 }

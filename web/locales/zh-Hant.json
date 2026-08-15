@@ -21,7 +21,6 @@
   "info.coverage": "涵蓋",
   "list.meta": "{format} · {height}px · {kb} KB",
   "license.line": "{license} — {copyright}",
-
   "gen.docTitle": "LGFX Font Tool JS — 產生器",
   "gen.subtitle": "產生器",
   "gen.file": "字型檔（TTF / OTF / WOFF）",
@@ -53,7 +52,6 @@
   "gen.downloadH": "下載 .h",
   "gen.downloadBin": "下載二進位",
   "gen.previewText": "預覽文字",
-
   "axis.latin": "拉丁與歐文",
   "axis.kana": "假名",
   "axis.han": "漢字",
@@ -66,7 +64,6 @@
   "lang.all": "全部",
   "lang.hangul": "音節",
   "tier.none": "（無）",
-
   "set.digits": "數字",
   "set.ascii": "ASCII",
   "set.latinExt": "歐文符號與變音",
@@ -96,7 +93,6 @@
   "set.symCurrency": "貨幣",
   "set.symEnclosed": "帶圈字元",
   "set.symMisc": "其他符號",
-
   "tpl.clock": "時鐘",
   "tpl.clockJa": "時鐘（日文）",
   "tpl.sensor": "感測器讀數",
@@ -106,5 +102,15 @@
   "tpl.chineseUi": "中文介面（簡體）",
   "tpl.chineseTwUi": "中文介面（繁體）",
   "tpl.koreanUi": "韓文介面",
-  "tpl.multilingual": "多語言"
+  "tpl.multilingual": "多語言",
+  "gen.source": "來源",
+  "gen.sourceGoogle": "Google Fonts（可再散布）",
+  "gen.sourceFile": "本機檔案",
+  "gen.gfont": "字型",
+  "gen.fetching": "正在取得字型子集…",
+  "gscript.latin": "拉丁介面",
+  "gscript.display": "顯示器・時鐘",
+  "gscript.japanese": "日文",
+  "gscript.cjk": "中文・韓文",
+  "gscript.symbol": "符號"
 }

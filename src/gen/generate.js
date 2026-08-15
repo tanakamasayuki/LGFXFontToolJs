@@ -34,10 +34,16 @@ function toModelGlyph(g) {
 }
 
 /**
- * フォントファイルから新しいビットマップフォントを生成する。
+ * フォントファイル（または読み込み済みの CSS ファミリ）から新しい
+ * ビットマップフォントを生成する。
+ *
+ * フォントの入手・読み込みはアプリの責務（仕様 §2.3。Google Fonts 等は
+ * アプリ側で FontFace としてページに登録し、`family` で渡す）。
+ * `source` を渡した場合の読み込みはこの関数が面倒を見る。
  *
  * @param {object} opts
- * @param {ArrayBuffer | string} opts.source - TTF/OTF/WOFF のバイナリ、または URL
+ * @param {ArrayBuffer | string} [opts.source] - TTF/OTF/WOFF のバイナリ、または URL
+ * @param {string} [opts.family] - ページに登録済みの CSS ファミリ名（source の代わり）
  * @param {number} opts.px - 文字高さ（行ボックスではなく文字インクの高さ）
  * @param {number[] | string} opts.codepoints - 収録する文字（コードポイント列 or 文字列）
  * @param {{weight?: number, italic?: boolean}} [opts.style]
@@ -56,7 +62,11 @@ export async function generateFont(opts) {
         )
       : [...new Set(opts.codepoints)].sort((a, b) => a - b);
 
-  const { family, face } = await loadTtf(opts.source);
+  if (opts.source === undefined && !opts.family) {
+    throw new TypeError('generateFont: pass either opts.source or opts.family');
+  }
+  const own = opts.source !== undefined ? await loadTtf(opts.source) : null;
+  const family = own ? own.family : /** @type {string} */ (opts.family);
   try {
     const { glyphs, missing, sizing, box } = await rasterizeSet({
       family,
@@ -101,6 +111,6 @@ export async function generateFont(opts) {
     });
     return { font, missing };
   } finally {
-    unloadTtf(face);
+    if (own) unloadTtf(own.face);
   }
 }

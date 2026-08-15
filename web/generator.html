@@ -22,7 +22,16 @@
   <main class="gen-layout">
     <section class="gen-form">
       <div class="controls">
-        <label class="grow"><span data-i18n="gen.file">Font file</span>
+        <label><span data-i18n="gen.source">Source</span>
+          <select id="source">
+            <option value="google" selected data-i18n="gen.sourceGoogle">Google Fonts</option>
+            <option value="file" data-i18n="gen.sourceFile">Local file</option>
+          </select>
+        </label>
+        <label class="grow" id="gfont-row"><span data-i18n="gen.gfont">Typeface (redistributable)</span>
+          <select id="gfont"></select>
+        </label>
+        <label class="grow" id="file-row" hidden><span data-i18n="gen.file">Font file</span>
           <input id="file" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
         </label>
         <label><span data-i18n="gen.px">Character height (px)</span>
