@@ -1,14 +1,22 @@
-# npm への公開。`npm version <ver> && git push --follow-tags` で v* タグを
-# 押すと走る。リポジトリ設定に NPM_TOKEN（Automation トークン）が必要。
+# npm への公開は手元から行う（plainbind 方式。§16）:
+#
+#   npm login                      # 初回だけ
+#   npm version 0.1.0              # preversion で check、VERSION 定数も自動同期
+#   npm publish --access public    # prepack が build + types を実行
+#   git push --follow-tags
+#
+# このワークフローは予備。npmjs.com 側で Trusted Publishing（GitHub Actions /
+# このリポジトリ / release.yml）を設定するか NPM_TOKEN シークレットを置いた
+# 場合にだけ、Actions タブから手動実行して CI から公開できる。
+# タグ push では発火しない（ローカル公開と衝突して赤くならないように）。
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # npm provenance / Trusted Publishing
 
 jobs:
   publish:

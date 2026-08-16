@@ -770,7 +770,8 @@ esp-flashjs の方式を踏襲する。
 | フォントデータ | ローダの解決順: ①`configureFontData({baseUrl})` の指定先（自前ミラー・オフライン用）②`import.meta.url` 基準のローカル ③GitHub Pages。リポジトリのクローンと Pages 上の Web アプリは全量ローカルで完結し、npm 利用者は CJK のみ初回フェッチになる。gzip 同梱案は不採用（u8g2 は RLE 済みで 80% までしか縮まない実測による） |
 | CDN (jsDelivr 等) | `dist/lgfx-font-tool.min.js`。フォントデータは `dist/fonts/` から相対解決されるので CDN でもそのまま動く。バージョン固定を README で必須と明記 |
 | GitHub Pages | リファレンスアプリ + examples + ドキュメント |
-| GitHub Actions | `ci.yml`（check + build）/ `pages.yml` / `release.yml`（npm publish） |
+| GitHub Actions | `ci.yml`（check + build）/ `pages.yml`。`release.yml` は手動実行専用の予備 |
+| npm 公開手順 | **手元から公開する（plainbind 方式。トークンをリポジトリに置かない）**: `npm login`（初回のみ）→ `npm version <ver>`（preversion で check、`VERSION` 定数を自動同期）→ `npm publish --access public`（prepack が build + types）→ `git push --follow-tags`。CI からの公開（Trusted Publishing / NPM_TOKEN）は `release.yml` の手動実行として残してある |
 
 ドキュメントは日本語（`.ja.md`）を正とし、内容が固まった段階で英語版を併置する（esp-flashjs 同様の対訳体制へ移行）。
 
