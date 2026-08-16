@@ -187,5 +187,6 @@
   "home.libTitle": "也是一個函式庫",
   "home.libDesc": "這些頁面能做的一切都來自一個零執行期相依的純 ESM JavaScript 函式庫 — npm install lgfx-font-tool，或從 CDN 匯入。繪製已與真實 LovyanGFX 在 1,860 個案例上逐位元組驗證一致。",
   "home.github": "原始碼、文件與問題回報見 GitHub →",
-  "home.docs": "指南：入門 / 按用途 / 進階 / 規格書 →"
+  "home.docs": "指南：入門 / 按用途 / 進階 / 規格書 →",
+  "home.npm": "npm: lgfx-font-tool →"
 }

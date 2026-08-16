@@ -3,6 +3,7 @@
 **組込み向けビットマップフォントを、JavaScript とブラウザで読み・変換し・描き・作る。**
 
 [English README](./README.md) ·
+[![npm](https://img.shields.io/npm/v/lgfx-font-tool)](https://www.npmjs.com/package/lgfx-font-tool)
 [![CI](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml/badge.svg)](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml)
 
 u8g2 / GFXfont (Adafruit GFX) / BDF / VLW / BFF / FONTX2 / LovyanGFX 内部形式の
@@ -26,6 +27,8 @@ LovyanGFX v1.2.26 の内蔵フォント 186 本の同梱コレクションから
 | [Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html) | 収録・被覆率・全形式サイズ比較・文言チェック |
 
 ## インストール
+
+[npm の lgfx-font-tool](https://www.npmjs.com/package/lgfx-font-tool) から:
 
 ```sh
 npm install lgfx-font-tool
@@ -135,7 +138,7 @@ npm run oracle         # LovyanGFX ホストビルドでオラクル fixture を
 
 設計の要点: 素の ESM + JSDoc(TypeScript 構文なし、`npm run types` で .d.ts 生成)、
 実行時依存ゼロ、`src/` は I/O 禁止(例外 2 モジュールのみ、CI で機械検査)。
-詳しくは[仕様書](./docs/spec.ja.md)へ。
+詳しくは[仕様書](./docs/spec.ja.md)へ。npm への公開は[リリース手順](./docs/release.ja.md)(コピペ 3 行)。
 
 ## ライセンス
 

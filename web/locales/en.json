@@ -187,5 +187,6 @@
   "home.libTitle": "Also a library",
   "home.libDesc": "Everything these pages do is a plain-ESM JavaScript library with zero runtime dependencies — npm install lgfx-font-tool, or import it from a CDN. Rendering is verified byte-exact against the real LovyanGFX on 1,860 oracle cases.",
   "home.github": "Source, docs & issues on GitHub →",
-  "home.docs": "Guides: beginner / use-case / advanced / specification →"
+  "home.docs": "Guides: beginner / use-case / advanced / specification →",
+  "home.npm": "npm: lgfx-font-tool →"
 }

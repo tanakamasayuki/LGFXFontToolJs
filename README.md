@@ -3,6 +3,7 @@
 **JavaScript toolkit for embedded bitmap fonts — decode, encode, convert, render and generate.**
 
 [日本語 README](./README.ja.md) ·
+[![npm](https://img.shields.io/npm/v/lgfx-font-tool)](https://www.npmjs.com/package/lgfx-font-tool)
 [![CI](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml/badge.svg)](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml)
 
 Decoders and encoders for u8g2 / GFXfont (Adafruit GFX) / BDF / VLW / BFF / FONTX2 /
@@ -31,6 +32,8 @@ Plain ESM with zero runtime dependencies and no build step — runs in Node.js a
 | [Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html) | Coverage, metrics, size comparison across every format, text checks |
 
 ## Install
+
+[lgfx-font-tool on npm](https://www.npmjs.com/package/lgfx-font-tool):
 
 ```sh
 npm install lgfx-font-tool
@@ -140,7 +143,8 @@ npm run oracle         # regenerate oracle fixtures with a native LovyanGFX buil
 
 Design in one breath: plain ESM + JSDoc (no TypeScript syntax; `npm run types` emits
 .d.ts), zero runtime dependencies, and no I/O inside `src/` (two audited exceptions,
-machine-checked in CI). See the [specification](./docs/spec.en.md) for the rest.
+machine-checked in CI). See the [specification](./docs/spec.en.md) for the rest. Publishing to npm is a
+three-line copy-paste — see the [release procedure](./docs/release.en.md).
 
 ## License
 

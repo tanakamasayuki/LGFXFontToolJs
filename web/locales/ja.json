@@ -187,5 +187,6 @@
   "home.libTitle": "ライブラリとしても",
   "home.libDesc": "ここでできることはすべて、実行時依存ゼロの素の ESM ライブラリです — npm install lgfx-font-tool、または CDN から import。描画は実物の LovyanGFX と 1,860 ケースのバイト列完全一致で検証済み。",
   "home.github": "ソース・ドキュメント・課題は GitHub へ →",
-  "home.docs": "ガイド: 初心者 / 用途別 / 上級者 / 仕様書 →"
+  "home.docs": "ガイド: 初心者 / 用途別 / 上級者 / 仕様書 →",
+  "home.npm": "npm: lgfx-font-tool →"
 }
