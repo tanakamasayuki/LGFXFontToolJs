@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LGFX Font Tool JS — Viewer</title>
+  <title>LGFX Font Tool JS</title>
   <link rel="stylesheet" href="./styles/app.css">
 </head>
 <body>
   <header class="topbar">
-    <h1>LGFX Font Tool JS <span class="sub" data-i18n="app.subtitle">Viewer</span></h1>
+    <h1>LGFX Font Tool JS</h1>
     <div class="topbar-right">
       <nav class="nav">
-        <a href="./index.html" class="current" data-i18n="nav.viewer">Viewer</a>
+        <a href="./viewer.html" data-i18n="nav.viewer">Viewer</a>
         <a href="./generator.html" data-i18n="nav.generator">Generator</a>
         <a href="./converter.html" data-i18n="nav.converter">Converter</a>
         <a href="./inspector.html" data-i18n="nav.inspector">Inspector</a>
@@ -21,43 +21,60 @@
     </div>
   </header>
 
-  <main class="layout">
-    <aside class="sidebar">
-      <input id="search" type="search" data-i18n-placeholder="search.placeholder" autocomplete="off">
-      <ul id="font-list" class="font-list"></ul>
-    </aside>
+  <main class="gen-main">
+    <section class="hero">
+      <h2 data-i18n="home.tagline">Read, convert, render and generate embedded bitmap fonts — in the browser.</h2>
+      <p class="sub" data-i18n="home.lead">Decoders and encoders for u8g2 / GFXfont / BDF /
+        VLW / BFF / FONTX2, a text renderer that matches LovyanGFX pixel for pixel, and all
+        186 fonts built into LovyanGFX v1.2.26. Everything below runs entirely in your
+        browser — no install, and your font files never leave your machine.</p>
+    </section>
 
-    <section class="content">
-      <div class="controls">
-        <label class="grow"><span data-i18n="controls.text">Text</span>
-          <input id="text" type="text" value="Hello 日本語 123 こんにちは">
-        </label>
-        <label><span data-i18n="controls.sizeX">Scale X</span>
-          <input id="size-x" type="number" value="1" min="0.25" max="8" step="0.25">
-        </label>
-        <label><span data-i18n="controls.sizeY">Scale Y</span>
-          <input id="size-y" type="number" value="1" min="0.25" max="8" step="0.25">
-        </label>
-        <label><span data-i18n="controls.datum">Datum</span>
-          <select id="datum"></select>
-        </label>
-        <label><span data-i18n="controls.zoom">Zoom</span>
-          <input id="zoom" type="range" value="3" min="1" max="12" step="1">
-        </label>
-        <label class="check"><span data-i18n="controls.grid">Grid</span>
-          <input id="grid" type="checkbox" checked>
-        </label>
-      </div>
+    <div class="tool-grid">
+      <a class="card tool-card" href="./viewer.html">
+        <h2 data-i18n="nav.viewer">Viewer</h2>
+        <p class="sub" data-i18n="home.viewerDesc">Browse the 186 built-in LovyanGFX fonts and
+          preview any text exactly as the device will draw it — scaling, datum and grid included.</p>
+        <span class="link" data-i18n="home.open">Open →</span>
+      </a>
+      <a class="card tool-card" href="./generator.html">
+        <h2 data-i18n="nav.generator">Generator</h2>
+        <p class="sub" data-i18n="home.generatorDesc">Turn a TTF or a redistributable Google Font
+          into a u8g2 / GFXfont header: pick the exact characters, fill gaps from a fallback
+          typeface, download a .h with attribution included.</p>
+        <span class="link" data-i18n="home.open">Open →</span>
+      </a>
+      <a class="card tool-card" href="./converter.html">
+        <h2 data-i18n="nav.converter">Converter</h2>
+        <p class="sub" data-i18n="home.converterDesc">Drop in a font file or a C header — the
+          format is auto-detected — and convert it to any other format, with constraint
+          violations reported instead of silent truncation.</p>
+        <span class="link" data-i18n="home.open">Open →</span>
+      </a>
+      <a class="card tool-card" href="./inspector.html">
+        <h2 data-i18n="nav.inspector">Inspector</h2>
+        <p class="sub" data-i18n="home.inspectorDesc">Inventory any font: metrics, code point
+          ranges, coverage per character set, "can it draw my strings?" checks, and exact size
+          in every output format.</p>
+        <span class="link" data-i18n="home.open">Open →</span>
+      </a>
+    </div>
 
-      <div class="preview-wrap">
-        <canvas id="preview"></canvas>
-      </div>
-
-      <dl id="info" class="info"></dl>
-      <p id="license" class="license"></p>
+    <section class="card">
+      <h2 data-i18n="home.libTitle">Also a library</h2>
+      <p class="sub" data-i18n="home.libDesc">Everything these pages do is a plain-ESM
+        JavaScript library with zero runtime dependencies — npm install lgfx-font-tool, or
+        import it from a CDN. Rendering is verified byte-exact against the real LovyanGFX
+        on 1,860 oracle cases.</p>
+      <p>
+        <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs" data-i18n="home.github">Source, docs &amp; issues on GitHub →</a>
+      </p>
+      <p>
+        <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs/tree/main/docs" data-i18n="home.docs">Guides: beginner / use-case / advanced / specification →</a>
+      </p>
     </section>
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./home.js"></script>
 </body>
 </html>

@@ -175,5 +175,17 @@
   "in.sizeIssues": "Constraints",
   "in.sizeNull": "won't fit",
   "in.computing": "Computing…",
-  "in.issueCounts": "{errors} errors / {warnings} warnings"
+  "in.issueCounts": "{errors} errors / {warnings} warnings",
+  "home.docTitle": "LGFX Font Tool JS",
+  "home.tagline": "Read, convert, render and generate embedded bitmap fonts — in the browser.",
+  "home.lead": "Decoders and encoders for u8g2 / GFXfont / BDF / VLW / BFF / FONTX2, a text renderer that matches LovyanGFX pixel for pixel, and all 186 fonts built into LovyanGFX v1.2.26. Everything below runs entirely in your browser — no install, and your font files never leave your machine.",
+  "home.open": "Open →",
+  "home.viewerDesc": "Browse the 186 built-in LovyanGFX fonts and preview any text exactly as the device will draw it — scaling, datum and grid included.",
+  "home.generatorDesc": "Turn a TTF or a redistributable Google Font into a u8g2 / GFXfont header: pick the exact characters, fill gaps from a fallback typeface, download a .h with attribution included.",
+  "home.converterDesc": "Drop in a font file or a C header — the format is auto-detected — and convert it to any other format, with constraint violations reported instead of silent truncation.",
+  "home.inspectorDesc": "Inventory any font: metrics, code point ranges, coverage per character set, \"can it draw my strings?\" checks, and exact size in every output format.",
+  "home.libTitle": "Also a library",
+  "home.libDesc": "Everything these pages do is a plain-ESM JavaScript library with zero runtime dependencies — npm install lgfx-font-tool, or import it from a CDN. Rendering is verified byte-exact against the real LovyanGFX on 1,860 oracle cases.",
+  "home.github": "Source, docs & issues on GitHub →",
+  "home.docs": "Guides: beginner / use-case / advanced / specification →"
 }

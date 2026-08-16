@@ -1,5 +1,7 @@
 # 用途別ガイド
 
+[English](./guide-usecases.en.md)
+
 「やりたいこと」から引くレシピ集です。フォントの基礎用語
 （グリフ・メトリクス・サブセット）が分からない場合は先に
 [初心者ガイド](./guide-beginner.ja.md) をどうぞ。API の厳密な仕様は
@@ -37,7 +39,7 @@ cd LGFXFontToolJs && npm install && npm run serve
 含まれます（npm / CDN は軽量 70 本を同梱し、残りは初回に自動取得）。
 
 コードを書かずに済ませたい場合は Web アプリもあります:
-[Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/)（内蔵フォントの閲覧）、
+[Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/viewer.html)（内蔵フォントの閲覧）、
 [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html)（新規作成）、
 [Converter](https://tanakamasayuki.github.io/LGFXFontToolJs/converter.html)（形式変換）、
 [Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html)（棚卸し・被覆率・サイズ比較）。

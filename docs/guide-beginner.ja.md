@@ -1,5 +1,7 @@
 # はじめてのビットマップフォント — 初心者ガイド
 
+[English](./guide-beginner.en.md)
+
 「マイコンの画面に文字を出したい。フォントというものが要るらしいが、
 仕組みがよく分からない」——そんな人のためのガイドです。
 フォントの予備知識はいっさい仮定しません。
@@ -148,7 +150,7 @@ U+3042 'あ'         ───→      あ の形をした画像や曲線
 
 ### ブラウザで（インストール不要）
 
-[Web Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/) を開くと、
+[Web Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/viewer.html) を開くと、
 LovyanGFX に内蔵されている全 186 フォントを一覧・プレビューできます。
 手元のフォントファイルを開いて中身を覗くこともできます。
 

@@ -175,5 +175,17 @@
   "in.sizeIssues": "限制",
   "in.sizeNull": "放不下",
   "in.computing": "計算中…",
-  "in.issueCounts": "錯誤 {errors} / 警告 {warnings}"
+  "in.issueCounts": "錯誤 {errors} / 警告 {warnings}",
+  "home.docTitle": "LGFX Font Tool JS",
+  "home.tagline": "在瀏覽器中讀取、轉換、繪製並產生嵌入式點陣字型。",
+  "home.lead": "u8g2 / GFXfont / BDF / VLW / BFF / FONTX2 的解碼器與編碼器、與 LovyanGFX 逐像素一致的繪製引擎，以及 LovyanGFX v1.2.26 內建的全部 186 款字型。下面的工具全部只在瀏覽器內執行 — 無需安裝，你的字型檔也不會離開本機。",
+  "home.open": "開啟 →",
+  "home.viewerDesc": "瀏覽 186 款內建字型，以與裝置完全相同的像素預覽任意文字 — 支援縮放、基準點與網格。",
+  "home.generatorDesc": "把 TTF 或可再散布的 Google Fonts 變成 u8g2 / GFXfont 標頭檔：挑選字元、用後備字型補全缺字、下載含署名的 .h。",
+  "home.converterDesc": "放入字型檔或 C 標頭檔即自動判定格式，並轉換為任意其他格式；放不下時不會靜默截斷，而是列出限制衝突。",
+  "home.inspectorDesc": "盤點任意字型：度量、碼位範圍、各字元集涵蓋率、「我的文字畫得出來嗎」檢查、每種輸出格式的精確大小。",
+  "home.libTitle": "也是一個函式庫",
+  "home.libDesc": "這些頁面能做的一切都來自一個零執行期相依的純 ESM JavaScript 函式庫 — npm install lgfx-font-tool，或從 CDN 匯入。繪製已與真實 LovyanGFX 在 1,860 個案例上逐位元組驗證一致。",
+  "home.github": "原始碼、文件與問題回報見 GitHub →",
+  "home.docs": "指南：入門 / 按用途 / 進階 / 規格書 →"
 }

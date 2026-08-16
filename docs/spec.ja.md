@@ -1,5 +1,7 @@
 # LGFXFontToolJs 仕様書 v0.1（草案）
 
+[English](./spec.en.md)
+
 - 対象読者: 本リポジトリの実装者
 - ステータス: **Phase 1〜4 実装済み（Web の 4 画面 = Viewer / Generator / Converter / Inspector を含む）。** 本書は実装に合わせて更新する
 - 最終更新: 2026-08-16

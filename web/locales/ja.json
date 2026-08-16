@@ -175,5 +175,17 @@
   "in.sizeIssues": "制約",
   "in.sizeNull": "入りません",
   "in.computing": "計算中…",
-  "in.issueCounts": "エラー {errors} / 警告 {warnings}"
+  "in.issueCounts": "エラー {errors} / 警告 {warnings}",
+  "home.docTitle": "LGFX Font Tool JS",
+  "home.tagline": "組込み向けビットマップフォントを、ブラウザで読み・変換し・描き・作る。",
+  "home.lead": "u8g2 / GFXfont / BDF / VLW / BFF / FONTX2 のデコーダ・エンコーダ、LovyanGFX とピクセル単位で一致する描画エンジン、LovyanGFX v1.2.26 内蔵の全 186 フォント。以下のツールはすべてブラウザ内だけで動きます — インストール不要で、フォントファイルが手元から出ることもありません。",
+  "home.open": "開く →",
+  "home.viewerDesc": "内蔵 186 フォントを一覧し、任意のテキストを実機とまったく同じピクセルでプレビュー。倍率・基準点・グリッド表示付き。",
+  "home.generatorDesc": "TTF や再配布可能な Google Fonts から u8g2 / GFXfont のヘッダを生成。文字を選び、無い文字は別書体で補完し、帰属表示入りの .h をダウンロード。",
+  "home.converterDesc": "フォントファイルや C ヘッダを放り込むと形式を自動判定し、任意の形式へ変換。入らないときは黙って切り詰めず、制約違反を列挙します。",
+  "home.inspectorDesc": "フォントの棚卸し: メトリクス・収録範囲・文字集合ごとの被覆率・「この文言は描ける?」チェック・全出力形式での正確なサイズ。",
+  "home.libTitle": "ライブラリとしても",
+  "home.libDesc": "ここでできることはすべて、実行時依存ゼロの素の ESM ライブラリです — npm install lgfx-font-tool、または CDN から import。描画は実物の LovyanGFX と 1,860 ケースのバイト列完全一致で検証済み。",
+  "home.github": "ソース・ドキュメント・課題は GitHub へ →",
+  "home.docs": "ガイド: 初心者 / 用途別 / 上級者 / 仕様書 →"
 }
