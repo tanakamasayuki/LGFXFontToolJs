@@ -23,6 +23,7 @@
   "files": [
     "dist",
     "src",
+    "!src/fonts/data",
     "types",
     "README.md",
     "README.ja.md",
@@ -54,6 +55,12 @@
   "scripts": {
     "test": "node --test \"test/*.test.js\"",
     "test:watch": "node --test --watch \"test/*.test.js\"",
+    "build": "node scripts/build.js",
+    "types": "tsc -p tsconfig.types.json",
+    "smoke:dist": "node scripts/smoke-dist.js",
+    "prepack": "npm run build && npm run types",
+    "preversion": "npm run check",
+    "version": "node scripts/sync-version.js && git add src/index.js",
     "typecheck": "tsc --noEmit",
     "lint:layers": "node scripts/check-layers.js",
     "lint:locales": "node scripts/check-locales.js",

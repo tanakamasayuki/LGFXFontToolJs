@@ -79,7 +79,7 @@ export { loadTtf, unloadTtf, rasterizeSet, measureTtf, ensureRasterizer } from '
 
 // 内蔵フォントコレクション
 export { fontCatalog, collectionInfo } from './fonts/catalog.js';
-export { loadFont } from './fonts/loader.js';
+export { loadFont, configureFontData, fontDataCandidates } from './fonts/loader.js';
 
 // エラー
 export {
@@ -92,3 +92,6 @@ export {
   CapabilityError,
   CollectionError,
 } from './util/errors.js';
+
+// npm version 実行時に scripts/sync-version.js が書き換える
+export const VERSION = '0.0.1';

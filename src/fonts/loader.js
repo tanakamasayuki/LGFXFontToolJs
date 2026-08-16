@@ -1,9 +1,15 @@
 // @ts-check
 /**
- * 内蔵フォントコレクションのローダ（仕様 §8.1）。
+ * 内蔵フォントコレクションのローダ（仕様 §8.1 / §16）。
  *
- * データファイルは import.meta.url 基準で解決する。I/O を行うのは src/ 内で
- * このモジュールだけ（レイヤ規律の明示的な例外。仕様 §4.1）。
+ * データの解決順:
+ *   1. configureFontData({ baseUrl }) で指定された場所（指定時はここだけ）
+ *   2. import.meta.url 基準のローカル（./data/）
+ *      — リポジトリのクローンと GitHub Pages は全 186 本、npm / CDN 配布物は
+ *        軽量な 70 本（LGFX 内部形式 + 欧文 GFX）を同梱している
+ *   3. GitHub Pages のリモートデータ（CJK 系 42MB は npm に同梱しない。§18）
+ *
+ * I/O を行うのは src/ 内でこのモジュールだけ（レイヤ規律の明示的な例外。§4.1）。
  */
 import { fontCatalog } from './catalog.js';
 import { decode } from '../format/registry.js';
@@ -11,26 +17,58 @@ import { CollectionError } from '../util/errors.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
 
+const REMOTE_BASE = 'https://tanakamasayuki.github.io/LGFXFontToolJs/src/fonts/data/';
+
+/** @type {{baseUrl: string | URL | null}} */
+const config = { baseUrl: null };
+
 /** @type {Map<string, Promise<Font>>} */
 const cache = new Map();
 
 /**
- * @param {URL} url
- * @returns {Promise<Uint8Array>}
+ * フォントデータの取得先を差し替える（オフライン環境・自前ミラー・
+ * file:// のフルデータ等）。以後の loadFont に効く（キャッシュは破棄する）。
+ * @param {{baseUrl?: string | URL | null}} opts
  */
-async function loadBytes(url) {
+export function configureFontData(opts) {
+  config.baseUrl = opts.baseUrl ?? null;
+  cache.clear();
+}
+
+/**
+ * 解決候補の URL 列（テスト可能なよう純粋関数として公開）。
+ * @param {string} file
+ * @param {{baseUrl: string | URL | null}} [cfg]
+ * @returns {URL[]}
+ */
+export function fontDataCandidates(file, cfg = config) {
+  if (cfg.baseUrl) {
+    const base = String(cfg.baseUrl);
+    return [new URL(file, base.endsWith('/') ? base : base + '/')];
+  }
+  return [new URL(`./data/${file}`, import.meta.url), new URL(file, REMOTE_BASE)];
+}
+
+/**
+ * @param {URL} url
+ * @returns {Promise<Uint8Array | null>} 見つからなければ null（他候補へ）
+ */
+async function tryLoad(url) {
   if (url.protocol === 'file:') {
-    const { readFile } = await import('node:fs/promises');
-    return new Uint8Array(await readFile(url));
+    try {
+      const { readFile } = await import('node:fs/promises');
+      return new Uint8Array(await readFile(url));
+    } catch {
+      return null;
+    }
   }
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new CollectionError('FONT_DATA_LOAD_FAILED', `failed to fetch ${url}: ${res.status}`, {
-      url: String(url),
-      status: res.status,
-    });
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  } catch {
+    return null;
   }
-  return new Uint8Array(await res.arrayBuffer());
 }
 
 /**
@@ -48,8 +86,19 @@ export function loadFont(name) {
   }
 
   promise = (async () => {
-    const url = new URL(`./data/${entry.file}`, import.meta.url);
-    const bytes = await loadBytes(url);
+    const candidates = fontDataCandidates(entry.file);
+    /** @type {Uint8Array | null} */
+    let bytes = null;
+    for (const url of candidates) {
+      bytes = await tryLoad(url);
+      if (bytes) break;
+    }
+    if (!bytes) {
+      throw new CollectionError('FONT_DATA_LOAD_FAILED', `could not load data for ${name}`, {
+        name,
+        tried: candidates.map(String),
+      });
+    }
     /** @type {import('../format/registry.js').DecodeOptions} */
     const opts = { format: entry.format, familyName: entry.name };
     if (entry.format === 'glcd') opts.glcd = /** @type {any} */ (entry.params);

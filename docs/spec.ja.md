@@ -761,7 +761,8 @@ esp-flashjs の方式を踏襲する。
 
 | 経路 | 内容 |
 | --- | --- |
-| npm | 単一パッケージ。`files` = `dist` / `src` / `types` / NOTICE。**フォントデータの配布方法は未決**（§18）— 実測 42.2MB（efont 系 80 本が各 13,000 グリフ超）であり、npm 同梱は重い。リポジトリには全量コミットする（リポジトリサイズは許容と決定済み） |
+| npm | 単一パッケージ（実測: tarball 562KB / 展開 1.6MB）。`files` = `dist` / `src`（データ除く）/ `types` / NOTICE。**フォントデータは軽量 70 本（LGFX 内部形式 + 欧文 GFX ≒ 0.35MB）のみ同梱し、CJK 系 42MB はリモート解決**（下記）。`prepack` が build + types を走らせる |
+| フォントデータ | ローダの解決順: ①`configureFontData({baseUrl})` の指定先（自前ミラー・オフライン用）②`import.meta.url` 基準のローカル ③GitHub Pages。リポジトリのクローンと Pages 上の Web アプリは全量ローカルで完結し、npm 利用者は CJK のみ初回フェッチになる。gzip 同梱案は不採用（u8g2 は RLE 済みで 80% までしか縮まない実測による） |
 | CDN (jsDelivr 等) | `dist/lgfx-font-tool.min.js`。フォントデータは `dist/fonts/` から相対解決されるので CDN でもそのまま動く。バージョン固定を README で必須と明記 |
 | GitHub Pages | リファレンスアプリ + examples + ドキュメント |
 | GitHub Actions | `ci.yml`（check + build）/ `pages.yml` / `release.yml`（npm publish） |
@@ -809,7 +810,7 @@ esp-flashjs の方式を踏襲する。
 | 論点 | 内容 | 現時点の傾き |
 | --- | --- | --- |
 | npm パッケージ名 | リポジトリは `LGFXFontToolJs`。npm 名は要決定 | `lgfx-font-tool`（本書のコード例はこれで書いてある） |
-| **内蔵フォントデータの配布方法** | 実測 42.2MB あり npm 同梱は重い。候補: ①npm 同梱（そのまま / gzip。`DecompressionStream` なら依存ゼロを保てる）②GitHub Pages 等から実行時ダウンロード（`loadFont` の解決先を差し替え可能にする）③データ別パッケージ（`lgfx-font-tool-fonts`） | 未決。リポジトリへの全量コミットは決定済み。よく使うフォントだけ同梱し残りをリモート解決とする折衷も検討 |
+| **内蔵フォントデータの配布方法** | **決定（2026-08）**: 軽量 70 本を npm に同梱し、CJK 系 42MB は GitHub Pages からのリモート解決を既定とする折衷案を採用（§16）。`configureFontData` で差し替え可。gzip 案は圧縮率 80% 止まり（RLE 済みデータ）のため不採用。データ別パッケージは需要が出たら再検討 | 決定済み |
 | オラクル fixture の CI 再生成 | ローカル手順にとどめるか、workflow_dispatch でホストビルドまで回すか | まずローカル + コミット運用。ハーネスが安定したら CI 化 |
 | 収録外文字の描画挙動 | 何も描かず送りゼロか、tofu か。LovyanGFX の実挙動確認待ち | オラクルで確定し §9.2 を更新 |
 | BFF | 未文書で仕様が安定していない。カーニング・可変 bpp を持つ | Phase 4 で再評価 |
