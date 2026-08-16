@@ -1,11 +1,17 @@
 // @ts-check
 /**
  * Generator（仕様 §14、UC1）。TTF / OTF / WOFF → u8g2 / GFXfont。
- * fontgen（LGFXScreenBuilder）の後継。文字集合選択・閾値・制約報告・
- * C ソース / バイナリのダウンロードまでを 1 ページで行う。
+ * fontgen（LGFXScreenBuilder）の後継。カード式の 4 ステップ:
+ * 書体 → サイズと名前（ライブプレビュー付き）→ 文字 → 生成。
+ *
+ * 補完（欠落文字の穴埋め）はライブラリの merge / generateFont を使い、
+ * どのファミリで埋めるかの選定・入手（FALLBACK_CHAIN・Google Fonts 取得）
+ * だけをこのアプリが持つ（仕様 §2.3 のレイヤ分担）。勝手には埋めない —
+ * 欠落を名指しして提案し、利用者が 1 クリックで適用する。
  */
 import {
   generateFont,
+  merge,
   canEncode,
   encode,
   encodeCSource,
@@ -31,7 +37,7 @@ import {
   t,
   SUPPORTED_LOCALES,
 } from './i18n.js';
-import { FONTS, findFont, loadGoogleFont } from './googlefonts.js';
+import { FONTS, findFont, loadGoogleFont, FALLBACK_CHAIN } from './googlefonts.js';
 
 /** @param {string} id */
 function $(id) {
@@ -41,48 +47,160 @@ function $(id) {
 }
 
 const langEl = /** @type {HTMLSelectElement} */ ($('lang'));
-const sourceEl = /** @type {HTMLSelectElement} */ ($('source'));
-const gfontEl = /** @type {HTMLSelectElement} */ ($('gfont'));
-const gfontRowEl = $('gfont-row');
-const fileRowEl = $('file-row');
+const tabGoogleEl = /** @type {HTMLButtonElement} */ ($('tab-google'));
+const tabFileEl = /** @type {HTMLButtonElement} */ ($('tab-file'));
+const srcGoogleEl = $('src-google');
+const srcFileEl = $('src-file');
+const gfontSearchEl = /** @type {HTMLInputElement} */ ($('gfont-search'));
+const gfontListEl = $('gfont-list');
 const fileEl = /** @type {HTMLInputElement} */ ($('file'));
-const pxEl = /** @type {HTMLInputElement} */ ($('px'));
 const weightEl = /** @type {HTMLSelectElement} */ ($('weight'));
 const italicEl = /** @type {HTMLInputElement} */ ($('italic'));
+const pxEl = /** @type {HTMLInputElement} */ ($('px'));
 const thresholdEl = /** @type {HTMLInputElement} */ ($('threshold'));
-const templateEl = /** @type {HTMLSelectElement} */ ($('template'));
-const customTextEl = /** @type {HTMLInputElement} */ ($('custom-text'));
-const customRangesEl = /** @type {HTMLInputElement} */ ($('custom-ranges'));
-const axesEl = $('axes');
-const selectedCountEl = $('selected-count');
-const formatEl = /** @type {HTMLSelectElement} */ ($('format'));
 const symbolEl = /** @type {HTMLInputElement} */ ($('symbol'));
+const liveTextEl = /** @type {HTMLInputElement} */ ($('live-text'));
+const liveZoomEl = /** @type {HTMLSelectElement} */ ($('live-zoom'));
+const liveCanvasEl = /** @type {HTMLCanvasElement} */ ($('live-canvas'));
+const liveStatusEl = $('live-status');
+const templatesEl = $('templates');
+const axesEl = $('axes');
+const customTextEl = /** @type {HTMLTextAreaElement} */ ($('custom-text'));
+const customRangesEl = /** @type {HTMLInputElement} */ ($('custom-ranges'));
+const charCountEl = $('char-count');
+const charEstimateEl = $('char-estimate');
+const charmapDetailsEl = /** @type {HTMLDetailsElement} */ ($('charmap-details'));
+const charmapEl = $('charmap');
+const formatEl = /** @type {HTMLSelectElement} */ ($('format'));
 const typefaceEl = /** @type {HTMLInputElement} */ ($('typeface'));
 const licenseEl = /** @type {HTMLInputElement} */ ($('license'));
 const dropInvalidEl = /** @type {HTMLInputElement} */ ($('drop-invalid'));
 const generateEl = /** @type {HTMLButtonElement} */ ($('generate'));
 const statusEl = $('status');
-const resultEl = $('result');
-const previewTextEl = /** @type {HTMLInputElement} */ ($('preview-text'));
-const previewEl = /** @type {HTMLCanvasElement} */ ($('preview'));
-const infoEl = $('info');
+const outputEl = $('output');
+const resBytesEl = $('res-bytes');
+const resGlyphsEl = $('res-glyphs');
+const resHeightEl = $('res-height');
 const issuesEl = $('issues');
+const fbOfferEl = $('fb-offer');
+const fbTextEl = $('fb-text');
+const fbPickEl = /** @type {HTMLSelectElement} */ ($('fb-pick'));
+const fbApplyEl = /** @type {HTMLButtonElement} */ ($('fb-apply'));
+const fbClearEl = /** @type {HTMLButtonElement} */ ($('fb-clear'));
+const fbStatusEl = $('fb-status');
+const previewTextEl = /** @type {HTMLInputElement} */ ($('preview-text'));
+const zoomEl = /** @type {HTMLSelectElement} */ ($('zoom'));
+const previewEl = /** @type {HTMLCanvasElement} */ ($('preview'));
 const dlHEl = /** @type {HTMLButtonElement} */ ($('dl-h'));
+const copyEl = /** @type {HTMLButtonElement} */ ($('copy'));
 const dlBinEl = /** @type {HTMLButtonElement} */ ($('dl-bin'));
+const codeNoteEl = $('code-note');
+const codeEl = $('code');
+const howtoCodeEl = $('howto-code');
 
-/** @type {string[]} 選択中の集合 id */
-let sets = ['ascii'];
-let sampleText = 'Hello 123';
+// --- 状態 ---------------------------------------------------------------------
+
+/** @type {'google' | 'file'} */
+let sourceKind = 'google';
+let gFamily = 'Noto Sans JP';
 /** @type {ArrayBuffer | null} */
 let fontData = null;
+/** @type {string[]} 選択中の集合 id */
+let sets = ['ascii'];
+let activeTemplate = '';
+let sampleText = 'Hello 123';
+let symbolTouched = false;
+
 /** Google Fonts の部分読み込みの続き（文字集合を広げた再生成用）
  * @type {{key: string, family: string, loaded: Set<string>} | null} */
 let gfState = null;
-/** @type {import('../src/model/font.js').Font | null} */
-let generated = null;
-let generatedMissing = 0;
+/** 補完元ファミリの読み込み状態（主ソースとは別に持つ）
+ * @type {{key: string, family: string, loaded: Set<string>} | null} */
+let fbState = null;
 
-// --- 言語 --------------------------------------------------------------------
+/** @type {import('../src/model/font.js').Font | null} 主生成の結果（補完前） */
+let baseFont = null;
+/** @type {number[]} 主生成で書体に無かった文字 */
+let baseMissing = [];
+/** @type {import('../src/model/font.js').Font | null} 表示・出力対象（補完適用後を含む） */
+let generated = null;
+/** @type {{family: string, filled: number, still: number[]} | null} */
+let fbApplied = null;
+/** @type {string | null} renderResult が組んだ .h（download / copy が使い回す） */
+let currentHeader = null;
+
+// --- 共通ヘルパ -----------------------------------------------------------------
+
+/** @param {() => void} fn @param {number} ms */
+function debounce(fn, ms) {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  return () => {
+    clearTimeout(timer);
+    timer = setTimeout(fn, ms);
+  };
+}
+
+const pxNum = () => Number(pxEl.value) || 24;
+const thresholdNum = () => Math.min(255, Math.max(1, Number(thresholdEl.value) || 128));
+const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.checked });
+
+/** @param {number[]} cps @param {number} max */
+function charsPreview(cps, max) {
+  const shown = cps.slice(0, max).map((cp) => String.fromCodePoint(cp)).join(' ');
+  return cps.length > max ? `${shown} …` : shown;
+}
+
+/**
+ * ライブラリの描画エンジンで canvas に描く（= 実機と同じ規則）。
+ * @param {HTMLCanvasElement} canvas
+ * @param {import('../src/model/font.js').Font} font
+ * @param {string} text
+ * @param {number} zoom
+ */
+function drawFontTo(canvas, font, text, zoom) {
+  const w = Math.max(8, Math.min(4000, textWidth(font, text) + 8));
+  const h = Math.max(8, fontHeight(font) + 8);
+  const z = Math.max(1, Math.min(zoom, Math.floor(8192 / w) || 1));
+  const bmp = createBitmap(w, h, 1);
+  drawString(bmp, font, text, 4, 4);
+  canvas.width = w * z;
+  canvas.height = h * z;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.fillStyle = '#10151c';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#e8f0ff';
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (getPixel(bmp, x, y)) ctx.fillRect(x * z, y * z, z, z);
+    }
+  }
+}
+
+/**
+ * 現在のソース（Google ファミリ or ローカルファイル）を generateFont に渡せる形へ。
+ * Google は要求文字に掛かるサブセットだけを取得し、続きから読み足す。
+ * @param {number[]} cps
+ * @returns {Promise<{source?: ArrayBuffer, family?: string}>}
+ */
+async function resolveSource(cps) {
+  if (sourceKind === 'google') {
+    const { weight, italic } = styleNow();
+    const key = `${gFamily}|${weight}|${italic}`;
+    const loaded = await loadGoogleFont(gFamily, cps, {
+      weight,
+      italic,
+      into: gfState?.key === key ? gfState : null,
+    });
+    gfState = { key, family: loaded.family, loaded: loaded.loaded };
+    return { family: loaded.family };
+  }
+  if (!fontData) throw new Error(t('gen.needFile'));
+  return { source: fontData.slice(0) };
+}
+
+// --- 言語 ----------------------------------------------------------------------
 
 for (const loc of SUPPORTED_LOCALES) {
   const opt = document.createElement('option');
@@ -95,74 +213,185 @@ function applyLanguage() {
   document.title = t('gen.docTitle');
   applyTranslations();
   langEl.value = currentLocale();
+  renderGoogleList();
   renderTemplates();
   renderAxes();
-  renderGoogleFonts();
-  renderSelectedCount();
+  renderCharSummary();
+  renderHowto();
+  if (generated) renderResult();
 }
 
-// --- フォントソース ------------------------------------------------------------
+// --- 1. 書体 --------------------------------------------------------------------
 
-function renderGoogleFonts() {
-  const cur = gfontEl.value || 'Noto Sans JP';
-  gfontEl.textContent = '';
+/** @param {'google' | 'file'} kind */
+function setSourceKind(kind) {
+  sourceKind = kind;
+  tabGoogleEl.classList.toggle('on', kind === 'google');
+  tabFileEl.classList.toggle('on', kind === 'file');
+  srcGoogleEl.hidden = kind !== 'google';
+  srcFileEl.hidden = kind !== 'file';
+  syncAttribution();
+  scheduleLive();
+}
+
+function renderGoogleList() {
+  const filter = gfontSearchEl.value.trim().toLowerCase();
+  gfontListEl.textContent = '';
   for (const script of ['latin', 'display', 'japanese', 'cjk', 'symbol']) {
-    const group = document.createElement('optgroup');
-    group.label = t(`gscript.${script}`);
-    for (const f of FONTS.filter((f) => f.script === script)) {
-      const opt = document.createElement('option');
-      opt.value = f.family;
-      opt.textContent = `${f.family} — ${f.by} (${f.license.id})`;
-      group.appendChild(opt);
+    const fonts = FONTS.filter(
+      (f) => f.script === script && (!filter || f.family.toLowerCase().includes(filter)),
+    );
+    if (fonts.length === 0) continue;
+    const head = document.createElement('div');
+    head.className = 'group';
+    head.textContent = t(`gscript.${script}`);
+    gfontListEl.appendChild(head);
+    for (const f of fonts) {
+      const row = document.createElement('div');
+      row.className = 'row' + (f.family === gFamily ? ' selected' : '');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = f.family;
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      const tags = [f.by, f.license.id];
+      if (f.mono) tags.push('mono');
+      if (f.pixel) tags.push('pixel');
+      meta.textContent = tags.join(' · ');
+      row.append(name, meta);
+      row.addEventListener('click', () => {
+        gFamily = f.family;
+        gfState = null;
+        renderGoogleList();
+        syncAttribution();
+        scheduleLive();
+      });
+      gfontListEl.appendChild(row);
     }
-    gfontEl.appendChild(group);
   }
-  gfontEl.value = cur;
-}
-
-function syncSourceRows() {
-  const google = sourceEl.value === 'google';
-  gfontRowEl.hidden = !google;
-  fileRowEl.hidden = google;
 }
 
 /** 選択中のソースに合わせて帰属表示と識別子を埋める */
 function syncAttribution() {
-  if (sourceEl.value === 'google') {
-    const f = findFont(gfontEl.value);
+  if (sourceKind === 'google') {
+    const f = findFont(gFamily);
     if (f) {
       typefaceEl.value = f.family;
       licenseEl.value = f.license.name;
-      symbolEl.value = sanitizeIdent(`${f.family}_${pxEl.value}`);
+      if (!symbolTouched) symbolEl.value = sanitizeIdent(`${f.family}_${pxEl.value}`);
     }
+  } else if (fontData) {
+    if (!symbolTouched) symbolEl.value = sanitizeIdent(`${typefaceEl.value || 'MyFont'}_${pxEl.value}`);
+  }
+  renderHowto();
+}
+
+fileEl.addEventListener('input', async () => {
+  const f = fileEl.files?.[0];
+  if (!f) return;
+  fontData = await f.arrayBuffer();
+  typefaceEl.value = f.name.replace(/\.[^.]+$/, '');
+  licenseEl.value = '';
+  syncAttribution();
+  scheduleLive();
+});
+
+tabGoogleEl.addEventListener('click', () => setSourceKind('google'));
+tabFileEl.addEventListener('click', () => setSourceKind('file'));
+gfontSearchEl.addEventListener('input', renderGoogleList);
+for (const el of [weightEl, italicEl]) {
+  el.addEventListener('input', () => {
+    gfState = null;
+    fbState = null;
+    scheduleLive();
+  });
+}
+
+// --- 2. サイズと名前 + ライブプレビュー -------------------------------------------
+
+let liveSeq = 0;
+
+async function updateLive() {
+  const seq = ++liveSeq;
+  const text = liveTextEl.value || sampleText;
+  const cps = [...new Set([...text].map((ch) => /** @type {number} */ (ch.codePointAt(0))))].filter(
+    (cp) => cp >= 0x20,
+  );
+  if (cps.length === 0) return;
+  if (sourceKind === 'file' && !fontData) {
+    liveStatusEl.textContent = t('gen.needFile');
+    return;
+  }
+  try {
+    liveStatusEl.textContent = t('gen.fetching');
+    const src = await resolveSource(cps);
+    if (seq !== liveSeq) return;
+    const { font, missing } = await generateFont({
+      ...src,
+      px: pxNum(),
+      codepoints: cps,
+      style: styleNow(),
+      threshold: thresholdNum(),
+    });
+    if (seq !== liveSeq) return;
+    drawFontTo(liveCanvasEl, font, text, Number(liveZoomEl.value));
+    let s = t('gen.liveInfo', {
+      px: pxNum(),
+      line: font.lineHeight,
+      width: textWidth(font, text),
+    });
+    if (missing.length > 0) s += ' — ' + t('gen.missing', { count: missing.length });
+    liveStatusEl.textContent = s;
+  } catch (e) {
+    if (seq === liveSeq) liveStatusEl.textContent = String(e);
   }
 }
 
-sourceEl.addEventListener('input', () => {
-  syncSourceRows();
+const scheduleLive = debounce(updateLive, 400);
+
+for (const el of [liveTextEl, liveZoomEl, thresholdEl]) {
+  el.addEventListener('input', scheduleLive);
+}
+pxEl.addEventListener('input', () => {
   syncAttribution();
+  renderCharSummary();
+  scheduleLive();
 });
-gfontEl.addEventListener('input', () => {
-  gfState = null;
-  syncAttribution();
+symbolEl.addEventListener('input', () => {
+  symbolTouched = true;
+  renderHowto();
 });
 
-// --- 文字集合 UI --------------------------------------------------------------
+// --- 3. 文字 --------------------------------------------------------------------
 
 function renderTemplates() {
-  const cur = templateEl.value;
-  templateEl.textContent = '';
-  const custom = document.createElement('option');
-  custom.value = '';
-  custom.textContent = t('gen.templateCustom');
-  templateEl.appendChild(custom);
+  templatesEl.textContent = '';
   for (const tpl of TEMPLATES) {
-    const opt = document.createElement('option');
-    opt.value = tpl.id;
-    opt.textContent = t(`tpl.${tpl.id}`);
-    templateEl.appendChild(opt);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (tpl.id === activeTemplate ? ' on' : '');
+    chip.textContent = t(`tpl.${tpl.id}`);
+    chip.addEventListener('click', () => {
+      activeTemplate = tpl.id;
+      sets = [...tpl.sets];
+      customTextEl.value = tpl.text;
+      sampleText = tpl.sample;
+      liveTextEl.value = tpl.sample;
+      previewTextEl.value = tpl.sample;
+      renderTemplates();
+      renderAxes();
+      renderCharSummary();
+      scheduleLive();
+    });
+    templatesEl.appendChild(chip);
   }
-  templateEl.value = cur;
+}
+
+/** テンプレート選択の解除（手動で集合を触ったとき） */
+function clearTemplate() {
+  if (!activeTemplate) return;
+  activeTemplate = '';
+  renderTemplates();
 }
 
 function renderAxes() {
@@ -182,8 +411,8 @@ function renderAxes() {
         cb.checked = sets.includes(id);
         cb.addEventListener('input', () => {
           sets = toggleSet(sets, id, cb.checked);
-          templateEl.value = '';
-          renderSelectedCount();
+          clearTemplate();
+          renderCharSummary();
         });
         label.append(cb, ` ${t(`set.${id}`)} (${countOf(id)})`);
         box.appendChild(label);
@@ -209,8 +438,8 @@ function renderAxes() {
         sel.addEventListener('input', () => {
           for (const id of lang.tiers) sets = toggleSet(sets, id, false);
           if (sel.value) sets = toggleSet(sets, sel.value, true);
-          templateEl.value = '';
-          renderSelectedCount();
+          clearTemplate();
+          renderCharSummary();
         });
         row.append(span, sel);
         box.appendChild(row);
@@ -228,81 +457,80 @@ function currentCodepoints() {
   });
 }
 
-function renderSelectedCount() {
-  selectedCountEl.textContent = t('gen.selected', { count: currentCodepoints().length });
+function renderCharSummary() {
+  const count = currentCodepoints().length;
+  charCountEl.textContent = t('gen.selected', { count });
+  // 大雑把な u8g2 サイズ目安（レコードヘッダ + RLE。密な CJK では上振れする）
+  const px = pxNum();
+  const kb = (count * (6 + (px * px) / 10)) / 1024;
+  charEstimateEl.textContent =
+    count > 0 ? t('gen.estimate', { kb: kb < 10 ? kb.toFixed(1) : String(Math.round(kb)) }) : '';
+  if (charmapDetailsEl.open) renderCharmap();
 }
 
-templateEl.addEventListener('input', () => {
-  const tpl = templateById(templateEl.value);
-  if (!tpl) return;
-  sets = [...tpl.sets];
-  customTextEl.value = tpl.text;
-  sampleText = tpl.sample;
-  previewTextEl.value = tpl.sample;
-  renderAxes();
-  renderSelectedCount();
-});
-for (const el of [customTextEl, customRangesEl]) {
-  el.addEventListener('input', renderSelectedCount);
-}
-
-// --- 生成 --------------------------------------------------------------------
-
-fileEl.addEventListener('input', async () => {
-  const f = fileEl.files?.[0];
-  if (!f) return;
-  fontData = await f.arrayBuffer();
-  if (!typefaceEl.value) typefaceEl.value = f.name.replace(/\.[^.]+$/, '');
-  if (symbolEl.value === 'MyFont24' || !symbolEl.value) {
-    symbolEl.value = sanitizeIdent(`${typefaceEl.value}_${pxEl.value}`);
+/** 選択中の文字を「近い code point の束」ごとに一覧する（Ctrl+F で探せる形） */
+function renderCharmap() {
+  const cps = currentCodepoints();
+  charmapEl.textContent = '';
+  /** @param {number} cp */
+  const hex = (cp) => `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
+  let start = 0;
+  for (let i = 1; i <= cps.length; i++) {
+    if (i === cps.length || cps[i] - cps[i - 1] > 64) {
+      const group = cps.slice(start, i);
+      const head = document.createElement('div');
+      head.className = 'range-head';
+      head.textContent = `${hex(group[0])}–${hex(group[group.length - 1])} · ${group.length}`;
+      const body = document.createElement('div');
+      body.className = 'range-chars';
+      let s = '';
+      for (const cp of group) s += String.fromCodePoint(cp);
+      body.textContent = s;
+      charmapEl.append(head, body);
+      start = i;
+    }
   }
+}
+
+for (const el of [customTextEl, customRangesEl]) {
+  el.addEventListener('input', () => {
+    clearTemplate();
+    renderCharSummary();
+  });
+}
+charmapDetailsEl.addEventListener('toggle', () => {
+  if (charmapDetailsEl.open) renderCharmap();
 });
+
+// --- 4. 生成 --------------------------------------------------------------------
 
 generateEl.addEventListener('click', async () => {
-  const useGoogle = sourceEl.value === 'google';
-  if (!useGoogle && !fontData) {
+  if (sourceKind === 'file' && !fontData) {
     statusEl.textContent = t('gen.needFile');
     return;
   }
   const { bmp, dropped } = splitBmp(currentCodepoints());
   generateEl.disabled = true;
   try {
-    const weight = Number(weightEl.value);
-    const italic = italicEl.checked;
-    /** @type {{source?: ArrayBuffer, family?: string}} */
-    const src = {};
-    if (useGoogle) {
-      // 要求文字に掛かるサブセットだけ取得。文字集合を広げた再生成は続きから
-      statusEl.textContent = t('gen.fetching');
-      const key = `${gfontEl.value}|${weight}|${italic}`;
-      const loaded = await loadGoogleFont(gfontEl.value, bmp, {
-        weight,
-        italic,
-        into: gfState?.key === key ? gfState : null,
-      });
-      gfState = { key, family: loaded.family, loaded: loaded.loaded };
-      src.family = loaded.family;
-    } else {
-      src.source = /** @type {ArrayBuffer} */ (fontData).slice(0);
-    }
+    statusEl.textContent = t('gen.fetching');
+    const src = await resolveSource(bmp);
     const { font, missing } = await generateFont({
       ...src,
-      px: Number(pxEl.value) || 24,
+      px: pxNum(),
       codepoints: bmp,
-      style: { weight, italic },
-      threshold: Number(thresholdEl.value) || 128,
+      style: styleNow(),
+      threshold: thresholdNum(),
       familyName: typefaceEl.value,
       onProgress: ({ done, total }) => {
         statusEl.textContent = t('gen.generating', { done, total });
       },
     });
+    baseFont = font;
+    baseMissing = missing;
     generated = font;
-    generatedMissing = missing.length;
-    statusEl.textContent = '';
-    if (dropped.length > 0) {
-      statusEl.textContent = t('gen.droppedBmp', { count: dropped.length });
-    }
-    resultEl.hidden = false;
+    fbApplied = null;
+    statusEl.textContent = dropped.length > 0 ? t('gen.droppedBmp', { count: dropped.length }) : '';
+    outputEl.hidden = false;
     if (!previewTextEl.value) previewTextEl.value = sampleText;
     renderResult();
   } catch (e) {
@@ -312,59 +540,117 @@ generateEl.addEventListener('click', async () => {
   }
 });
 
+// --- 補完（fallback の提案と適用） ------------------------------------------------
+
+function renderFallbackOffer() {
+  const missing = fbApplied ? fbApplied.still : baseMissing;
+  if (baseMissing.length === 0) {
+    fbOfferEl.hidden = true;
+    return;
+  }
+  fbOfferEl.hidden = false;
+  fbTextEl.textContent = '';
+  const line = document.createElement('div');
+  if (fbApplied) {
+    line.textContent =
+      t('gen.fbFilled', { count: fbApplied.filled, family: fbApplied.family }) +
+      (missing.length > 0 ? ` ${t('gen.fbStill', { count: missing.length })}` : '');
+  } else {
+    line.textContent = t('gen.missing', { count: baseMissing.length });
+  }
+  fbTextEl.appendChild(line);
+  if (missing.length > 0) {
+    const chars = document.createElement('div');
+    chars.className = 'miss-chars';
+    chars.textContent = charsPreview(missing, 80);
+    fbTextEl.appendChild(chars);
+  }
+  // 補完元の候補（主ソースと同じファミリは除く）
+  const cur = fbPickEl.value;
+  fbPickEl.textContent = '';
+  for (const fam of FALLBACK_CHAIN) {
+    if (sourceKind === 'google' && fam === gFamily) continue;
+    const opt = document.createElement('option');
+    opt.value = fam;
+    opt.textContent = fam;
+    fbPickEl.appendChild(opt);
+  }
+  if (cur) fbPickEl.value = cur;
+  fbClearEl.hidden = !fbApplied;
+}
+
+fbApplyEl.addEventListener('click', async () => {
+  if (!baseFont || baseMissing.length === 0) return;
+  const fam = fbPickEl.value;
+  fbApplyEl.disabled = true;
+  try {
+    fbStatusEl.textContent = t('gen.fetching');
+    const { weight, italic } = styleNow();
+    const key = `${fam}|${weight}|${italic}`;
+    /** @type {Awaited<ReturnType<typeof loadGoogleFont>>} */
+    let loaded;
+    try {
+      loaded = await loadGoogleFont(fam, baseMissing, {
+        weight,
+        italic,
+        into: fbState?.key === key ? fbState : null,
+      });
+    } catch {
+      // 補完元がその weight を持たないことがある。400 で取り直す
+      loaded = await loadGoogleFont(fam, baseMissing, { weight: 400, italic: false, into: null });
+    }
+    fbState = { key, family: loaded.family, loaded: loaded.loaded };
+    const r = await generateFont({
+      family: loaded.family,
+      px: pxNum(),
+      codepoints: baseMissing,
+      style: styleNow(),
+      threshold: thresholdNum(),
+      onProgress: ({ done, total }) => {
+        fbStatusEl.textContent = t('gen.generating', { done, total });
+      },
+    });
+    generated = merge(baseFont, r.font);
+    fbApplied = { family: fam, filled: baseMissing.length - r.missing.length, still: r.missing };
+    fbStatusEl.textContent = '';
+    renderResult();
+  } catch (e) {
+    fbStatusEl.textContent = String(e);
+  } finally {
+    fbApplyEl.disabled = false;
+  }
+});
+
+fbClearEl.addEventListener('click', () => {
+  generated = baseFont;
+  fbApplied = null;
+  fbStatusEl.textContent = '';
+  renderResult();
+});
+
+// --- 結果表示 -------------------------------------------------------------------
+
 function renderResult() {
   if (!generated) return;
   const font = generated;
   const format = formatEl.value;
   const check = canEncode(font, format);
+  currentHeader = null;
 
-  // プレビュー（ライブラリの描画エンジン = デバイスと同じ規則）
-  const text = previewTextEl.value || sampleText;
-  const w = Math.max(8, Math.min(2000, textWidth(font, text) + 8));
-  const h = Math.max(8, fontHeight(font) + 8);
-  const bmp = createBitmap(w, h, 1);
-  drawString(bmp, font, text, 4, 4);
-  const zoom = Math.max(1, Math.min(4, Math.floor(480 / w) || 1));
-  previewEl.width = w * zoom;
-  previewEl.height = h * zoom;
-  const ctx = previewEl.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#10151c';
-    ctx.fillRect(0, 0, previewEl.width, previewEl.height);
-    ctx.fillStyle = '#e8f0ff';
-    for (let yy = 0; yy < h; yy++) {
-      for (let xx = 0; xx < w; xx++) {
-        if (getPixel(bmp, xx, yy)) ctx.fillRect(xx * zoom, yy * zoom, zoom, zoom);
-      }
-    }
-  }
+  resGlyphsEl.textContent = String(font.glyphs.size);
+  resHeightEl.textContent = `${font.lineHeight}px (${font.ascent}/${font.descent})`;
 
-  // 情報とサイズ
-  infoEl.textContent = '';
-  /** @type {[string, string][]} */
-  const rows = [
-    [t('gen.glyphs'), String(font.glyphs.size)],
-    [t('info.ascentDescent'), `${font.ascent} / ${font.descent}`],
-    ['', ''],
-  ];
-  rows.pop();
-  if (generatedMissing > 0) rows.push([t('gen.missing', { count: generatedMissing }), '']);
   const errors = check.issues.filter((i) => i.level === 'error');
-  const canBuild = check.ok || (dropInvalidEl.checked && errors.every((i) => i.codepoint !== undefined));
+  const canBuild =
+    check.ok || (dropInvalidEl.checked && errors.every((i) => i.codepoint !== undefined));
+  resBytesEl.textContent = '—';
   if (canBuild) {
     try {
       const bytes = encode(font, { format, dropInvalid: dropInvalidEl.checked });
-      rows.push([t('gen.bytes'), `${bytes.length.toLocaleString()} B (${format})`]);
+      resBytesEl.textContent = `${bytes.length.toLocaleString()} B (${format})`;
     } catch {
-      // 表示だけの失敗は issues 側で伝わる
+      // サイズ表示だけの失敗は issues 側で伝わる
     }
-  }
-  for (const [k, v] of rows) {
-    const dt = document.createElement('dt');
-    dt.textContent = k;
-    const dd = document.createElement('dd');
-    dd.textContent = v;
-    infoEl.append(dt, dd);
   }
 
   // 制約の報告（仕様 §7.1 — 「入らない」は利用者に見せる）
@@ -378,15 +664,82 @@ function renderResult() {
   for (const issue of check.issues.slice(0, 50)) {
     const li = document.createElement('li');
     li.className = issue.level;
-    const cp = issue.codepoint !== undefined
-      ? ` U+${issue.codepoint.toString(16).toUpperCase().padStart(4, '0')} "${String.fromCodePoint(issue.codepoint)}"`
-      : '';
+    const cp =
+      issue.codepoint !== undefined
+        ? ` U+${issue.codepoint.toString(16).toUpperCase().padStart(4, '0')} "${String.fromCodePoint(issue.codepoint)}"`
+        : '';
     li.textContent = `${issue.level === 'error' ? '✕' : '△'} ${issue.code}${cp} ${JSON.stringify(issue.params ?? {})}`;
     issuesEl.appendChild(li);
   }
 
+  renderFallbackOffer();
+
+  // プレビュー（ライブラリの描画エンジン = デバイスと同じ規則）
+  drawFontTo(previewEl, font, previewTextEl.value || sampleText, Number(zoomEl.value));
+
   dlHEl.disabled = !canBuild;
   dlBinEl.disabled = !canBuild;
+  copyEl.disabled = !canBuild;
+
+  // .h の頭出しプレビュー
+  codeEl.textContent = '';
+  codeNoteEl.textContent = '';
+  if (canBuild) {
+    try {
+      currentHeader = buildHeader();
+      const lines = currentHeader.split('\n');
+      const shown = Math.min(lines.length, 30);
+      codeEl.textContent = lines.slice(0, shown).join('\n') + (lines.length > shown ? '\n…' : '');
+      if (lines.length > shown) {
+        codeNoteEl.textContent = t('gen.codeNote', { shown, total: lines.length });
+      }
+    } catch {
+      // encode が通らない組み合わせは issues に出ている
+    }
+  }
+  renderHowto();
+}
+
+/** 帰属表示込みで .h を組む。補完を適用した場合は両書体を記録する */
+function buildHeader() {
+  if (!generated) throw new Error('no font');
+  const ident = sanitizeIdent(symbolEl.value || 'MyFont');
+  const curated = sourceKind === 'google' ? findFont(gFamily) : null;
+  const fbCurated = fbApplied ? findFont(fbApplied.family) : null;
+  let typeface = typefaceEl.value || curated?.family || '';
+  let license = licenseEl.value || curated?.license.name || '';
+  let author = curated?.by;
+  let origin = curated ? `Google Fonts (${curated.family})` : undefined;
+  if (fbApplied && fbCurated) {
+    typeface += ` + ${fbCurated.family} (${fbApplied.filled} glyphs)`;
+    if (fbCurated.license.name !== license) license += ` / ${fbCurated.license.name}`;
+    if (author && fbCurated.by !== author) author += ` / ${fbCurated.by}`;
+    origin = origin ? `${origin} + ${fbCurated.family}` : `Google Fonts (${fbCurated.family})`;
+  }
+  return encodeCSource(generated, {
+    format: /** @type {'u8g2' | 'gfx'} */ (formatEl.value),
+    symbolName: ident,
+    dropInvalid: dropInvalidEl.checked,
+    attribution: {
+      typeface,
+      license,
+      licenseUrl: curated?.license.url,
+      author,
+      origin,
+    },
+  });
+}
+
+function renderHowto() {
+  const ident = sanitizeIdent(symbolEl.value || 'MyFont');
+  howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
+#include "${ident}.h"
+
+void setup() {
+  M5.begin();
+  M5.Display.setFont(&${ident});
+  M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
+}`;
 }
 
 /** @param {BlobPart} content @param {string} name @param {string} type */
@@ -401,22 +754,15 @@ function download(content, name, type) {
 
 dlHEl.addEventListener('click', () => {
   if (!generated) return;
-  const ident = sanitizeIdent(symbolEl.value || 'MyFont');
-  // Google Fonts 選択時はキュレーション情報から帰属表示を完全に埋める
-  const curated = sourceEl.value === 'google' ? findFont(gfontEl.value) : null;
-  const src = encodeCSource(generated, {
-    format: /** @type {'u8g2' | 'gfx'} */ (formatEl.value),
-    symbolName: ident,
-    dropInvalid: dropInvalidEl.checked,
-    attribution: {
-      typeface: typefaceEl.value || curated?.family,
-      license: licenseEl.value || curated?.license.name,
-      licenseUrl: curated?.license.url,
-      author: curated?.by,
-      origin: curated ? `Google Fonts (${curated.family})` : undefined,
-    },
-  });
-  download(src, `${ident}.h`, 'text/plain');
+  const src = currentHeader ?? buildHeader();
+  download(src, `${sanitizeIdent(symbolEl.value || 'MyFont')}.h`, 'text/plain');
+});
+
+copyEl.addEventListener('click', async () => {
+  if (!generated) return;
+  const src = currentHeader ?? buildHeader();
+  await navigator.clipboard.writeText(src);
+  statusEl.textContent = t('gen.copied');
 });
 
 dlBinEl.addEventListener('click', () => {
@@ -431,7 +777,7 @@ dlBinEl.addEventListener('click', () => {
   download(/** @type {any} */ (bytes), `${ident}.${ext}`, 'application/octet-stream');
 });
 
-for (const el of [formatEl, dropInvalidEl, previewTextEl]) {
+for (const el of [formatEl, dropInvalidEl, previewTextEl, zoomEl]) {
   el.addEventListener('input', renderResult);
 }
 
@@ -440,12 +786,11 @@ langEl.addEventListener('input', async () => {
   applyLanguage();
 });
 
-pxEl.addEventListener('input', () => {
-  if (sourceEl.value === 'google') syncAttribution();
-});
+// --- 初期化 ---------------------------------------------------------------------
 
 await initI18n();
+liveTextEl.value = sampleText;
 applyLanguage();
-syncSourceRows();
+setSourceKind('google');
 syncAttribution();
-renderSelectedCount();
+renderCharSummary();

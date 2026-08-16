@@ -635,16 +635,19 @@ import { generateFont } from 'lgfx-font-tool';   // 実体は src/gen/
 
 await generateFont({
   source,                  // ArrayBuffer | Blob | URL 文字列（TTF/OTF/WOFF/WOFF2）
+  family,                  // source の代わりに、ページ登録済みの CSS ファミリ名
   px,                      // 文字高さ（CSS px でのフォントサイズ）
   codepoints,              // Iterable<number> | string | 名前付き集合名
   bpp: 1,                  // 1（閾値処理）| 8（被覆値のまま）
   threshold: 128,          // 1bpp 時の閾値（0-255）
   weight, italic,          // FontFace descriptor に渡す
-})  // -> Font
+  fallbacks: [{ family }], // 主ソースに無い文字をこの順で補完（同じ px / 閾値で生成し merge）
+})  // -> { font, missing, filled }
 ```
 
 - 実装は `FontFace` でフォントを登録し、`OffscreenCanvas` の 2D コンテキストでグリフを 1 文字ずつ描画してアルファチャネルを回収する。**opentype.js 等は使わない**（設計判断 #2）。LGFXScreenBuilder の `fontgen/rasterize.js` で実証済みの方式であり、その実装を移管・整理する。
 - フォントが当該グリフを持つかの判定（tofu 除外）もラスタライズ結果と `measureText` の突き合わせで行う（fontgen の既存手法を踏襲）。
+- **補完の役割分担（決定済み）**: 生成時の補完（不足文字を別ソースで同じ px / 閾値のままラスタライズしてベースライン整列で `merge`）は**ライブラリ機能**（`fallbacks`。何で何を埋めたかは `filled`、なお無いものは `missing`）。どのソースで埋めるかの**選定と入手はアプリ責務**（Generator は FALLBACK_CHAIN を提案し、勝手には埋めない）。既存ビットマップフォント同士の補完は**ライブラリでは自動化しない** — `coverage → subset → merge` のレシピとし、ピクセルサイズの適合は利用者が判断する（使い方ガイドに記載）。
 - ブラウザ以外で呼ぶと `CapabilityError('RASTERIZER_UNAVAILABLE')`。Node 対応はラスタライザ注入インタフェースとして将来検討する（§18）。
 
 ### 10.3 決定性
@@ -739,7 +742,7 @@ i18n は en / ja / zh-Hans / zh-Hant。`navigator.languages` から自動判定�
 | --- | --- | --- |
 | **Viewer** | 内蔵 186 本のカタログ閲覧、任意テキストのピクセル一致プレビュー（拡大・グリッド表示）、ライセンス表示 | `fontCatalog` / `loadFont` / `drawString` |
 | **Converter** | フォントファイル / C ソースを放り込む → detect → 変換 → ダウンロード。「入らない」は issues をそのまま可視化 | `decode` / `canEncode` / `encode` |
-| **Generator** | TTF → u8g2 / GFXfont。文字集合選択、閾値プレビュー、C ソース出力。**最終的に LGFXScreenBuilder fontgen.html 相当まで作り込む**（決定済み）: Google Fonts 等の再配布可能書体（OFL / Apache-2.0）からの選択（実装済み）、欠落文字の別書体からの補完（`merge` + FALLBACK_CHAIN。未実装）、ライブプレビュー。**現状の UI は暫定で、fontgen.html の UI を手本に全面リデザインする**（利用者フィードバック 2026-08）。フォント取得のネットワークアクセスはアプリ側の責務（§2.3）で、ライブラリは `generateFont` に読み込み済みファミリを渡せる口だけ持つ | `generateFont` / `subset` / `merge` / `encode` / `encodeCSource` |
+| **Generator** | TTF → u8g2 / GFXfont。fontgen.html の UI を手本にした 4 ステップのカード式（書体 → サイズと名前 → 文字 → 生成。2026-08 リデザイン済み）。Google Fonts の再配布可能書体（OFL / Apache-2.0）からの検索・選択、生成前のライブプレビュー、テンプレート・軸別の文字集合選択と概算サイズ、文字一覧（Ctrl+F 可）、欠落文字の別書体からの補完（**提案 → 1 クリック適用**。不足分だけ生成して `merge`、候補は FALLBACK_CHAIN、帰属表示は両書体を記録）、C ソース / バイナリ出力 — いずれも実装済み。フォント取得のネットワークアクセスはアプリ側の責務（§2.3）で、ライブラリは `generateFont` に読み込み済みファミリと `fallbacks` を渡せる口だけ持つ | `generateFont` / `subset` / `merge` / `encode` / `encodeCSource` |
 | **Inspector** | カバレッジ、メトリクス、全形式サイズ比較表 | `inspect` / `estimateSize` |
 
 `examples/` には各 1 ファイルの最小サンプルを置く（§4.2）。アプリの多機能さとは独立に、「この API はこれだけで動く」を示すのが目的。

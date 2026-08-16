@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LGFX Font Tool JS — Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="./styles/app.css">
 </head>
 <body>
@@ -19,55 +21,122 @@
     </div>
   </header>
 
-  <main class="gen-layout">
-    <section class="gen-form">
+  <main class="gen-main">
+    <!-- ---------------- 1. 書体 ---------------- -->
+    <section class="card">
+      <h2><span class="step-num">1</span> <span data-i18n="gen.stepSource">Typeface</span></h2>
+
+      <div class="infobox">
+        <strong data-i18n="gen.catalogTitle">Is generating what you need?</strong>
+        <p data-i18n="gen.catalogBody">LovyanGFX already ships with 186 fonts, and using one
+          costs no flash for glyph data at all. Generate here when you want a size or a
+          typeface the presets do not have, or when you want to pay flash for only the
+          characters you actually use.</p>
+        <p><a class="link" href="./index.html" data-i18n="gen.catalogLink">Browse the built-in fonts in the Viewer →</a></p>
+      </div>
+
+      <div class="chips" role="tablist">
+        <button type="button" class="chip on" id="tab-google" data-i18n="gen.sourceGoogle">Google Fonts</button>
+        <button type="button" class="chip" id="tab-file" data-i18n="gen.sourceFile">Local file</button>
+      </div>
+
+      <div id="src-google">
+        <p class="sub" data-i18n="gen.googleNote">Only SIL OFL 1.1 and Apache-2.0 families are
+          listed — both allow the generated glyph data to be embedded in and shipped with your
+          firmware (with attribution, which the generated header carries).</p>
+        <input type="search" id="gfont-search" data-i18n-placeholder="gen.searchFonts" placeholder="Search fonts…">
+        <div class="fontlist" id="gfont-list"></div>
+      </div>
+
+      <div id="src-file" hidden>
+        <div class="warnbox">
+          <strong data-i18n="gen.localWarnTitle">Check the licence before you use this.</strong>
+          <p data-i18n="gen.localWarnBody">Generating an embedded font converts the typeface's
+            glyphs into data that ships inside your firmware — that is redistribution. Many
+            fonts, including most commercial fonts and the ones bundled with Windows, macOS
+            and Office, do not permit it. Only use a file here if its licence explicitly
+            allows embedding and redistribution.</p>
+        </div>
+        <div class="controls">
+          <label class="grow"><span data-i18n="gen.file">Font file (TTF / OTF / WOFF)</span>
+            <input id="file" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
+          </label>
+        </div>
+      </div>
+
       <div class="controls">
-        <label><span data-i18n="gen.source">Source</span>
-          <select id="source">
-            <option value="google" selected data-i18n="gen.sourceGoogle">Google Fonts</option>
-            <option value="file" data-i18n="gen.sourceFile">Local file</option>
+        <label><span data-i18n="gen.weight">Weight</span>
+          <select id="weight">
+            <option value="100">100</option><option value="300">300</option>
+            <option value="400" selected>400</option><option value="500">500</option>
+            <option value="700">700</option><option value="900">900</option>
           </select>
         </label>
-        <label class="grow" id="gfont-row"><span data-i18n="gen.gfont">Typeface (redistributable)</span>
-          <select id="gfont"></select>
-        </label>
-        <label class="grow" id="file-row" hidden><span data-i18n="gen.file">Font file</span>
-          <input id="file" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
-        </label>
+        <label class="check"><input id="italic" type="checkbox"> <span data-i18n="gen.italic">Italic</span></label>
+      </div>
+    </section>
+
+    <!-- ---------------- 2. サイズと名前 ---------------- -->
+    <section class="card">
+      <h2><span class="step-num">2</span> <span data-i18n="gen.stepSize">Size &amp; name</span></h2>
+      <div class="controls">
         <label><span data-i18n="gen.px">Character height (px)</span>
           <input id="px" type="number" value="24" min="6" max="120" step="1">
         </label>
-        <label><span data-i18n="gen.weight">Weight</span>
-          <select id="weight">
-            <option value="400" selected>400</option>
-            <option value="700">700</option>
-          </select>
+        <label><span data-i18n="gen.threshold">Ink threshold</span>
+          <input id="threshold" type="number" value="128" min="1" max="255" step="1">
         </label>
-        <label class="check"><span data-i18n="gen.italic">Italic</span>
-          <input id="italic" type="checkbox">
-        </label>
-        <label><span data-i18n="gen.threshold">Threshold</span>
-          <input id="threshold" type="range" value="128" min="16" max="240" step="8">
+        <label class="grow"><span data-i18n="gen.symbolName">Font name (C identifier)</span>
+          <input id="symbol" type="text" value="MyFont24">
         </label>
       </div>
+      <p class="sub" data-i18n="gen.sizeNote">The size is the character height in pixels — the
+        ink height of a reference glyph (an ideograph for CJK-capable fonts, a capital
+        otherwise), so "24" looks the same size in every typeface. The line height is derived
+        from the glyphs and reported next to the preview. Output is 1bpp: the threshold decides
+        how much anti-aliased coverage counts as "on"; lowering it makes the font heavier.</p>
 
       <div class="controls">
-        <label><span data-i18n="gen.template">Template</span>
-          <select id="template"></select>
+        <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
+          <input id="live-text" type="text" value="">
         </label>
-        <label class="grow"><span data-i18n="gen.customText">Extra characters</span>
-          <input id="custom-text" type="text" value="">
-        </label>
-        <label class="grow"><span data-i18n="gen.customRanges">Extra ranges</span>
-          <input id="custom-ranges" type="text" value="">
+        <label><span data-i18n="controls.zoom">Zoom</span>
+          <select id="live-zoom">
+            <option value="1">1×</option><option value="2" selected>2×</option>
+            <option value="3">3×</option><option value="4">4×</option>
+          </select>
         </label>
       </div>
+      <div class="preview-wrap"><canvas id="live-canvas"></canvas></div>
+      <p class="sub status" id="live-status"></p>
+    </section>
 
-      <details class="charsets" open>
-        <summary><span data-i18n="gen.charsets">Character sets</span> — <span id="selected-count"></span></summary>
-        <div id="axes"></div>
+    <!-- ---------------- 3. 文字 ---------------- -->
+    <section class="card">
+      <h2><span class="step-num">3</span> <span data-i18n="gen.stepChars">Characters</span></h2>
+      <div class="chips" id="templates"></div>
+      <div id="axes"></div>
+      <div class="controls">
+        <label class="grow"><span data-i18n="gen.customText">Extra characters</span>
+          <textarea id="custom-text" rows="2" data-i18n-placeholder="gen.customPlaceholder"
+            placeholder="Paste any characters you also need…"></textarea>
+        </label>
+        <label><span data-i18n="gen.customRanges">Extra ranges</span>
+          <input id="custom-ranges" type="text" placeholder="20-7E, 2190-21FF">
+        </label>
+      </div>
+      <p class="charsummary"><strong id="char-count"></strong> <span class="sub" id="char-estimate"></span></p>
+      <details class="charmap-details" id="charmap-details">
+        <summary data-i18n="gen.showChars">Show the characters</summary>
+        <p class="sub" data-i18n="gen.showCharsNote">Grouped by code point — use the browser's
+          find (Ctrl+F) to check a specific character.</p>
+        <div class="charmap" id="charmap"></div>
       </details>
+    </section>
 
+    <!-- ---------------- 4. 生成 ---------------- -->
+    <section class="card">
+      <h2><span class="step-num">4</span> <span data-i18n="gen.stepGenerate">Generate</span></h2>
       <div class="controls">
         <label><span data-i18n="gen.format">Output format</span>
           <select id="format">
@@ -75,35 +144,68 @@
             <option value="gfx">GFXfont</option>
           </select>
         </label>
-        <label><span data-i18n="gen.symbolName">C identifier</span>
-          <input id="symbol" type="text" value="MyFont24">
-        </label>
-        <label class="grow"><span data-i18n="gen.typeface">Typeface</span>
+        <label class="grow"><span data-i18n="gen.typeface">Typeface name (for attribution)</span>
           <input id="typeface" type="text" value="">
         </label>
-        <label class="grow"><span data-i18n="gen.licenseName">License</span>
+        <label class="grow"><span data-i18n="gen.licenseName">License (for attribution)</span>
           <input id="license" type="text" value="">
         </label>
-        <label class="check"><span data-i18n="gen.dropInvalid">Drop violating glyphs</span>
-          <input id="drop-invalid" type="checkbox">
-        </label>
-        <button id="generate" data-i18n="gen.generate">Generate</button>
+        <label class="check"><input id="drop-invalid" type="checkbox"> <span data-i18n="gen.dropInvalid">Drop violating glyphs and continue</span></label>
+      </div>
+      <div class="controls">
+        <button id="generate" class="primary" data-i18n="gen.generate">Generate font</button>
+        <span class="status" id="status"></span>
       </div>
 
-      <p id="status" class="status"></p>
+      <div id="output" hidden>
+        <div class="stats">
+          <div><span class="sub" data-i18n="gen.bytes">Encoded size</span><strong id="res-bytes"></strong></div>
+          <div><span class="sub" data-i18n="gen.glyphs">Glyphs</span><strong id="res-glyphs"></strong></div>
+          <div><span class="sub" data-i18n="info.lineHeight">lineHeight</span><strong id="res-height"></strong></div>
+        </div>
+        <ul id="issues" class="issues"></ul>
+
+        <div class="offer" id="fb-offer" hidden>
+          <div id="fb-text"></div>
+          <div class="controls">
+            <label><span data-i18n="gen.fbFrom">Fill from</span>
+              <select id="fb-pick"></select>
+            </label>
+            <button id="fb-apply" data-i18n="gen.fbApply">Fill them in</button>
+            <button id="fb-clear" hidden data-i18n="gen.fbClear">Turn off</button>
+            <span class="status" id="fb-status"></span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
+            <input id="preview-text" type="text" value="">
+          </label>
+          <label><span data-i18n="controls.zoom">Zoom</span>
+            <select id="zoom">
+              <option value="1">1×</option><option value="2" selected>2×</option>
+              <option value="3">3×</option><option value="4">4×</option>
+            </select>
+          </label>
+        </div>
+        <div class="preview-wrap"><canvas id="preview"></canvas></div>
+        <p class="sub" data-i18n="gen.previewNote">Rendered from the generated 1bpp glyphs with
+          the library's LovyanGFX-exact engine — this is exactly what the device will draw.</p>
+
+        <div class="controls">
+          <button id="dl-h" class="primary" data-i18n="gen.downloadH">Download .h</button>
+          <button id="copy" data-i18n="gen.copy">Copy to clipboard</button>
+          <button id="dl-bin" data-i18n="gen.downloadBin">Download binary</button>
+        </div>
+        <p class="sub" id="code-note"></p>
+        <pre class="code" id="code"></pre>
+      </div>
     </section>
 
-    <section class="gen-result" id="result" hidden>
-      <div class="controls">
-        <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
-          <input id="preview-text" type="text" value="">
-        </label>
-        <button id="dl-h" data-i18n="gen.downloadH">Download .h</button>
-        <button id="dl-bin" data-i18n="gen.downloadBin">Download binary</button>
-      </div>
-      <div class="preview-wrap"><canvas id="preview"></canvas></div>
-      <dl id="info" class="info"></dl>
-      <ul id="issues" class="issues"></ul>
+    <!-- ---------------- 使い方 ---------------- -->
+    <section class="card">
+      <h2 data-i18n="gen.howto">How to use the generated header</h2>
+      <pre class="code" id="howto-code"></pre>
     </section>
   </main>
 

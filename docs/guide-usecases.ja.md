@@ -139,8 +139,11 @@ test('UI 文言はフォントに収録済み', async () => {
 [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html) で、
 手元の TTF/OTF/WOFF か Google Fonts の再配布可能な書体を選び、サイズと
 文字集合（日本語 UI 一式・時計用など のテンプレートあり）を指定して、
-u8g2 / GFXfont の `.h` などとしてダウンロードできます。ライセンスの
-帰属表示も出力ファイルに自動で入ります。
+u8g2 / GFXfont の `.h` などとしてダウンロードできます。生成前のライブ
+プレビューで書体とサイズを確認でき、書体に無かった文字は「どの文字が
+無いか」を名指しで提示して、別書体（Noto 系）から 1 クリックで補完
+できます。ライセンスの帰属表示も（補完に使った書体の分まで）出力
+ファイルに自動で入ります。
 
 ### コードで: `generateFont`（ブラウザ専用）
 
@@ -150,7 +153,7 @@ u8g2 / GFXfont の `.h` などとしてダウンロードできます。ライ�
 ```js
 import { generateFont, resolveCharset, encodeCSource } from 'lgfx-font-tool';
 
-const { font, missing } = await generateFont({
+const { font, missing, filled } = await generateFont({
   source: ttfArrayBuffer,          // または URL。登録済み CSS ファミリ名なら family: '...'
   px: 24,                          // 文字インクの高さ
   codepoints: resolveCharset({
@@ -158,12 +161,30 @@ const { font, missing } = await generateFont({
     customText: '℃㎡',            // 個別に足したい文字
   }),
   threshold: 128,                  // 1bpp 化のしきい値
+  fallbacks: [                     // 主書体に無い文字をこの順で補完（省略可）
+    { source: symbolsTtfArrayBuffer },
+    { family: 'MyRegisteredFallback' },
+  ],
 });
-console.log('書体に無かった文字:', missing.map((cp) => String.fromCodePoint(cp)));
+console.log('どの補完が何を埋めたか:', filled);
+console.log('どこにも無かった文字:', missing.map((cp) => String.fromCodePoint(cp)));
 ```
 
-`missing` に返った文字は生成元の書体に無かったものです。別の書体で作った
-フォントを `merge` で重ねて補完できます（§7）。
+### 補完はどこにある？ — 役割分担
+
+「この書体に無い文字」への対処は、意図的に 3 つの層に分かれています。
+
+1. **生成時の補完はライブラリ機能**（上の `fallbacks`）。不足分だけを
+   同じ px・閾値でラスタライズし、ベースライン整列で重ねる——この
+   「正解手順」は 1 つしかなく、手で書くと px の意味やメトリクスの扱いを
+   間違えやすいので、ライブラリが面倒を見ます。
+2. **どの書体で埋めるかの選定と入手はアプリの責務**。Web Generator は
+   再配布可能な Noto 系の候補を提案しますが、勝手には埋めません——
+   欠落を名指しし、利用者が 1 クリックで適用します（ライブラリ本体は
+   ネットワークに触れない、という分担でもあります）。
+3. **既存ビットマップフォント同士の補完はレシピ**（§7）。
+   `coverage → subset → merge` の 3 手で書けるうえ、ライブラリが自動化
+   すべきでない理由があります——次節の末尾を参照。
 
 ## 5. フォント形式を変換する
 
@@ -250,6 +271,14 @@ const filler = subset(fallbackFont, missing);   // 補完元から必要分だ�
 const complete = merge(mainFont, filler);
 // 行ボックスの高さが合わないときは complete.meta.issues に warning が載る
 ```
+
+この「既存フォント同士の補完」をライブラリの 1 関数に自動化していないのは
+意図的です。16px のゴシックに 12px の明朝を重ねても `merge` 自体は成功して
+しまう——サイズや雰囲気が合うかは目で見て決めることで、データからは判定
+できません。ライブラリは部品（`coverage` / `subset` / `merge`）と警告
+（行ボックス不一致の `meta.issues`）を提供し、判断は利用者に残します。
+一方、**TTF から生成するとき**は同じ px で作り直せるので正解手順が 1 つに
+決まり、そちらは `generateFont` の `fallbacks` が面倒を見ます（§4）。
 
 ## 8. 固定文言をビットマップに焼き込む
 
