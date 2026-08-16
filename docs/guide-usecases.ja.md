@@ -37,8 +37,11 @@ cd LGFXFontToolJs && npm install && npm run serve
 含まれます（npm / CDN は軽量 70 本を同梱し、残りは初回に自動取得）。
 
 コードを書かずに済ませたい場合は Web アプリもあります:
-[Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/)（閲覧・検査）と
-[Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html)（新規作成）。
+[Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/)（内蔵フォントの閲覧）、
+[Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html)（新規作成）、
+[Converter](https://tanakamasayuki.github.io/LGFXFontToolJs/converter.html)（形式変換）、
+[Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html)（棚卸し・被覆率・サイズ比較）。
+以下の §1（選定）は Inspector、§5（変換）は Converter が同じことを画面で行います。
 
 ## 1. 内蔵フォントから合うものを選ぶ
 

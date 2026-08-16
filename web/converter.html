@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LGFX Font Tool JS — Converter</title>
+  <link rel="stylesheet" href="./styles/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>LGFX Font Tool JS <span class="sub" data-i18n="cv.subtitle">Converter</span></h1>
+    <div class="topbar-right">
+      <nav class="nav">
+        <a href="./index.html" data-i18n="nav.viewer">Viewer</a>
+        <a href="./generator.html" data-i18n="nav.generator">Generator</a>
+        <a href="./converter.html" class="current" data-i18n="nav.converter">Converter</a>
+        <a href="./inspector.html" data-i18n="nav.inspector">Inspector</a>
+      </nav>
+      <select id="lang" data-i18n-title="controls.language"></select>
+      <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs">GitHub</a>
+    </div>
+  </header>
+
+  <main class="gen-main">
+    <!-- ---------------- 1. 入力 ---------------- -->
+    <section class="card">
+      <h2><span class="step-num">1</span> <span data-i18n="cv.stepInput">Input</span></h2>
+      <p class="sub" data-i18n="cv.inputNote">Drop in a font file — u8g2 / GFX1 container /
+        BDF / VLW / BFF / FONTX2 binaries, or a C/C++ header with GFXfont or u8g2 data in it.
+        The format is detected from the content; override it below if the guess is wrong.</p>
+      <div class="controls">
+        <label class="grow"><span data-i18n="cv.file">Font file</span>
+          <input id="file" type="file">
+        </label>
+        <label><span data-i18n="cv.format">Format</span>
+          <select id="format-override">
+            <option value="" selected data-i18n="cv.auto">(auto-detect)</option>
+          </select>
+        </label>
+        <label id="font-pick-row" hidden><span data-i18n="cv.fontInFile">Font in file</span>
+          <select id="font-pick"></select>
+        </label>
+      </div>
+      <p class="status" id="detect-status"></p>
+    </section>
+
+    <!-- ---------------- 2. 読み込んだフォント ---------------- -->
+    <section class="card" id="loaded-card" hidden>
+      <h2><span class="step-num">2</span> <span data-i18n="cv.stepLoaded">Loaded font</span></h2>
+      <div class="stats">
+        <div><span class="sub" data-i18n="cv.detectedFormat">Format</span><strong id="res-format"></strong></div>
+        <div><span class="sub" data-i18n="gen.glyphs">Glyphs</span><strong id="res-glyphs"></strong></div>
+        <div><span class="sub" data-i18n="info.lineHeight">lineHeight</span><strong id="res-height"></strong></div>
+        <div><span class="sub" data-i18n="cv.bpp">bpp</span><strong id="res-bpp"></strong></div>
+      </div>
+      <ul id="decode-issues" class="issues"></ul>
+      <div class="controls">
+        <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
+          <input id="preview-text" type="text" value="Hello 日本語 123">
+        </label>
+        <label><span data-i18n="controls.zoom">Zoom</span>
+          <select id="zoom">
+            <option value="1">1×</option><option value="2" selected>2×</option>
+            <option value="3">3×</option><option value="4">4×</option>
+          </select>
+        </label>
+      </div>
+      <div class="preview-wrap"><canvas id="preview"></canvas></div>
+    </section>
+
+    <!-- ---------------- 3. 変換 ---------------- -->
+    <section class="card" id="convert-card" hidden>
+      <h2><span class="step-num">3</span> <span data-i18n="cv.stepConvert">Convert</span></h2>
+      <div class="controls">
+        <label><span data-i18n="cv.target">Target</span>
+          <select id="target">
+            <option value="u8g2" selected>u8g2 (binary)</option>
+            <option value="gfx">GFXfont (GFX1 binary)</option>
+            <option value="bdf">BDF (text)</option>
+            <option value="vlw">VLW</option>
+            <option value="bff">BFF</option>
+            <option value="fontx2">FONTX2</option>
+            <option value="csource-u8g2">C header (u8g2)</option>
+            <option value="csource-gfx">C header (GFXfont)</option>
+          </select>
+        </label>
+        <label id="symbol-row" hidden><span data-i18n="gen.symbolName">Font name (C identifier)</span>
+          <input id="symbol" type="text" value="MyFont">
+        </label>
+        <label class="check"><input id="drop-invalid" type="checkbox"> <span data-i18n="gen.dropInvalid">Drop violating glyphs and continue</span></label>
+        <button id="dl" class="primary" data-i18n="cv.download">Download</button>
+      </div>
+      <p class="charsummary"><strong id="target-bytes"></strong></p>
+      <ul id="encode-issues" class="issues"></ul>
+    </section>
+  </main>
+
+  <script type="module" src="./converter.js"></script>
+</body>
+</html>

@@ -483,12 +483,21 @@ export function decodeCSource(source) {
     });
   }
 
+  // U8g2font ラッパ宣言（lgfx::U8g2font NAME(NAME_data) 等）があれば、
+  // データ配列名ではなくフォント名の方を採る
+  const wrapperNames = new Map();
+  const wrapRe = /\bU8g2font\s+(\w+)\s*\(\s*(\w+)\s*\)/g;
+  while ((m = wrapRe.exec(text)) !== null) {
+    wrapperNames.set(m[2], m[1]);
+  }
+
   // --- 残りのバイト配列を u8g2 として試す ---
   for (const [name, bytes] of arrays) {
     if (used.has(name) || bytes.length < 30) continue;
     try {
-      const font = decodeU8g2(bytes, { familyName: name });
-      if (font.glyphs.size > 0) fonts.push({ name, format: 'u8g2', font });
+      const fontName = wrapperNames.get(name) ?? name;
+      const font = decodeU8g2(bytes, { familyName: fontName });
+      if (font.glyphs.size > 0) fonts.push({ name: fontName, format: 'u8g2', font });
     } catch {
       // u8g2 ではない配列（画像など）は黙って読み飛ばす
     }

@@ -15,14 +15,9 @@ import {
   canEncode,
   encode,
   encodeCSource,
-  drawString,
   textWidth,
-  fontHeight,
-  createBitmap,
-  getPixel,
   AXES,
   TEMPLATES,
-  templateById,
   resolveCharset,
   toggleSet,
   splitBmp,
@@ -38,13 +33,7 @@ import {
   SUPPORTED_LOCALES,
 } from './i18n.js';
 import { FONTS, findFont, loadGoogleFont, FALLBACK_CHAIN } from './googlefonts.js';
-
-/** @param {string} id */
-function $(id) {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`missing #${id}`);
-  return el;
-}
+import { $, debounce, download, drawFontTo } from './ui.js';
 
 const langEl = /** @type {HTMLSelectElement} */ ($('lang'));
 const tabGoogleEl = /** @type {HTMLButtonElement} */ ($('tab-google'));
@@ -131,16 +120,6 @@ let currentHeader = null;
 
 // --- 共通ヘルパ -----------------------------------------------------------------
 
-/** @param {() => void} fn @param {number} ms */
-function debounce(fn, ms) {
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let timer;
-  return () => {
-    clearTimeout(timer);
-    timer = setTimeout(fn, ms);
-  };
-}
-
 const pxNum = () => Number(pxEl.value) || 24;
 const thresholdNum = () => Math.min(255, Math.max(1, Number(thresholdEl.value) || 128));
 const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.checked });
@@ -149,33 +128,6 @@ const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.check
 function charsPreview(cps, max) {
   const shown = cps.slice(0, max).map((cp) => String.fromCodePoint(cp)).join(' ');
   return cps.length > max ? `${shown} …` : shown;
-}
-
-/**
- * ライブラリの描画エンジンで canvas に描く（= 実機と同じ規則）。
- * @param {HTMLCanvasElement} canvas
- * @param {import('../src/model/font.js').Font} font
- * @param {string} text
- * @param {number} zoom
- */
-function drawFontTo(canvas, font, text, zoom) {
-  const w = Math.max(8, Math.min(4000, textWidth(font, text) + 8));
-  const h = Math.max(8, fontHeight(font) + 8);
-  const z = Math.max(1, Math.min(zoom, Math.floor(8192 / w) || 1));
-  const bmp = createBitmap(w, h, 1);
-  drawString(bmp, font, text, 4, 4);
-  canvas.width = w * z;
-  canvas.height = h * z;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.fillStyle = '#10151c';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#e8f0ff';
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (getPixel(bmp, x, y)) ctx.fillRect(x * z, y * z, z, z);
-    }
-  }
 }
 
 /**
@@ -740,16 +692,6 @@ void setup() {
   M5.Display.setFont(&${ident});
   M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
 }`;
-}
-
-/** @param {BlobPart} content @param {string} name @param {string} type */
-function download(content, name, type) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 dlHEl.addEventListener('click', () => {

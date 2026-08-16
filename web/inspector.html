@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LGFX Font Tool JS — Inspector</title>
+  <link rel="stylesheet" href="./styles/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>LGFX Font Tool JS <span class="sub" data-i18n="in.subtitle">Inspector</span></h1>
+    <div class="topbar-right">
+      <nav class="nav">
+        <a href="./index.html" data-i18n="nav.viewer">Viewer</a>
+        <a href="./generator.html" data-i18n="nav.generator">Generator</a>
+        <a href="./converter.html" data-i18n="nav.converter">Converter</a>
+        <a href="./inspector.html" class="current" data-i18n="nav.inspector">Inspector</a>
+      </nav>
+      <select id="lang" data-i18n-title="controls.language"></select>
+      <a class="link" href="https://github.com/tanakamasayuki/LGFXFontToolJs">GitHub</a>
+    </div>
+  </header>
+
+  <main class="gen-main">
+    <!-- ---------------- 1. 対象 ---------------- -->
+    <section class="card">
+      <h2><span class="step-num">1</span> <span data-i18n="in.stepTarget">Target</span></h2>
+      <div class="chips" role="tablist">
+        <button type="button" class="chip on" id="tab-builtin" data-i18n="in.builtin">Built-in font</button>
+        <button type="button" class="chip" id="tab-file" data-i18n="in.fileTab">File</button>
+      </div>
+      <div id="src-builtin">
+        <input type="search" id="search" data-i18n-placeholder="gen.searchFonts" placeholder="Search fonts…">
+        <div class="fontlist" id="builtin-list"></div>
+      </div>
+      <div id="src-file" hidden>
+        <div class="controls">
+          <label class="grow"><span data-i18n="cv.file">Font file</span>
+            <input id="file" type="file">
+          </label>
+        </div>
+      </div>
+      <p class="status" id="status"></p>
+    </section>
+
+    <!-- ---------------- 2. 棚卸し ---------------- -->
+    <section class="card" id="inventory-card" hidden>
+      <h2><span class="step-num">2</span> <span data-i18n="in.stepInventory">Inventory</span></h2>
+      <div class="stats">
+        <div><span class="sub" data-i18n="gen.glyphs">Glyphs</span><strong id="res-glyphs"></strong></div>
+        <div><span class="sub" data-i18n="info.lineHeight">lineHeight</span><strong id="res-height"></strong></div>
+        <div><span class="sub" data-i18n="cv.bpp">bpp</span><strong id="res-bpp"></strong></div>
+        <div><span class="sub" data-i18n="in.rangeCount">Ranges</span><strong id="res-ranges"></strong></div>
+      </div>
+      <h3 class="sub" data-i18n="in.extremes">Extremes</h3>
+      <div class="code" id="extremes"></div>
+      <h3 class="sub" data-i18n="in.ranges">Code point ranges</h3>
+      <div class="code scrollbox" id="ranges"></div>
+    </section>
+
+    <!-- ---------------- 3. 被覆率 ---------------- -->
+    <section class="card" id="coverage-card" hidden>
+      <h2><span class="step-num">3</span> <span data-i18n="in.stepCoverage">Coverage</span></h2>
+      <div id="coverage-bars"></div>
+      <h3 class="sub" data-i18n="in.textCheck">Text check</h3>
+      <p class="sub" data-i18n="in.textCheckNote">Paste the strings your device will display —
+        anything the font cannot draw is listed by character.</p>
+      <div class="controls">
+        <label class="grow"><span data-i18n="in.textCheck">Text check</span>
+          <textarea id="check-text" rows="3" data-i18n-placeholder="in.textCheckPlaceholder"
+            placeholder="Paste your UI strings…"></textarea>
+        </label>
+      </div>
+      <p id="check-result" class="charsummary"></p>
+      <div class="code" id="check-missing" hidden></div>
+    </section>
+
+    <!-- ---------------- 4. サイズ比較 ---------------- -->
+    <section class="card" id="sizes-card" hidden>
+      <h2><span class="step-num">4</span> <span data-i18n="in.stepSizes">Size in every format</span></h2>
+      <p class="sub" data-i18n="in.sizesNote">Exact byte counts from the real encoders (violating
+        glyphs dropped where necessary) — use this to pick the output format before converting.</p>
+      <table class="table" id="sizes-table">
+        <thead>
+          <tr>
+            <th data-i18n="cv.format">Format</th>
+            <th data-i18n="in.sizeBytes">Bytes</th>
+            <th data-i18n="in.sizeIssues">Constraints</th>
+          </tr>
+        </thead>
+        <tbody id="sizes-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script type="module" src="./inspector.js"></script>
+</body>
+</html>

@@ -31,7 +31,7 @@ test('decodeCSource: 自ライブラリの u8g2 .h を読み戻す', async () =>
   const found = decodeCSource(src);
   assert.equal(found.length, 1);
   assert.equal(found[0].format, 'u8g2');
-  assert.equal(found[0].name, 'RoundTrip16_data');
+  assert.equal(found[0].name, 'RoundTrip16'); // ラッパ宣言のフォント名（_data 配列名ではなく）
   assertGlyphsEqual(font, found[0].font, 'u8g2 .h');
 });
 
@@ -90,4 +90,13 @@ test('decodeCSource: bdfconv 流の文字列リテラル u8g2 を読む', async 
   assert.equal(found.length, 1);
   assert.equal(found[0].format, 'u8g2');
   assertGlyphsEqual(font, found[0].font, 'string literal u8g2');
+});
+
+test('decodeCSource: U8g2font ラッパ宣言があればフォント名を採る', async () => {
+  const font = subset(await loadFont('lgfxJapanGothic_12'), 'xyz');
+  const src = encodeCSource(font, { format: 'u8g2', symbolName: 'MyClock' });
+  const found = decodeCSource(src);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].name, 'MyClock'); // MyClock_data（配列名）ではなく
+  assertGlyphsEqual(font, found[0].font, 'wrapper name');
 });

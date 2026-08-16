@@ -310,6 +310,43 @@ body {
   white-space: pre;
   margin: 8px 0;
 }
+.scrollbox { max-height: 260px; overflow-y: auto; }
+
+.card h3.sub { margin: 14px 0 4px; font-size: 12px; }
+
+/* --- Inspector: 被覆率バーとサイズ比較表 --------------------------------- */
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) 1fr 48px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  margin: 3px 0;
+}
+.bar-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar {
+  height: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.bar-fill { height: 100%; background: var(--accent); }
+.bar-pct { text-align: right; font-variant-numeric: tabular-nums; }
+
+.table {
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 320px;
+}
+.table th, .table td {
+  border-bottom: 1px solid var(--border);
+  padding: 5px 16px 5px 0;
+  text-align: left;
+}
+.table th { color: var(--muted); font-size: 11px; font-weight: 600; }
+.table td:nth-child(2) { font-variant-numeric: tabular-nums; }
 
 .charsets fieldset, #axes fieldset {
   border: 1px solid var(--border);

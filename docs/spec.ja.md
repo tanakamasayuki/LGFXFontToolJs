@@ -1,7 +1,7 @@
 # LGFXFontToolJs 仕様書 v0.1（草案）
 
 - 対象読者: 本リポジトリの実装者
-- ステータス: **実装進行中（Phase 1〜2 完了、Phase 3 はコア完了・UI 残）。** 本書は実装に合わせて更新する
+- ステータス: **Phase 1〜4 実装済み（Web の 4 画面 = Viewer / Generator / Converter / Inspector を含む）。** 本書は実装に合わせて更新する
 - 最終更新: 2026-08-16
 
 参考資料: 形式ごとの制約と実測データの出典は [FONT_FORMATS.ja.md（LGFXScreenBuilder）](https://github.com/tanakamasayuki/LGFXScreenBuilder/blob/main/docs/FONT_FORMATS.ja.md)。
@@ -741,9 +741,9 @@ i18n は en / ja / zh-Hans / zh-Hant。`navigator.languages` から自動判定�
 | 画面 | 内容 | 使う API |
 | --- | --- | --- |
 | **Viewer** | 内蔵 186 本のカタログ閲覧、任意テキストのピクセル一致プレビュー（拡大・グリッド表示）、ライセンス表示 | `fontCatalog` / `loadFont` / `drawString` |
-| **Converter** | フォントファイル / C ソースを放り込む → detect → 変換 → ダウンロード。「入らない」は issues をそのまま可視化 | `decode` / `canEncode` / `encode` |
+| **Converter** | フォントファイル / C ソースを放り込む → detect → 変換 → ダウンロード（2026-08 実装済み）。判定候補の表示と形式の手動上書き、C ソース内の複数フォント選択、ピクセル一致プレビュー、`estimateSize` による変換後サイズの事前表示。「入らない」は issues をそのまま可視化 | `decode` / `detect` / `canEncode` / `encode` / `encodeCSource` / `estimateSize` |
 | **Generator** | TTF → u8g2 / GFXfont。fontgen.html の UI を手本にした 4 ステップのカード式（書体 → サイズと名前 → 文字 → 生成。2026-08 リデザイン済み）。Google Fonts の再配布可能書体（OFL / Apache-2.0）からの検索・選択、生成前のライブプレビュー、テンプレート・軸別の文字集合選択と概算サイズ、文字一覧（Ctrl+F 可）、欠落文字の別書体からの補完（**提案 → 1 クリック適用**。不足分だけ生成して `merge`、候補は FALLBACK_CHAIN、帰属表示は両書体を記録）、C ソース / バイナリ出力 — いずれも実装済み。フォント取得のネットワークアクセスはアプリ側の責務（§2.3）で、ライブラリは `generateFont` に読み込み済みファミリと `fallbacks` を渡せる口だけ持つ | `generateFont` / `subset` / `merge` / `encode` / `encodeCSource` |
-| **Inspector** | カバレッジ、メトリクス、全形式サイズ比較表 | `inspect` / `estimateSize` |
+| **Inspector** | カバレッジ、メトリクス、全形式サイズ比較表（2026-08 実装済み）。対象は内蔵 186 本とファイルの両方。名前付き集合ごとの被覆率バー、収録範囲一覧、文言チェック（描けない文字の列挙）、実エンコーダで数えた全形式サイズ比較 | `inspect` / `coverage` / `estimateSizes` |
 
 `examples/` には各 1 ファイルの最小サンプルを置く（§4.2）。アプリの多機能さとは独立に、「この API はこれだけで動く」を示すのが目的。
 
