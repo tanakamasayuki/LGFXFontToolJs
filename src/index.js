@@ -30,6 +30,13 @@ export { decodeBdf, encodeBdf, canEncodeBdf } from './format/bdf.js';
 export { decodeVlw, encodeVlw, canEncodeVlw } from './format/vlw.js';
 export { decodeBff, encodeBff, canEncodeBff } from './format/bff.js';
 export {
+  decodeFontx2,
+  encodeFontx2,
+  canEncodeFontx2,
+  sjisToUnicode,
+  unicodeToSjis,
+} from './format/fontx2.js';
+export {
   encodeCSource,
   decodeCSource,
   sanitizeIdent,

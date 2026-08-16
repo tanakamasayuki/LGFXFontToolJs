@@ -7,6 +7,7 @@ import { decodeGfx, encodeGfx, canEncodeGfx } from './gfxfont.js';
 import { decodeBdf, encodeBdf, canEncodeBdf } from './bdf.js';
 import { decodeVlw, encodeVlw, canEncodeVlw } from './vlw.js';
 import { decodeBff, encodeBff, canEncodeBff } from './bff.js';
+import { decodeFontx2, encodeFontx2, canEncodeFontx2 } from './fontx2.js';
 import { decodeCSource } from './csource.js';
 import { decodeGlcd } from './glcd.js';
 import { decodeFixedBmp } from './fixedbmp.js';
@@ -41,6 +42,7 @@ const FORMATS = [
   { id: 'bdf', name: 'BDF 2.1 (text)', decode: true, encode: true },
   { id: 'vlw', name: 'VLW (Processing / TFT_eSPI Smooth Font)', decode: true, encode: true },
   { id: 'bff', name: 'BFF (LovyanGFX / LVGL lv_font_conv)', decode: true, encode: true },
+  { id: 'fontx2', name: 'FONTX2', decode: true, encode: true },
   { id: 'csource', name: 'C/C++ source', decode: true, encode: true, note: 'decodeCSource / encodeCSource' },
   { id: 'glcd', name: 'GLCDfont (raw + params)', decode: true, encode: false },
   { id: 'fixedbmp', name: 'FixedBMPfont (raw + params)', decode: true, encode: false },
@@ -79,6 +81,7 @@ export function detect(input) {
     return results;
   }
   if (hasMagic(input, 'GFX1')) results.push({ format: 'gfx', confidence: 1.0 });
+  if (hasMagic(input, 'FONTX2')) results.push({ format: 'fontx2', confidence: 1.0 });
   if (input.length >= 8) {
     const tag = String.fromCharCode(input[4], input[5], input[6], input[7]);
     if (tag === 'head') results.push({ format: 'bff', confidence: 0.9 });
@@ -166,6 +169,8 @@ export function decode(input, opts = {}) {
       return decodeVlw(input, opts);
     case 'bff':
       return decodeBff(input, opts);
+    case 'fontx2':
+      return decodeFontx2(input, opts);
     case 'glcd': {
       if (!opts.glcd) throw new FormatError('MISSING_PARAMS', 'glcd format needs opts.glcd params');
       return decodeGlcd(input, opts.glcd, opts);
@@ -203,6 +208,10 @@ export function canEncode(font, format) {
       return canEncodeVlw(font);
     case 'bff':
       return canEncodeBff(font);
+    case 'fontx2': {
+      const r = canEncodeFontx2(font);
+      return { ok: r.ok, issues: r.issues };
+    }
     default: {
       const info = FORMATS.find((f) => f.id === format);
       if (!info) throw new FormatError('UNKNOWN_FORMAT', `unknown format id: ${format}`, { format });
@@ -235,6 +244,8 @@ export function encode(font, opts) {
       return encodeVlw(font, opts);
     case 'bff':
       return encodeBff(font, opts);
+    case 'fontx2':
+      return encodeFontx2(font, opts);
     default: {
       const info = FORMATS.find((f) => f.id === opts.format);
       if (!info) {
