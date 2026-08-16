@@ -28,6 +28,7 @@ export {
 } from './format/gfxfont.js';
 export { decodeBdf, encodeBdf, canEncodeBdf } from './format/bdf.js';
 export { decodeVlw, encodeVlw, canEncodeVlw } from './format/vlw.js';
+export { decodeBff, encodeBff, canEncodeBff } from './format/bff.js';
 export {
   encodeCSource,
   decodeCSource,

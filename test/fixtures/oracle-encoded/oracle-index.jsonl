@@ -26,3 +26,11 @@
 {"file":"fonts/gothic16-nospace.vlw","text":"ascii","sizeX":1.5,"sizeY":1.5,"x":4,"y":6,"w":82,"h":40,"textWidth":66,"fontHeight":24,"advance":66,"offset":32430,"bytes":440}
 {"file":"fonts/gothic16-nospace.vlw","text":"cjk","sizeX":1,"sizeY":1,"x":4,"y":6,"w":128,"h":32,"textWidth":112,"fontHeight":16,"advance":112,"offset":32870,"bytes":512}
 {"file":"fonts/gothic16-nospace.vlw","text":"cjk","sizeX":1.5,"sizeY":1.5,"x":4,"y":6,"w":184,"h":40,"textWidth":168,"fontHeight":24,"advance":168,"offset":33382,"bytes":920}
+{"file":"fonts/gothic16-sub.bff","text":"ascii","sizeX":1,"sizeY":1,"x":4,"y":6,"w":64,"h":32,"textWidth":48,"fontHeight":16,"advance":48,"offset":34302,"bytes":256}
+{"file":"fonts/gothic16-sub.bff","text":"ascii","sizeX":1.5,"sizeY":1.5,"x":4,"y":6,"w":88,"h":40,"textWidth":72,"fontHeight":24,"advance":72,"offset":34558,"bytes":440}
+{"file":"fonts/gothic16-sub.bff","text":"cjk","sizeX":1,"sizeY":1,"x":4,"y":6,"w":128,"h":32,"textWidth":112,"fontHeight":16,"advance":112,"offset":34998,"bytes":512}
+{"file":"fonts/gothic16-sub.bff","text":"cjk","sizeX":1.5,"sizeY":1.5,"x":4,"y":6,"w":184,"h":40,"textWidth":168,"fontHeight":24,"advance":168,"offset":35510,"bytes":920}
+{"file":"fonts/gray4bpp.bff","text":"ascii","sizeX":1,"sizeY":1,"x":4,"y":6,"w":88,"h":32,"textWidth":72,"fontHeight":16,"advance":72,"offset":36430,"bytes":352}
+{"file":"fonts/gray4bpp.bff","text":"ascii","sizeX":1.5,"sizeY":1.5,"x":4,"y":6,"w":124,"h":40,"textWidth":108,"fontHeight":24,"advance":108,"offset":36782,"bytes":640}
+{"file":"fonts/gray4bpp.bff","text":"cjk","sizeX":1,"sizeY":1,"x":4,"y":6,"w":128,"h":32,"textWidth":112,"fontHeight":16,"advance":112,"offset":37422,"bytes":512}
+{"file":"fonts/gray4bpp.bff","text":"cjk","sizeX":1.5,"sizeY":1.5,"x":4,"y":6,"w":184,"h":40,"textWidth":168,"fontHeight":24,"advance":168,"offset":37934,"bytes":920}

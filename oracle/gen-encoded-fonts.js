@@ -13,7 +13,10 @@ import { loadFont } from '../src/fonts/loader.js';
 import { encodeU8g2 } from '../src/format/u8g2.js';
 import { encodeGfx } from '../src/format/gfxfont.js';
 import { encodeVlw } from '../src/format/vlw.js';
+import { encodeBff } from '../src/format/bff.js';
 import { subset } from '../src/model/subset.js';
+import { createFont } from '../src/model/font.js';
+import { createBitmap, getPixel } from '../src/model/bitmap.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(repoRoot, 'test', 'fixtures', 'oracle-encoded', 'fonts');
@@ -49,5 +52,33 @@ put(
   'gothic16-nospace.vlw',
   encodeVlw(subset(await loadFont('lgfxJapanGothic_16'), 'Ag9!~日本語あア漢')),
 );
+
+// BFF: 1bpp 経路（cmap format1 / loca / glyf 生ビット）
+put('gothic16-sub.bff', encodeBff(subset(await loadFont('lgfxJapanGothic_16'), 'Ag9 !~日本語あア漢')));
+
+// BFF: 4bpp 経路 + 未収録文字（gid 0 代替グリフ）の検証。
+// 収録は 'Ag9' のみで、被覆値 128 の中間アルファに置き換える
+{
+  const src = subset(await loadFont('lgfxJapanGothic_16'), 'Ag9');
+  const glyphs = new Map();
+  for (const [cp, g] of src.glyphs) {
+    const bmp = createBitmap(g.bitmap.width, g.bitmap.height, 8);
+    for (let y = 0; y < bmp.height; y++) {
+      for (let x = 0; x < bmp.width; x++) {
+        if (getPixel(g.bitmap, x, y)) bmp.data[y * bmp.width + x] = 128;
+      }
+    }
+    glyphs.set(cp, { ...g, bitmap: bmp });
+  }
+  const gray = createFont({
+    familyName: 'gray',
+    ascent: src.ascent,
+    descent: src.descent,
+    lineHeight: src.lineHeight,
+    glyphs,
+    meta: { drawProfile: 'vlw', fallback: src.meta.fallback, issues: [] },
+  });
+  put('gray4bpp.bff', encodeBff(gray));
+}
 
 console.log('done');

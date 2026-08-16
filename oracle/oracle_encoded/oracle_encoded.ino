@@ -33,6 +33,8 @@ static const Case kCases[] = {
   { "fonts/gothic12-cjk.gfx1" },
   { "fonts/gothic16-sub.vlw" },
   { "fonts/gothic16-nospace.vlw" },
+  { "fonts/gothic16-sub.bff" },
+  { "fonts/gray4bpp.bff" },
 };
 
 static uint8_t* readAll(const char* path, size_t* outSize)
@@ -81,6 +83,11 @@ void setup()
       auto wrap = new lgfx::v1::PointerWrapper(data, (uint32_t)size);
       if (!vlw->loadFont(wrap)) { printf("FATAL vlw loadFont %s\n", file); exit(1); }
       font = vlw;
+    } else if (strstr(file, ".bff")) {
+      auto bff = new lgfx::v1::BFFfont();
+      auto wrap = new lgfx::v1::PointerWrapper(data, (uint32_t)size);
+      if (!bff->loadFont(wrap)) { printf("FATAL bff loadFont %s\n", file); exit(1); }
+      font = bff;
     } else {
       if (!loadGfx1(data, size, &gfx)) { printf("FATAL bad gfx1 %s\n", file); exit(1); }
       font = gfx.font;
