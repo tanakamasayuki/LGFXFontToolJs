@@ -4,12 +4,23 @@
 
 [日本語 README](./README.ja.md) · [Specification (ja)](./docs/spec.ja.md)
 
-Decoders and encoders for u8g2 / GFXfont (Adafruit GFX) / BDF / VLW / LovyanGFX internal
-formats, a text rendering engine that matches LovyanGFX pixel-for-pixel, and a bundled
-collection of all 186 fonts built into LovyanGFX v1.2.26.
+Decoders and encoders for u8g2 / GFXfont (Adafruit GFX) / BDF / VLW / BFF / FONTX2 /
+LovyanGFX internal formats, a text rendering engine that matches LovyanGFX
+pixel-for-pixel, and a bundled collection of all 186 fonts built into LovyanGFX v1.2.26.
 
-**Status: Phase 1 under construction.** See [docs/spec.ja.md](./docs/spec.ja.md) for the
-specification (Japanese; English version will follow once it stabilizes).
+Web apps: [Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/) ·
+[Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html)
+
+## Documentation
+
+Currently in Japanese (English versions will follow):
+
+| Document | Contents |
+| --- | --- |
+| [Beginner's guide](./docs/guide-beginner.ja.md) | Starts from "what is a font" |
+| [Use-case guide](./docs/guide-usecases.ja.md) | Recipes: pick, render, generate, convert, CI checks… |
+| [Advanced guide](./docs/guide-advanced.ja.md) | Internals, pixel-exactness, encoding constraints, extending |
+| [Specification](./docs/spec.ja.md) | Normative spec (use cases, design decisions, format details) |
 
 ## Development
 

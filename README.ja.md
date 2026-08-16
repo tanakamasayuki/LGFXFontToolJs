@@ -4,11 +4,21 @@
 
 [English README](./README.md) · [仕様書](./docs/spec.ja.md)
 
-u8g2 / GFXfont (Adafruit GFX) / BDF / VLW / LovyanGFX 内部形式のデコーダ・エンコーダと、
-LovyanGFX とピクセル単位で一致するテキスト描画エンジン、
+u8g2 / GFXfont (Adafruit GFX) / BDF / VLW / BFF / FONTX2 / LovyanGFX 内部形式の
+デコーダ・エンコーダと、LovyanGFX とピクセル単位で一致するテキスト描画エンジン、
 LovyanGFX v1.2.26 の内蔵フォント 186 本の同梱コレクションからなる汎用部品ライブラリです。
 
-**ステータス: Phase 1 実装中。** 詳細は [docs/spec.ja.md](./docs/spec.ja.md) を参照してください。
+Web アプリ: [Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/) ·
+[Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html)
+
+## ドキュメント
+
+| ドキュメント | 内容 |
+| --- | --- |
+| [初心者ガイド](./docs/guide-beginner.ja.md) | 「フォントとは何か」から始める入門 |
+| [用途別ガイド](./docs/guide-usecases.ja.md) | やりたいこと別のレシピ集（選ぶ・描く・作る・変換する・CI 検査…） |
+| [上級者ガイド](./docs/guide-advanced.ja.md) | 内部規約・完全一致の仕組み・エンコード制約・拡張方法 |
+| [仕様書](./docs/spec.ja.md) | 規範的な仕様（ユースケース・設計判断・形式仕様） |
 
 ## 開発
 
