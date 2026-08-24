@@ -182,6 +182,19 @@ console.log('which fallback filled what:', filled);
 console.log('characters found nowhere:', missing.map((cp) => String.fromCodePoint(cp)));
 ```
 
+When the fill is a separate call, pass the sizing returned by the primary
+generation to keep the same CSS em scale.
+
+```js
+const primary = await generateFont({ source: ttfArrayBuffer, px: 24, codepoints });
+const filler = await generateFont({
+  family: 'MyRegisteredFallback',
+  px: 24,
+  codepoints: primary.missing,
+  sizing: primary.sizing,
+});
+```
+
 ### Where does fallback fill live? — Division of responsibilities
 
 Handling "characters this typeface doesn't have" is deliberately split
@@ -297,9 +310,9 @@ still lets `merge` itself succeed — whether the sizes and the look fit is
 a judgment made by eye, and it cannot be decided from the data. The
 library provides the parts (`coverage` / `subset` / `merge`) and the
 warnings (line-box mismatch in `meta.issues`), and leaves the decision to
-the user. On the other hand, **when generating from a TTF**, you can
-regenerate at the same px, so there is exactly one correct procedure —
-and `generateFont`'s `fallbacks` takes care of that case (§4).
+the user. On the other hand, **when generating from a TTF**, the fill can
+inherit the primary typeface's `cssPx`, so there is exactly one correct
+procedure — and `generateFont`'s `fallbacks` takes care of that case (§4).
 
 ## 8. Baking Fixed Strings into a Bitmap
 

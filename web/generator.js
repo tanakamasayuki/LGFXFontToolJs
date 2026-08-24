@@ -111,6 +111,8 @@ let fbState = null;
 let baseFont = null;
 /** @type {number[]} 主生成で書体に無かった文字 */
 let baseMissing = [];
+/** @type {import('../src/gen/rasterize.js').FontSizing | null} 主生成のサイジング */
+let baseSizing = null;
 /** @type {import('../src/model/font.js').Font | null} 表示・出力対象（補完適用後を含む） */
 let generated = null;
 /** @type {{family: string, filled: number, still: number[]} | null} */
@@ -123,6 +125,32 @@ let currentHeader = null;
 const pxNum = () => Number(pxEl.value) || 24;
 const thresholdNum = () => Math.min(255, Math.max(1, Number(thresholdEl.value) || 128));
 const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.checked });
+
+/**
+ * 生成済み fallback を合成し、全グリフの実インクから行ボックスを更新する。
+ * 汎用 merge() の「base メトリクスを維持する」契約は変えない。
+ * @param {import('../src/model/font.js').Font} base
+ * @param {import('../src/model/font.js').Font} overlay
+ */
+function mergeGenerated(base, overlay) {
+  const merged = merge(base, overlay);
+  let ascent = 0;
+  let descent = 0;
+  for (const g of merged.glyphs.values()) {
+    if (!g.bitmap.height) continue;
+    ascent = Math.max(ascent, -g.yOffset);
+    descent = Math.max(descent, g.yOffset + g.bitmap.height);
+  }
+  ascent = Math.max(1, Math.ceil(ascent));
+  descent = Math.max(0, Math.ceil(descent));
+  return {
+    ...merged,
+    ascent,
+    descent,
+    lineHeight: ascent + descent,
+    meta: { ...merged.meta, issues: merged.meta.issues.slice(0, base.meta.issues.length) },
+  };
+}
 
 /** @param {number[]} cps @param {number} max */
 function charsPreview(cps, max) {
@@ -466,7 +494,7 @@ generateEl.addEventListener('click', async () => {
   try {
     statusEl.textContent = t('gen.fetching');
     const src = await resolveSource(bmp);
-    const { font, missing } = await generateFont({
+    const { font, missing, sizing } = await generateFont({
       ...src,
       px: pxNum(),
       codepoints: bmp,
@@ -479,6 +507,7 @@ generateEl.addEventListener('click', async () => {
     });
     baseFont = font;
     baseMissing = missing;
+    baseSizing = sizing;
     generated = font;
     fbApplied = null;
     statusEl.textContent = dropped.length > 0 ? t('gen.droppedBmp', { count: dropped.length }) : '';
@@ -558,11 +587,12 @@ fbApplyEl.addEventListener('click', async () => {
       codepoints: baseMissing,
       style: styleNow(),
       threshold: thresholdNum(),
+      sizing: baseSizing ?? undefined,
       onProgress: ({ done, total }) => {
         fbStatusEl.textContent = t('gen.generating', { done, total });
       },
     });
-    generated = merge(baseFont, r.font);
+    generated = mergeGenerated(baseFont, r.font);
     fbApplied = { family: fam, filled: baseMissing.length - r.missing.length, still: r.missing };
     fbStatusEl.textContent = '';
     renderResult();

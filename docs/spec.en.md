@@ -643,13 +643,14 @@ await generateFont({
   bpp: 1,                  // 1 (thresholded) | 8 (raw coverage values)
   threshold: 128,          // threshold for 1bpp (0-255)
   weight, italic,          // passed to the FontFace descriptor
-  fallbacks: [{ family }], // fill characters missing from the primary source, in this order (generated at the same px / threshold and merged)
-})  // -> { font, missing, filled }
+  sizing,                  // optional: reuse { cssPx, probe, probeHeight } from another generation
+  fallbacks: [{ family }], // fill missing characters in order, inheriting the primary cssPx
+})  // -> { font, missing, filled, sizing }
 ```
 
 - The implementation registers the font via `FontFace`, draws glyphs one character at a time on an `OffscreenCanvas` 2D context, and harvests the alpha channel. **opentype.js and the like are not used** (design decision #2). The method is proven in LGFXScreenBuilder's `fontgen/rasterize.js`; that implementation is migrated and cleaned up here.
 - Whether the font actually carries a given glyph (tofu exclusion) is likewise determined by cross-checking the rasterization result against `measureText` (following fontgen's existing technique).
-- **Division of responsibility for fallback fill (decided)**: fallback fill at generation time (rasterizing the missing characters from another source at the same px / threshold and `merge`-ing them with baseline alignment) is a **library feature** (`fallbacks`; what was filled with what is reported in `filled`, and what remains absent in `missing`). **Selecting and obtaining** the fill source is the **application's responsibility** (the Generator suggests FALLBACK_CHAIN and never fills on its own). Fallback fill between existing bitmap fonts is **not automated in the library** — it is a `coverage → subset → merge` recipe, and pixel-size compatibility is left to the user's judgment (documented in the usage guide).
+- **Division of responsibility for fallback fill (decided)**: fallback fill at generation time (rasterizing missing characters at the primary typeface's `cssPx` / threshold, aligning them on the baseline, and recomputing the line box from all glyphs) is a **library feature** (`fallbacks`; what was filled with what is reported in `filled`, and what remains absent in `missing`). For a separate fill call, pass the returned `sizing` to the next `generateFont`. **Selecting and obtaining** the fill source is the **application's responsibility** (the Generator suggests FALLBACK_CHAIN and never fills on its own). Fallback fill between existing bitmap fonts is **not automated in the library** — it is a `coverage → subset → merge` recipe, and pixel-size compatibility is left to the user's judgment (documented in the usage guide).
 - Calling this outside a browser throws `CapabilityError('RASTERIZER_UNAVAILABLE')`. Node support will be considered later as a rasterizer-injection interface (§18).
 
 ### 10.3 Determinism

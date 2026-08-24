@@ -90,6 +90,12 @@ function makeSurface(size) {
 
 /** @typedef {ReturnType<typeof makeSurface>} Surface */
 /** @typedef {{weight?: number, italic?: boolean}} TtfStyle */
+/**
+ * CSS 上の描画サイズと、その導出に使った情報。
+ * `cssPx` を指定して再利用する場合、probe / probeHeight は由来の記録として保持する。
+ * @typedef {{cssPx: number, probe: string | null, probeHeight: number}} FontSizing
+ * @typedef {{cssPx: number, probe?: string | null, probeHeight?: number}} FontSizingInput
+ */
 
 // ファミリ名は引用符で囲む。汎用フォールバックは囲んでは「いけない」——
 // 囲むと実在しないフォント名として無視され、比較の基準にならなくなる。
@@ -341,14 +347,32 @@ function rasterizeOne(surf, code, size, family, style, threshold) {
  * @param {number[]} opts.codepoints - 昇順のコードポイント列
  * @param {TtfStyle} [opts.style]
  * @param {number} [opts.threshold] - 1bpp 化の alpha 閾値（1..255。既定 128）
+ * @param {FontSizingInput} [opts.sizing] - measureTtf を省略して再利用するサイジング
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
  * @returns {Promise<{glyphs: RasterGlyph[], missing: number[],
  *   sizing: {cssPx: number, probe: string | null, probeHeight: number},
  *   box: {ascent: number, descent: number, height: number}}>}
  */
-export async function rasterizeSet({ family, size, codepoints, style = {}, threshold = 128, onProgress }) {
+export async function rasterizeSet({
+  family,
+  size,
+  codepoints,
+  style = {},
+  threshold = 128,
+  sizing: inheritedSizing,
+  onProgress,
+}) {
   ensureRasterizer();
-  const sizing = measureTtf(family, size, style, codepoints);
+  if (inheritedSizing && (!Number.isFinite(inheritedSizing.cssPx) || inheritedSizing.cssPx <= 0)) {
+    throw new RangeError('rasterizeSet: sizing.cssPx must be a positive finite number');
+  }
+  const sizing = inheritedSizing
+    ? {
+        cssPx: inheritedSizing.cssPx,
+        probe: inheritedSizing.probe ?? null,
+        probeHeight: inheritedSizing.probeHeight ?? 0,
+      }
+    : measureTtf(family, size, style, codepoints);
   const surf = makeSurface(sizing.cssPx);
   /** @type {RasterGlyph[]} */
   const glyphs = [];

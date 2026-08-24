@@ -6,10 +6,11 @@
 import { loadTtf, unloadTtf, rasterizeSet } from './rasterize.js';
 import { createBitmap, setPixel } from '../model/bitmap.js';
 import { createFont } from '../model/font.js';
-import { merge } from '../model/subset.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
 /** @typedef {import('./rasterize.js').RasterGlyph} RasterGlyph */
+/** @typedef {import('./rasterize.js').FontSizing} FontSizing */
+/** @typedef {import('./rasterize.js').FontSizingInput} FontSizingInput */
 
 /**
  * @param {RasterGlyph} g
@@ -38,10 +39,10 @@ function toModelGlyph(g) {
  * ソース 1 つ（source または family）を指定文字集合でラスタライズする 1 パス。
  * @param {{source?: ArrayBuffer | string, family?: string}} src
  * @param {number[]} codepoints
- * @param {{px: number, style?: {weight?: number, italic?: boolean}, threshold?: number,
+ * @param {{px: number, style?: {weight?: number, italic?: boolean}, threshold?: number, sizing?: FontSizingInput,
  *          familyName?: string, onProgress?: (p: {done: number, total: number}) => void}} opts
  *   - generateFont の opts（px / style / threshold / familyName / onProgress を共有）
- * @returns {Promise<{font: Font, missing: number[]}>}
+ * @returns {Promise<{font: Font, missing: number[], sizing: FontSizing}>}
  */
 async function generateOne(src, codepoints, opts) {
   if (src.source === undefined && !src.family) {
@@ -56,6 +57,7 @@ async function generateOne(src, codepoints, opts) {
       codepoints,
       style: opts.style ?? {},
       threshold: opts.threshold ?? 128,
+      sizing: opts.sizing,
       onProgress: opts.onProgress,
     });
 
@@ -91,10 +93,46 @@ async function generateOne(src, codepoints, opts) {
         },
       },
     });
-    return { font, missing };
+    return { font, missing, sizing };
   } finally {
     if (own) unloadTtf(own.face);
   }
+}
+
+/**
+ * モデルグリフ全体の実インクから行ボックスを求める。
+ * @param {Map<number, import('../model/font.js').Glyph>} glyphs
+ * @returns {{ascent: number, descent: number, height: number}}
+ */
+export function lineBoxOfModelGlyphs(glyphs) {
+  let ascent = 0;
+  let descent = 0;
+  for (const g of glyphs.values()) {
+    if (!g.bitmap.height) continue;
+    ascent = Math.max(ascent, -g.yOffset);
+    descent = Math.max(descent, g.yOffset + g.bitmap.height);
+  }
+  ascent = Math.max(1, Math.ceil(ascent));
+  descent = Math.max(0, Math.ceil(descent));
+  return { ascent, descent, height: ascent + descent };
+}
+
+/** @param {Font} base @param {Font} overlay */
+function mergeGenerated(base, overlay) {
+  const glyphs = new Map(base.glyphs);
+  for (const [cp, glyph] of overlay.glyphs) glyphs.set(cp, glyph);
+  const box = lineBoxOfModelGlyphs(glyphs);
+  return createFont({
+    familyName: base.familyName,
+    styleName: base.styleName,
+    ascent: box.ascent,
+    descent: box.descent,
+    lineHeight: box.height,
+    glyphs,
+    defaultCodepoint: base.defaultCodepoint,
+    kerning: base.kerning,
+    meta: { ...base.meta, issues: [...base.meta.issues] },
+  });
 }
 
 /**
@@ -105,10 +143,11 @@ async function generateOne(src, codepoints, opts) {
  * アプリ側で FontFace としてページに登録し、`family` で渡す）。
  * `source` を渡した場合の読み込みはこの関数が面倒を見る。
  *
- * 補完（fallbacks）: 主ソースに無かった文字を、指定した別ソースで同じ
- * px / style / threshold のままラスタライズし、ベースライン整列で重ねる
- * （メトリクスは主ソースのもの。merge と同じ規則）。どのソースを補完に
- * 使うかの選定・入手はアプリの責務で、ここは渡されたものを順に試すだけ。
+ * 補完（fallbacks）: 主ソースに無かった文字を、指定した別ソースで主フォントの
+ * cssPx と同じ CSS em スケール、同じ style / threshold でラスタライズする。
+ * ベースライン整列で重ねた後、全グリフの実インクから行ボックスを再計算する。
+ * どのソースを補完に使うかの選定・入手はアプリの責務で、ここは渡されたものを
+ * 順に試すだけ。
  *
  * @param {object} opts
  * @param {ArrayBuffer | string} [opts.source] - TTF/OTF/WOFF のバイナリ、または URL
@@ -117,11 +156,12 @@ async function generateOne(src, codepoints, opts) {
  * @param {number[] | string} opts.codepoints - 収録する文字（コードポイント列 or 文字列）
  * @param {{weight?: number, italic?: boolean}} [opts.style]
  * @param {number} [opts.threshold] - 1bpp 化の alpha 閾値（1..255。既定 128）
+ * @param {FontSizingInput} [opts.sizing] - cssPx を固定するサイジング（別呼び出しでの補完用）
  * @param {string} [opts.familyName]
  * @param {Array<{source?: ArrayBuffer | string, family?: string}>} [opts.fallbacks]
  *   - 主ソースに無かった文字をこの順で補完するソース列
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
- * @returns {Promise<{font: Font, missing: number[], filled: {index: number, codepoints: number[]}[]}>}
+ * @returns {Promise<{font: Font, missing: number[], filled: {index: number, codepoints: number[]}[], sizing: FontSizing}>}
  *   font: 生成された中立モデル / missing: どのソースにも無かった文字 /
  *   filled: fallbacks の何番目が何文字を埋めたか
  */
@@ -134,18 +174,21 @@ export async function generateFont(opts) {
         )
       : [...new Set(opts.codepoints)].sort((a, b) => a - b);
 
-  let { font, missing } = await generateOne(opts, codepoints, opts);
+  const primary = await generateOne(opts, codepoints, opts);
+  let { font, missing } = primary;
+  const sizing = primary.sizing;
 
   /** @type {{index: number, codepoints: number[]}[]} */
   const filled = [];
   const fallbacks = opts.fallbacks ?? [];
   for (let i = 0; i < fallbacks.length && missing.length > 0; i++) {
-    const r = await generateOne(fallbacks[i], missing, opts);
+    // fallback は主フォントと同じ CSS em スケールで描く。書体ごとの再計測はしない。
+    const r = await generateOne(fallbacks[i], missing, { ...opts, sizing });
     if (r.font.glyphs.size > 0) {
-      font = merge(font, r.font);
+      font = mergeGenerated(font, r.font);
       filled.push({ index: i, codepoints: [...r.font.glyphs.keys()].sort((a, b) => a - b) });
     }
     missing = r.missing;
   }
-  return { font, missing, filled };
+  return { font, missing, filled, sizing };
 }

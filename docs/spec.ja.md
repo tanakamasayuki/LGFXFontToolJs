@@ -643,13 +643,14 @@ await generateFont({
   bpp: 1,                  // 1（閾値処理）| 8（被覆値のまま）
   threshold: 128,          // 1bpp 時の閾値（0-255）
   weight, italic,          // FontFace descriptor に渡す
-  fallbacks: [{ family }], // 主ソースに無い文字をこの順で補完（同じ px / 閾値で生成し merge）
-})  // -> { font, missing, filled }
+  sizing,                  // 任意。別生成で得た { cssPx, probe, probeHeight } を再利用
+  fallbacks: [{ family }], // 主ソースに無い文字をこの順で補完（主書体の cssPx を継承）
+})  // -> { font, missing, filled, sizing }
 ```
 
 - 実装は `FontFace` でフォントを登録し、`OffscreenCanvas` の 2D コンテキストでグリフを 1 文字ずつ描画してアルファチャネルを回収する。**opentype.js 等は使わない**（設計判断 #2）。LGFXScreenBuilder の `fontgen/rasterize.js` で実証済みの方式であり、その実装を移管・整理する。
 - フォントが当該グリフを持つかの判定（tofu 除外）もラスタライズ結果と `measureText` の突き合わせで行う（fontgen の既存手法を踏襲）。
-- **補完の役割分担（決定済み）**: 生成時の補完（不足文字を別ソースで同じ px / 閾値のままラスタライズしてベースライン整列で `merge`）は**ライブラリ機能**（`fallbacks`。何で何を埋めたかは `filled`、なお無いものは `missing`）。どのソースで埋めるかの**選定と入手はアプリ責務**（Generator は FALLBACK_CHAIN を提案し、勝手には埋めない）。既存ビットマップフォント同士の補完は**ライブラリでは自動化しない** — `coverage → subset → merge` のレシピとし、ピクセルサイズの適合は利用者が判断する（使い方ガイドに記載）。
+- **補完の役割分担（決定済み）**: 生成時の補完（不足文字を別ソースで主書体と同じ `cssPx` / 閾値のままラスタライズし、ベースライン整列で重ねて全グリフから行ボックスを再計算）は**ライブラリ機能**（`fallbacks`。何で何を埋めたかは `filled`、なお無いものは `missing`）。別呼び出しで補完を生成するときは、戻り値の `sizing` を次の `generateFont` に渡せる。どのソースで埋めるかの**選定と入手はアプリ責務**（Generator は FALLBACK_CHAIN を提案し、勝手には埋めない）。既存ビットマップフォント同士の補完は**ライブラリでは自動化しない** — `coverage → subset → merge` のレシピとし、ピクセルサイズの適合は利用者が判断する（使い方ガイドに記載）。
 - ブラウザ以外で呼ぶと `CapabilityError('RASTERIZER_UNAVAILABLE')`。Node 対応はラスタライザ注入インタフェースとして将来検討する（§18）。
 
 ### 10.3 決定性

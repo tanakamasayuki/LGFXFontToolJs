@@ -175,12 +175,25 @@ console.log('どの補完が何を埋めたか:', filled);
 console.log('どこにも無かった文字:', missing.map((cp) => String.fromCodePoint(cp)));
 ```
 
+補完を別の呼び出しに分ける場合は、主生成が返した `sizing` を渡せます。
+
+```js
+const primary = await generateFont({ source: ttfArrayBuffer, px: 24, codepoints });
+const filler = await generateFont({
+  family: 'MyRegisteredFallback',
+  px: 24,
+  codepoints: primary.missing,
+  sizing: primary.sizing,
+});
+```
+
 ### 補完はどこにある？ — 役割分担
 
 「この書体に無い文字」への対処は、意図的に 3 つの層に分かれています。
 
 1. **生成時の補完はライブラリ機能**（上の `fallbacks`）。不足分だけを
-   同じ px・閾値でラスタライズし、ベースライン整列で重ねる——この
+   主書体と同じ `cssPx`・閾値でラスタライズし、ベースライン整列で重ね、
+   全グリフから行ボックスを再計算する——この
    「正解手順」は 1 つしかなく、手で書くと px の意味やメトリクスの扱いを
    間違えやすいので、ライブラリが面倒を見ます。
 2. **どの書体で埋めるかの選定と入手はアプリの責務**。Web Generator は
@@ -282,8 +295,9 @@ const complete = merge(mainFont, filler);
 しまう——サイズや雰囲気が合うかは目で見て決めることで、データからは判定
 できません。ライブラリは部品（`coverage` / `subset` / `merge`）と警告
 （行ボックス不一致の `meta.issues`）を提供し、判断は利用者に残します。
-一方、**TTF から生成するとき**は同じ px で作り直せるので正解手順が 1 つに
-決まり、そちらは `generateFont` の `fallbacks` が面倒を見ます（§4）。
+一方、**TTF から生成するとき**は主書体の `cssPx` を継承して作り直せるので
+正解手順が 1 つに決まり、そちらは `generateFont` の `fallbacks` が面倒を
+見ます（§4）。
 
 ## 8. 固定文言をビットマップに焼き込む
 

@@ -6,6 +6,7 @@ import { subset, merge } from '../src/model/subset.js';
 import { serializeFont, deserializeFont } from '../src/model/serialize.js';
 import { tinyFont, bitmapFromText } from './helpers.js';
 import { loadFont } from '../src/fonts/loader.js';
+import { lineBoxOfModelGlyphs } from '../src/gen/generate.js';
 
 test('Bitmap: 1bpp の get/set と MSB first', () => {
   const bmp = createBitmap(10, 2, 1);
@@ -46,6 +47,19 @@ test('merge: overlay 優先、メトリクス不一致は warning', () => {
   assert.equal(merged.glyphs.size, 2);
   assert.equal(merged.ascent, base.ascent); // メトリクスは base
   assert.ok(merged.meta.issues.some((i) => i.code === 'MERGE_METRICS_MISMATCH'));
+});
+
+test('生成後の行ボックス: 全グリフの上下端から再計算する', () => {
+  const base = tinyFont();
+  base.glyphs.set(0x42, {
+    codepoint: 0x42,
+    xOffset: 0,
+    yOffset: -6,
+    xAdvance: 4,
+    bitmap: bitmapFromText(['#', '#', '#', '#', '#', '#', '#', '#']),
+  });
+  assert.deepEqual(lineBoxOfModelGlyphs(base.glyphs), { ascent: 6, descent: 2, height: 8 });
+  assert.deepEqual(lineBoxOfModelGlyphs(new Map()), { ascent: 1, descent: 0, height: 1 });
 });
 
 test('serialize: 往復で完全一致', async () => {
