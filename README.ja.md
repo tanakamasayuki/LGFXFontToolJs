@@ -2,7 +2,7 @@
 
 **組込み向けビットマップフォントを、JavaScript とブラウザで読み・変換し・描き・作る。**
 
-[English README](./README.md) ·
+[English README](./README.md) · [変更履歴](./CHANGELOG.md) ·
 [![npm](https://img.shields.io/npm/v/lgfx-font-tool)](https://www.npmjs.com/package/lgfx-font-tool)
 [![CI](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml/badge.svg)](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml)
 
@@ -34,12 +34,13 @@ LovyanGFX v1.2.26 の内蔵フォント 186 本の同梱コレクションから
 npm install lgfx-font-tool
 ```
 
-ブラウザなら CDN から直接:
+ブラウザなら CDN から直接使えます。将来のリリースで意図せず挙動が変わらないよう、
+バージョンは必ず固定します:
 
 ```html
 <script type="module">
   import { loadFont, drawString }
-    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool/dist/lgfx-font-tool.min.js';
+    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@0.1.0/dist/lgfx-font-tool.min.js';
 </script>
 ```
 

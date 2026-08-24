@@ -2,7 +2,7 @@
 
 **JavaScript toolkit for embedded bitmap fonts — decode, encode, convert, render and generate.**
 
-[日本語 README](./README.ja.md) ·
+[日本語 README](./README.ja.md) · [Changelog](./CHANGELOG.md) ·
 [![npm](https://img.shields.io/npm/v/lgfx-font-tool)](https://www.npmjs.com/package/lgfx-font-tool)
 [![CI](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml/badge.svg)](https://github.com/tanakamasayuki/LGFXFontToolJs/actions/workflows/ci.yml)
 
@@ -39,12 +39,13 @@ Plain ESM with zero runtime dependencies and no build step — runs in Node.js a
 npm install lgfx-font-tool
 ```
 
-Or straight from a CDN in the browser:
+Or straight from a CDN in the browser. Pin the version so a future release
+cannot change your application without a code change:
 
 ```html
 <script type="module">
   import { loadFont, drawString }
-    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool/dist/lgfx-font-tool.min.js';
+    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@0.1.0/dist/lgfx-font-tool.min.js';
 </script>
 ```
 

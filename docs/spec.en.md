@@ -772,7 +772,7 @@ Follows the esp-flashjs approach.
 | CDN (jsDelivr etc.) | `dist/lgfx-font-tool.min.js`. Font data resolves relative to `dist/fonts/`, so it works on a CDN as-is. The README states explicitly that version pinning is mandatory |
 | GitHub Pages | Reference app + examples + documentation |
 | GitHub Actions | `ci.yml` (check + build) / `pages.yml`. `release.yml` is a manual-dispatch backup only |
-| npm release procedure | **Published from a local machine (plainbind style; no token stored in the repository)**: `npm login` (first time only) → `npm version <ver>` (preversion runs check; the `VERSION` constant is synced automatically) → `npm publish --access public` (prepack runs build + types) → `git push --follow-tags`. CI-based publishing (Trusted Publishing / NPM_TOKEN) remains available as the manual dispatch of `release.yml`. Detailed steps: [release.en.md](./release.en.md) |
+| npm release procedure | **Published from a local machine (plainbind style; no token stored in the repository)**: `npm login` (first time only) → `npm version <ver>` (preversion runs check; `VERSION`, CDN pins, and the changelog heading are synced automatically) → `npm publish --access public` (prepack runs build + types) → `git push --follow-tags`. CI-based publishing (Trusted Publishing / NPM_TOKEN) remains available as the manual dispatch of `release.yml`. Detailed steps: [release.en.md](./release.en.md) |
 
 Documentation treats Japanese (`.ja.md`) as authoritative; once the content has stabilized, English versions are placed alongside (moving to the same parallel-translation arrangement as esp-flashjs).
 

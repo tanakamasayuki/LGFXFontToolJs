@@ -6,7 +6,8 @@ npm への公開は**手元のマシンから**行います(トークンをリ�
 
 ## 毎回のリリース(これをコピペ)
 
-main がクリーン(コミット漏れなし)であることを確認してから:
+main がクリーン(コミット漏れなし)で、[CHANGELOG.md](../CHANGELOG.md) の
+`Unreleased` に英日両方の変更内容が書けていることを確認してから:
 
 ```sh
 npm version patch              # fix なら patch / 機能追加なら minor / 破壊的変更なら major
@@ -18,7 +19,7 @@ git push --follow-tags
 
 | コマンド | 自動で走るもの |
 | --- | --- |
-| `npm version <ver>` | ①`preversion` = `npm run check`(テスト・型・レイヤ・ロケール。**失敗するとバージョンは作られない**) ②`src/index.js` の `VERSION` 定数を同期 ③コミット + `v*` タグ作成 |
+| `npm version <ver>` | ①`preversion` = `npm run check` + 変更履歴の空チェック(**失敗するとバージョンは作られない**) ②`VERSION`、CDN の固定バージョン、変更履歴の版見出しを同期 ③コミット + `v*` タグ作成 |
 | `npm publish` | `prepack` = `npm run build` + `npm run types`(dist と型定義を作ってから梱包) |
 | `git push --follow-tags` | コミットとタグを push。Pages が自動デプロイ。release.yml は発火しない(手動実行専用の予備) |
 
@@ -30,13 +31,17 @@ git push --follow-tags
 | 後方互換の機能追加 | `npm version minor` |
 | 破壊的変更(API の変更・削除) | `npm version major` |
 
+変更履歴は英日1ファイルです。各項目を `- (EN)` と `- (JA)` の2行で
+`## Unreleased` の下に追加します。`npm version` が新しい版の見出しへ移すため、
+日付は持ちません。README とガイドにある `lgfx-font-tool@<version>` も同時に更新されます。
+
 ## 公開後の確認
 
 ```sh
 npm view lgfx-font-tool version
 ```
 
-- CDN(反映まで数分かかることがある): <https://cdn.jsdelivr.net/npm/lgfx-font-tool/dist/lgfx-font-tool.min.js>
+- CDN(反映まで数分かかることがある): <https://cdn.jsdelivr.net/npm/lgfx-font-tool@0.1.0/dist/lgfx-font-tool.min.js>
 - npm ページ: <https://www.npmjs.com/package/lgfx-font-tool>
 
 ## 困ったとき

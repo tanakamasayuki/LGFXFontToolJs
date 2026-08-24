@@ -6,7 +6,9 @@ Publishing to npm is done **from a local machine** (no token stored in the repos
 
 ## Every release (copy-paste this)
 
-Make sure main is clean (nothing uncommitted), then:
+Make sure main is clean (nothing uncommitted) and that the `Unreleased`
+section of [CHANGELOG.md](../CHANGELOG.md) describes the change in both English
+and Japanese, then:
 
 ```sh
 npm version patch              # patch for fixes / minor for features / major for breaking changes
@@ -18,7 +20,7 @@ That's all. What each command runs automatically:
 
 | Command | What runs automatically |
 | --- | --- |
-| `npm version <ver>` | (1) `preversion` = `npm run check` (tests, types, layer & locale lint — **the version is not created if it fails**), (2) syncs the `VERSION` constant in `src/index.js`, (3) commits and creates the `v*` tag |
+| `npm version <ver>` | (1) `preversion` = `npm run check` plus a non-empty changelog check (**the version is not created if it fails**), (2) syncs `VERSION`, pinned CDN versions, and the changelog release heading, (3) commits and creates the `v*` tag |
 | `npm publish` | `prepack` = `npm run build` + `npm run types` (builds dist and type definitions before packing) |
 | `git push --follow-tags` | Pushes the commit and tag. Pages deploys automatically. release.yml does not fire (it is a manual-dispatch backup only) |
 
@@ -30,13 +32,18 @@ Choosing the version:
 | Backward-compatible features | `npm version minor` |
 | Breaking changes (API changed/removed) | `npm version major` |
 
+The changelog keeps both languages in one file. Add each item twice, as an
+`- (EN)` line and an `- (JA)` line, under `## Unreleased`. `npm version` moves
+the entries under the new release heading; dates are not duplicated there.
+It also updates every documented `lgfx-font-tool@<version>` CDN pin.
+
 ## After publishing
 
 ```sh
 npm view lgfx-font-tool version
 ```
 
-- CDN (may take a few minutes to propagate): <https://cdn.jsdelivr.net/npm/lgfx-font-tool/dist/lgfx-font-tool.min.js>
+- CDN (may take a few minutes to propagate): <https://cdn.jsdelivr.net/npm/lgfx-font-tool@0.1.0/dist/lgfx-font-tool.min.js>
 - npm page: <https://www.npmjs.com/package/lgfx-font-tool>
 
 ## Troubleshooting

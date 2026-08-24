@@ -772,7 +772,7 @@ esp-flashjs の方式を踏襲する。
 | CDN (jsDelivr 等) | `dist/lgfx-font-tool.min.js`。フォントデータは `dist/fonts/` から相対解決されるので CDN でもそのまま動く。バージョン固定を README で必須と明記 |
 | GitHub Pages | リファレンスアプリ + examples + ドキュメント |
 | GitHub Actions | `ci.yml`（check + build）/ `pages.yml`。`release.yml` は手動実行専用の予備 |
-| npm 公開手順 | **手元から公開する（plainbind 方式。トークンをリポジトリに置かない）**: `npm login`（初回のみ）→ `npm version <ver>`（preversion で check、`VERSION` 定数を自動同期）→ `npm publish --access public`（prepack が build + types）→ `git push --follow-tags`。CI からの公開（Trusted Publishing / NPM_TOKEN）は `release.yml` の手動実行として残してある。詳細な手順は [release.ja.md](./release.ja.md) |
+| npm 公開手順 | **手元から公開する（plainbind 方式。トークンをリポジトリに置かない）**: `npm login`（初回のみ）→ `npm version <ver>`（preversion で check、`VERSION`・CDN 固定版・変更履歴の版見出しを自動同期）→ `npm publish --access public`（prepack が build + types）→ `git push --follow-tags`。CI からの公開（Trusted Publishing / NPM_TOKEN）は `release.yml` の手動実行として残してある。詳細な手順は [release.ja.md](./release.ja.md) |
 
 ドキュメントは日本語（`.ja.md`）を正とし、内容が固まった段階で英語版を併置する（esp-flashjs 同様の対訳体制へ移行）。
 
