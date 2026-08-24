@@ -94,4 +94,4 @@ export {
 } from './util/errors.js';
 
 // npm version 実行時に scripts/sync-version.js が書き換える
-export const VERSION = '0.1.0';
+export const VERSION = '1.0.0';

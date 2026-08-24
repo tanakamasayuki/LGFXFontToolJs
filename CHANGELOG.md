@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 1.0.0
 - (EN) `generateFont()` now returns `sizing: { cssPx, probe, probeHeight }`, and a later `generateFont({ sizing })` call can reuse it. Passing only `sizing: { cssPx }` is also supported, so a fallback generated separately no longer has to derive its own scale from a different probe character.
 - (JA) `generateFont()` が `sizing: { cssPx, probe, probeHeight }` を返し、別の `generateFont({ sizing })` 呼び出しで再利用できるようになった。`sizing: { cssPx }` だけの指定も可能なため、補完を別生成に分けても異なる probe 文字から独自の縮尺を導出する必要がない。
 - (EN) `generateFont({ fallbacks })` now rasterizes every fallback at the primary font's `cssPx` instead of measuring it independently, then recomputes `ascent`, `descent`, and `lineHeight` from all merged glyphs. The Web Generator's one-click fill follows the same rule; the generic `merge()` API still preserves the base font's metrics.
