@@ -60,7 +60,8 @@ export function drawFontTo(canvas, font, text, zoom) {
   canvas.height = h * z;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  ctx.fillStyle = '#10151c';
+  ctx.fillStyle =
+    getComputedStyle(document.documentElement).getPropertyValue('--preview-bg').trim() || '#202a36';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#e8f0ff';
   for (let y = 0; y < h; y++) {

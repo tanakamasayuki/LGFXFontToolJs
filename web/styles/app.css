@@ -1,10 +1,13 @@
 :root {
-  --bg: #0d1117;
-  --panel: #161b22;
-  --border: #2d333b;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #58a6ff;
+  --bg: #1b2430;
+  --panel: #263241;
+  --border: #46566a;
+  --text: #f1f5f9;
+  --muted: #aeb9c7;
+  --accent: #66b3ff;
+  --hover: #303d4d;
+  --selected: #314961;
+  --preview-bg: #202a36;
   color-scheme: dark;
 }
 
@@ -96,8 +99,8 @@ body {
   gap: 1px;
   border-left: 3px solid transparent;
 }
-.font-list li:hover { background: #1c2129; }
-.font-list li.selected { background: #1c2733; border-left-color: var(--accent); }
+.font-list li:hover { background: var(--hover); }
+.font-list li.selected { background: var(--selected); border-left-color: var(--accent); }
 .font-list .name { font-size: 13px; }
 .font-list .meta { font-size: 11px; color: var(--muted); }
 
@@ -132,12 +135,13 @@ body {
 }
 .controls input[type="number"] { width: 72px; }
 .controls label.check { flex-direction: row; align-items: center; }
+.controls output { color: var(--text); font-variant-numeric: tabular-nums; }
 
 .preview-wrap {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #10151c;
+  background: var(--preview-bg);
   max-height: 55vh;
 }
 #preview { display: block; }
@@ -273,8 +277,8 @@ body {
   gap: 8px;
   border-left: 3px solid transparent;
 }
-.fontlist .row:hover { background: #1c2129; }
-.fontlist .row.selected { background: #1c2733; border-left-color: var(--accent); }
+.fontlist .row:hover { background: var(--hover); }
+.fontlist .row.selected { background: var(--selected); border-left-color: var(--accent); }
 .fontlist .row .name { font-size: 13px; }
 .fontlist .row .meta { font-size: 11px; color: var(--muted); }
 

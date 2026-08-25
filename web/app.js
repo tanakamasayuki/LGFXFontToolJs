@@ -38,12 +38,18 @@ const sizeXEl = /** @type {HTMLInputElement} */ ($('size-x'));
 const sizeYEl = /** @type {HTMLInputElement} */ ($('size-y'));
 const datumEl = /** @type {HTMLSelectElement} */ ($('datum'));
 const zoomEl = /** @type {HTMLInputElement} */ ($('zoom'));
+const zoomValueEl = /** @type {HTMLOutputElement} */ ($('zoom-value'));
 const gridEl = /** @type {HTMLInputElement} */ ($('grid'));
 const canvasEl = /** @type {HTMLCanvasElement} */ ($('preview'));
 const infoEl = $('info');
 const licenseEl = $('license');
 
-let currentName = fontCatalog[0]?.name ?? '';
+const fontNameCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+const sortedFontCatalog = [...fontCatalog].sort(
+  (a, b) => fontNameCollator.compare(a.name, b.name) || a.name.localeCompare(b.name),
+);
+
+let currentName = sortedFontCatalog[0]?.name ?? '';
 
 for (const name of Object.keys(DATUM)) {
   const opt = document.createElement('option');
@@ -72,7 +78,7 @@ function applyLanguage() {
 function renderList() {
   const q = searchEl.value.trim().toLowerCase();
   listEl.textContent = '';
-  for (const e of fontCatalog) {
+  for (const e of sortedFontCatalog) {
     if (q && !e.name.toLowerCase().includes(q) && !e.format.includes(q)) continue;
     const li = document.createElement('li');
     li.className = e.name === currentName ? 'selected' : '';
@@ -124,7 +130,8 @@ async function renderPreview() {
   canvasEl.height = h * zoom;
   const ctx = canvasEl.getContext('2d');
   if (!ctx) return;
-  ctx.fillStyle = '#10151c';
+  ctx.fillStyle =
+    getComputedStyle(document.documentElement).getPropertyValue('--preview-bg').trim() || '#202a36';
   ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
   ctx.fillStyle = '#e8f0ff';
   for (let yy = 0; yy < h; yy++) {
@@ -173,6 +180,10 @@ async function renderPreview() {
   });
 }
 
+function updateZoomValue() {
+  zoomValueEl.value = `${Number(zoomEl.value) || 1}×`;
+}
+
 langEl.addEventListener('input', async () => {
   await setLocale(langEl.value);
   applyLanguage();
@@ -181,10 +192,14 @@ langEl.addEventListener('input', async () => {
 });
 searchEl.addEventListener('input', renderList);
 for (const el of [textEl, sizeXEl, sizeYEl, datumEl, zoomEl, gridEl]) {
-  el.addEventListener('input', () => void renderPreview());
+  el.addEventListener('input', () => {
+    if (el === zoomEl) updateZoomValue();
+    void renderPreview();
+  });
 }
 
 await initI18n();
 applyLanguage();
+updateZoomValue();
 renderList();
 void renderPreview();
