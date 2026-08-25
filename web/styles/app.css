@@ -340,6 +340,10 @@ body {
   padding: 10px;
   background: var(--hover);
 }
+.viewer-page .charmap {
+  max-height: none;
+  overflow-y: visible;
+}
 .cm-block + .cm-block { margin-top: 12px; }
 .cm-head {
   padding: 0 2px 5px;
