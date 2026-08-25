@@ -250,7 +250,7 @@ body {
   font-weight: 600;
 }
 
-#gfont-search {
+#gfont-search, #src-builtin #search {
   width: 100%;
   padding: 6px 10px;
   background: var(--panel);
@@ -260,12 +260,14 @@ body {
   margin: 4px 0 8px;
 }
 .fontlist {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 6px;
   max-height: 300px;
   overflow-y: auto;
   margin-bottom: 12px;
+}
+.google-font-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px;
 }
 .font-option {
   min-width: 0;
@@ -282,6 +284,19 @@ body {
 .font-option.selected { background: var(--selected); border-color: var(--accent); }
 .font-option .name { width: 100%; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .font-option .meta { font-size: 10px; color: var(--muted); }
+.builtin-font-list { border: 1px solid var(--border); border-radius: 8px; }
+.builtin-font-list .row {
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-left: 3px solid transparent;
+}
+.builtin-font-list .row:hover { background: var(--hover); }
+.builtin-font-list .row.selected { background: var(--selected); border-left-color: var(--accent); }
+.builtin-font-list .row .name { font-size: 13px; }
+.builtin-font-list .row .meta { font-size: 11px; color: var(--muted); }
 
 .gen-main textarea {
   padding: 6px 8px;
