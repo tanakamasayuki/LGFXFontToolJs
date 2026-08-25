@@ -21,6 +21,7 @@ import {
   SUPPORTED_LOCALES,
 } from './i18n.js';
 import { $, debounce, decodeInput } from './ui.js';
+import { renderCharmap, copyCharacters } from './charmap.js';
 
 const langEl = /** @type {HTMLSelectElement} */ ($('lang'));
 const tabBuiltinEl = /** @type {HTMLButtonElement} */ ($('tab-builtin'));
@@ -38,6 +39,10 @@ const resBppEl = $('res-bpp');
 const resRangesEl = $('res-ranges');
 const extremesEl = $('extremes');
 const rangesEl = $('ranges');
+const charmapDetailsEl = /** @type {HTMLDetailsElement} */ ($('font-charmap-details'));
+const charmapEl = $('font-charmap');
+const charmapCopyEl = /** @type {HTMLButtonElement} */ ($('font-charmap-copy'));
+const charmapCopyStatusEl = $('font-charmap-copy-status');
 const coverageCardEl = $('coverage-card');
 const coverageBarsEl = $('coverage-bars');
 const checkTextEl = /** @type {HTMLTextAreaElement} */ ($('check-text'));
@@ -64,6 +69,7 @@ function applyLanguage() {
   langEl.value = currentLocale();
   searchEl.placeholder = t('gen.searchFonts');
   renderBuiltinList();
+  if (currentFont && charmapDetailsEl.open) renderCurrentCharmap();
   if (currentFont) renderAll();
 }
 
@@ -92,6 +98,9 @@ function renderBuiltinList() {
     row.append(name, meta);
     row.addEventListener('click', async () => {
       currentName = e.name;
+      charmapCopyEl.disabled = true;
+      charmapEl.textContent = '';
+      charmapCopyStatusEl.textContent = '';
       renderBuiltinList();
       statusEl.textContent = t('in.loading');
       try {
@@ -131,6 +140,7 @@ function renderAll() {
   if (!font) return;
   const seq = ++renderSeq;
   const info = inspect(font);
+  charmapCopyEl.disabled = false;
 
   inventoryCardEl.hidden = false;
   coverageCardEl.hidden = false;
@@ -154,6 +164,7 @@ function renderAll() {
     lines.push(t('in.rangesMore', { count: info.ranges.length - MAX_RANGES }));
   }
   rangesEl.textContent = lines.join('\n');
+  if (charmapDetailsEl.open) renderCurrentCharmap();
 
   // 被覆率バー（0% の集合も出す — 「入っていない」ことも情報）
   coverageBarsEl.textContent = '';
@@ -232,10 +243,21 @@ function renderTextCheck() {
   }
 }
 
+function renderCurrentCharmap() {
+  renderCharmap(charmapEl, currentFont?.glyphs.keys() ?? [], { emptyText: t('chars.empty') });
+}
+
 tabBuiltinEl.addEventListener('click', () => setTab('builtin'));
 tabFileEl.addEventListener('click', () => setTab('file'));
 searchEl.addEventListener('input', renderBuiltinList);
 checkTextEl.addEventListener('input', debounce(renderTextCheck, 200));
+charmapDetailsEl.addEventListener('toggle', () => {
+  if (charmapDetailsEl.open) renderCurrentCharmap();
+});
+charmapCopyEl.addEventListener('click', async () => {
+  await copyCharacters(currentFont?.glyphs.keys() ?? []);
+  charmapCopyStatusEl.textContent = t('chars.copied');
+});
 langEl.addEventListener('input', async () => {
   await setLocale(langEl.value);
   applyLanguage();

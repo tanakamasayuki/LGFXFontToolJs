@@ -34,6 +34,7 @@ import {
 } from './i18n.js';
 import { FONTS, findFont, loadGoogleFont, FALLBACK_CHAIN } from './googlefonts.js';
 import { $, debounce, download, drawFontTo } from './ui.js';
+import { renderCharmap, copyCharacters } from './charmap.js';
 
 const langEl = /** @type {HTMLSelectElement} */ ($('lang'));
 const tabGoogleEl = /** @type {HTMLButtonElement} */ ($('tab-google'));
@@ -60,6 +61,8 @@ const charCountEl = $('char-count');
 const charEstimateEl = $('char-estimate');
 const charmapDetailsEl = /** @type {HTMLDetailsElement} */ ($('charmap-details'));
 const charmapEl = $('charmap');
+const charmapCopyEl = /** @type {HTMLButtonElement} */ ($('charmap-copy'));
+const charmapCopyStatusEl = $('charmap-copy-status');
 const formatEl = /** @type {HTMLSelectElement} */ ($('format'));
 const typefaceEl = /** @type {HTMLInputElement} */ ($('typeface'));
 const licenseEl = /** @type {HTMLInputElement} */ ($('license'));
@@ -444,6 +447,7 @@ function currentCodepoints() {
 }
 
 function renderCharSummary() {
+  charmapCopyStatusEl.textContent = '';
   const count = currentCodepoints().length;
   charCountEl.textContent = t('gen.selected', { count });
   // 大雑把な u8g2 サイズ目安（レコードヘッダ + RLE。密な CJK では上振れする）
@@ -451,31 +455,11 @@ function renderCharSummary() {
   const kb = (count * (6 + (px * px) / 10)) / 1024;
   charEstimateEl.textContent =
     count > 0 ? t('gen.estimate', { kb: kb < 10 ? kb.toFixed(1) : String(Math.round(kb)) }) : '';
-  if (charmapDetailsEl.open) renderCharmap();
+  if (charmapDetailsEl.open) renderSelectedCharmap();
 }
 
-/** 選択中の文字を「近い code point の束」ごとに一覧する（Ctrl+F で探せる形） */
-function renderCharmap() {
-  const cps = currentCodepoints();
-  charmapEl.textContent = '';
-  /** @param {number} cp */
-  const hex = (cp) => `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
-  let start = 0;
-  for (let i = 1; i <= cps.length; i++) {
-    if (i === cps.length || cps[i] - cps[i - 1] > 64) {
-      const group = cps.slice(start, i);
-      const head = document.createElement('div');
-      head.className = 'range-head';
-      head.textContent = `${hex(group[0])}–${hex(group[group.length - 1])} · ${group.length}`;
-      const body = document.createElement('div');
-      body.className = 'range-chars';
-      let s = '';
-      for (const cp of group) s += String.fromCodePoint(cp);
-      body.textContent = s;
-      charmapEl.append(head, body);
-      start = i;
-    }
-  }
+function renderSelectedCharmap() {
+  renderCharmap(charmapEl, currentCodepoints(), { emptyText: t('chars.empty') });
 }
 
 for (const el of [customTextEl, customRangesEl]) {
@@ -485,7 +469,11 @@ for (const el of [customTextEl, customRangesEl]) {
   });
 }
 charmapDetailsEl.addEventListener('toggle', () => {
-  if (charmapDetailsEl.open) renderCharmap();
+  if (charmapDetailsEl.open) renderSelectedCharmap();
+});
+charmapCopyEl.addEventListener('click', async () => {
+  await copyCharacters(currentCodepoints());
+  charmapCopyStatusEl.textContent = t('chars.copied');
 });
 
 // --- 4. 生成 --------------------------------------------------------------------

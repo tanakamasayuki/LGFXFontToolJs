@@ -56,6 +56,15 @@
       <div class="code" id="extremes"></div>
       <h3 class="sub" data-i18n="in.ranges">Code point ranges</h3>
       <div class="code scrollbox" id="ranges"></div>
+      <details class="charmap-details" id="font-charmap-details">
+        <summary data-i18n="chars.title">Covered characters</summary>
+        <div class="charmap-toolbar">
+          <span class="sub" data-i18n="chars.note">Grouped by Unicode block. Use browser find to locate a character.</span>
+          <button type="button" id="font-charmap-copy" data-i18n="chars.copy" disabled>Copy characters</button>
+          <span class="sub" id="font-charmap-copy-status" aria-live="polite"></span>
+        </div>
+        <div class="charmap" id="font-charmap"></div>
+      </details>
     </section>
 
     <!-- ---------------- 3. 被覆率 ---------------- -->

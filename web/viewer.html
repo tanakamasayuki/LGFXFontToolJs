@@ -55,6 +55,15 @@
 
       <dl id="info" class="info"></dl>
       <p id="license" class="license"></p>
+      <details class="charmap-details" id="font-charmap-details">
+        <summary data-i18n="chars.title">Covered characters</summary>
+        <div class="charmap-toolbar">
+          <span class="sub" data-i18n="chars.note">Grouped by Unicode block. Use browser find to locate a character.</span>
+          <button type="button" id="font-charmap-copy" data-i18n="chars.copy" disabled>Copy characters</button>
+          <span class="sub" id="font-charmap-copy-status" aria-live="polite"></span>
+        </div>
+        <div class="charmap" id="font-charmap"></div>
+      </details>
     </section>
   </main>
 

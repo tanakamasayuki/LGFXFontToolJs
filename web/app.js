@@ -22,6 +22,7 @@ import {
   t,
   SUPPORTED_LOCALES,
 } from './i18n.js';
+import { renderCharmap, copyCharacters } from './charmap.js';
 
 /** @param {string} id */
 function $(id) {
@@ -43,6 +44,10 @@ const gridEl = /** @type {HTMLInputElement} */ ($('grid'));
 const canvasEl = /** @type {HTMLCanvasElement} */ ($('preview'));
 const infoEl = $('info');
 const licenseEl = $('license');
+const charmapDetailsEl = /** @type {HTMLDetailsElement} */ ($('font-charmap-details'));
+const charmapEl = $('font-charmap');
+const charmapCopyEl = /** @type {HTMLButtonElement} */ ($('font-charmap-copy'));
+const charmapCopyStatusEl = $('font-charmap-copy-status');
 
 const fontNameCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
 const sortedFontCatalog = [...fontCatalog].sort(
@@ -50,6 +55,8 @@ const sortedFontCatalog = [...fontCatalog].sort(
 );
 
 let currentName = sortedFontCatalog[0]?.name ?? '';
+/** @type {import('../src/model/font.js').Font | null} */
+let currentFont = null;
 
 for (const name of Object.keys(DATUM)) {
   const opt = document.createElement('option');
@@ -92,6 +99,10 @@ function renderList() {
     li.append(nameSpan, metaSpan);
     li.addEventListener('click', () => {
       currentName = e.name;
+      currentFont = null;
+      charmapCopyEl.disabled = true;
+      charmapEl.textContent = '';
+      charmapCopyStatusEl.textContent = '';
       renderList();
       void renderPreview();
     });
@@ -104,6 +115,10 @@ async function renderPreview() {
   if (!entry) return;
   const font = await loadFont(entry.name);
   if (entry.name !== currentName) return; // 選択が変わっていたら破棄
+  const fontChanged = currentFont !== font;
+  currentFont = font;
+  charmapCopyEl.disabled = false;
+  if (fontChanged && charmapDetailsEl.open) renderCurrentCharmap();
 
   const text = textEl.value;
   const style = {
@@ -184,6 +199,10 @@ function updateZoomValue() {
   zoomValueEl.value = `${Number(zoomEl.value) || 1}×`;
 }
 
+function renderCurrentCharmap() {
+  renderCharmap(charmapEl, currentFont?.glyphs.keys() ?? [], { emptyText: t('chars.empty') });
+}
+
 langEl.addEventListener('input', async () => {
   await setLocale(langEl.value);
   applyLanguage();
@@ -191,6 +210,13 @@ langEl.addEventListener('input', async () => {
   void renderPreview();
 });
 searchEl.addEventListener('input', renderList);
+charmapDetailsEl.addEventListener('toggle', () => {
+  if (charmapDetailsEl.open) renderCurrentCharmap();
+});
+charmapCopyEl.addEventListener('click', async () => {
+  await copyCharacters(currentFont?.glyphs.keys() ?? []);
+  charmapCopyStatusEl.textContent = t('chars.copied');
+});
 for (const el of [textEl, sizeXEl, sizeYEl, datumEl, zoomEl, gridEl]) {
   el.addEventListener('input', () => {
     if (el === zoomEl) updateZoomValue();

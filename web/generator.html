@@ -130,8 +130,12 @@
       <p class="charsummary"><strong id="char-count"></strong> <span class="sub" id="char-estimate"></span></p>
       <details class="charmap-details" id="charmap-details">
         <summary data-i18n="gen.showChars">Show the characters</summary>
-        <p class="sub" data-i18n="gen.showCharsNote">Grouped by code point — use the browser's
-          find (Ctrl+F) to check a specific character.</p>
+        <div class="charmap-toolbar">
+          <span class="sub" data-i18n="gen.showCharsNote">Grouped by code point — use the browser's
+            find (Ctrl+F) to check a specific character.</span>
+          <button type="button" id="charmap-copy" data-i18n="chars.copy">Copy characters</button>
+          <span class="sub" id="charmap-copy-status" aria-live="polite"></span>
+        </div>
         <div class="charmap" id="charmap"></div>
       </details>
     </section>
