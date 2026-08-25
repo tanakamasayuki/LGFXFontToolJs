@@ -95,9 +95,9 @@ let gFamily = 'Noto Sans JP';
 /** @type {ArrayBuffer | null} */
 let fontData = null;
 /** @type {string[]} 選択中の集合 id */
-let sets = ['ascii'];
+let sets = ['ascii', 'hiragana', 'katakana', 'jaPunct', 'hanJa1', 'symUnits'];
 let activeTemplate = '';
-let sampleText = 'Hello 123';
+let sampleText = 'こんにちは 25.6℃ 気温';
 let symbolTouched = false;
 
 /** Google Fonts の部分読み込みの続き（文字集合を広げた再生成用）
@@ -217,37 +217,32 @@ function setSourceKind(kind) {
 function renderGoogleList() {
   const filter = gfontSearchEl.value.trim().toLowerCase();
   gfontListEl.textContent = '';
-  for (const script of ['latin', 'display', 'japanese', 'cjk', 'symbol']) {
-    const fonts = FONTS.filter(
-      (f) => f.script === script && (!filter || f.family.toLowerCase().includes(filter)),
-    );
-    if (fonts.length === 0) continue;
-    const head = document.createElement('div');
-    head.className = 'group';
-    head.textContent = t(`gscript.${script}`);
-    gfontListEl.appendChild(head);
-    for (const f of fonts) {
-      const row = document.createElement('div');
-      row.className = 'row' + (f.family === gFamily ? ' selected' : '');
-      const name = document.createElement('span');
-      name.className = 'name';
-      name.textContent = f.family;
-      const meta = document.createElement('span');
-      meta.className = 'meta';
-      const tags = [f.by, f.license.id];
-      if (f.mono) tags.push('mono');
-      if (f.pixel) tags.push('pixel');
-      meta.textContent = tags.join(' · ');
-      row.append(name, meta);
-      row.addEventListener('click', () => {
-        gFamily = f.family;
-        gfState = null;
-        renderGoogleList();
-        syncAttribution();
-        scheduleLive();
-      });
-      gfontListEl.appendChild(row);
-    }
+  for (const f of FONTS) {
+    if (filter && !f.family.toLowerCase().includes(filter) && !f.script.includes(filter)) continue;
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'font-option' + (f.family === gFamily ? ' selected' : '');
+    option.title = f.by;
+    option.setAttribute('aria-pressed', String(f.family === gFamily));
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.style.fontFamily = `'${f.family}', sans-serif`;
+    name.textContent = f.family;
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const tags = [t(`gscript.${f.script}`), f.license.id];
+    if (f.mono) tags.push('mono');
+    if (f.pixel) tags.push('pixel');
+    meta.textContent = tags.join(' · ');
+    option.append(name, meta);
+    option.addEventListener('click', () => {
+      gFamily = f.family;
+      gfState = null;
+      renderGoogleList();
+      syncAttribution();
+      scheduleLive();
+    });
+    gfontListEl.appendChild(option);
   }
 }
 
@@ -399,29 +394,39 @@ function renderAxes() {
       }
     } else {
       for (const lang of axis.languages ?? []) {
-        const row = document.createElement('label');
+        const row = document.createElement('div');
         row.className = 'tier-row';
         const span = document.createElement('span');
         span.textContent = t(`lang.${lang.id}`);
-        const sel = document.createElement('select');
-        const none = document.createElement('option');
-        none.value = '';
-        none.textContent = t('tier.none');
-        sel.appendChild(none);
-        for (const id of lang.tiers) {
-          const opt = document.createElement('option');
-          opt.value = id;
-          opt.textContent = `${t(`set.${id}`)} (${countOf(id)})`;
-          sel.appendChild(opt);
+        row.appendChild(span);
+        const choices = document.createElement('div');
+        choices.className = 'tier-choices';
+        choices.setAttribute('role', 'radiogroup');
+        const selected = lang.tiers.find((id) => sets.includes(id)) ?? '';
+        for (const id of ['', ...lang.tiers]) {
+          const label = document.createElement('label');
+          label.className = 'tier-option';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = `tier-${axis.id}-${lang.id}`;
+          radio.value = id;
+          radio.checked = id === selected;
+          radio.addEventListener('input', () => {
+            if (!radio.checked) return;
+            for (const tierId of lang.tiers) sets = toggleSet(sets, tierId, false);
+            if (radio.value) sets = toggleSet(sets, radio.value, true);
+            clearTemplate();
+            renderAxes();
+            renderCharSummary();
+          });
+          const text = document.createElement('span');
+          text.textContent = id
+            ? `${t(`set.${id}`)} (${countOf(id).toLocaleString()})`
+            : t('tier.none');
+          label.append(radio, text);
+          choices.appendChild(label);
         }
-        sel.value = lang.tiers.find((id) => sets.includes(id)) ?? '';
-        sel.addEventListener('input', () => {
-          for (const id of lang.tiers) sets = toggleSet(sets, id, false);
-          if (sel.value) sets = toggleSet(sets, sel.value, true);
-          clearTemplate();
-          renderCharSummary();
-        });
-        row.append(span, sel);
+        row.appendChild(choices);
         box.appendChild(row);
       }
     }

@@ -131,7 +131,7 @@ async function renderPreview() {
   const ctx = canvasEl.getContext('2d');
   if (!ctx) return;
   ctx.fillStyle =
-    getComputedStyle(document.documentElement).getPropertyValue('--preview-bg').trim() || '#202a36';
+    getComputedStyle(document.documentElement).getPropertyValue('--preview-bg').trim() || '#11191d';
   ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
   ctx.fillStyle = '#e8f0ff';
   for (let yy = 0; yy < h; yy++) {
