@@ -172,7 +172,7 @@ body {
   padding: 16px 14px 60px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .card {
@@ -253,7 +253,7 @@ body {
 #gfont-search {
   width: 100%;
   padding: 6px 10px;
-  background: var(--bg);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
@@ -263,7 +263,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 6px;
-  max-height: 280px;
+  max-height: 300px;
   overflow-y: auto;
   margin-bottom: 12px;
 }

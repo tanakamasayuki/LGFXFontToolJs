@@ -402,6 +402,7 @@ function renderAxes() {
         const choices = document.createElement('div');
         choices.className = 'tier-choices';
         choices.setAttribute('role', 'radiogroup');
+        choices.setAttribute('aria-label', t(`lang.${lang.id}`));
         const selected = lang.tiers.find((id) => sets.includes(id)) ?? '';
         for (const id of ['', ...lang.tiers]) {
           const label = document.createElement('label');
