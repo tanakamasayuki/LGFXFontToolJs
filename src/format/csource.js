@@ -6,12 +6,16 @@
  *   emit.js の形式を踏襲。LovyanGFX / M5GFX でそのまま setFont(&Name) できる）
  * - gfx : Adafruit GFX 流の Bitmaps / Glyphs / GFXfont。飛び飛びの文字集合は
  *   LovyanGFX 拡張の EncodeRange 付きで出す（この場合 LovyanGFX 専用）
+ * - vlw / bff: バイナリをそのまま uint8_t 配列へ埋め込む。LovyanGFX の
+ *   display.loadFont(array, font_type) で実行時フォントとして読み込む
  *
  * 生成物の先頭には帰属表示を必ず埋め込む（仕様 §6.3 / §8.4）。OFL や Apache は
  * 派生フォントデータに表示の同伴を要求しており、生成された配列は派生データである。
  */
 import { encodeU8g2, decodeU8g2 } from './u8g2.js';
 import { encodeGfx, decodeGfx, unpackGfxContainer, packGfxContainer } from './gfxfont.js';
+import { encodeVlw } from './vlw.js';
+import { encodeBff } from './bff.js';
 import { FormatError } from '../util/errors.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
@@ -236,23 +240,68 @@ function emitGfxHeader(font, ident, attribution, encodeOpts) {
 }
 
 /**
+ * VLW / BFF バイナリを変更せず C 配列へ埋め込む。
+ * LovyanGFX の loadFont(const uint8_t*, font_type) が PointerWrapper を内部生成する。
+ * @param {Font} font
+ * @param {string} ident
+ * @param {Attribution | undefined} attribution
+ * @param {'vlw'|'bff'} format
+ * @param {{dropInvalid?: boolean, bpp?: 1|2|4}} encodeOpts
+ */
+function emitRuntimeHeader(font, ident, attribution, format, encodeOpts) {
+  const data =
+    format === 'vlw'
+      ? encodeVlw(font, { dropInvalid: encodeOpts.dropInvalid })
+      : encodeBff(font, encodeOpts);
+  const guard = `LGFXFT_FONT_${ident.toUpperCase()}_H`;
+  const isBff = format === 'bff';
+  const formatLabel = isBff
+    ? 'BFF (1–4bpp) — LovyanGFX runtime font'
+    : 'VLW (8bpp) — LovyanGFX runtime font';
+  const loadArgs = isBff
+    ? `${ident}_data, lgfx::IFont::font_type_t::ft_lvgl`
+    : `${ident}_data`;
+
+  let s = asComment(licenseNotice(font, { ident, format: formatLabel, bytes: data.length, attribution }));
+  s += '\n';
+  s += `#ifndef ${guard}\n#define ${guard}\n\n`;
+  s += '#include <stdint.h>\n\n';
+  s += '// LovyanGFX（または M5GFX / M5Unified）を先に include してください。\n';
+  s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
+  s += '  #include <LovyanGFX.hpp>\n';
+  s += '#endif\n\n';
+  s += PROGMEM_GUARD + '\n';
+  s += `static const uint8_t ${ident}_data[${data.length}] LGFXFT_PROGMEM = {\n`;
+  s += hexTable(data, '  ');
+  s += '};\n\n';
+  s += `// 使い方:  display.loadFont(${loadArgs});\n`;
+  s += '// loadFont は成功すると、このフォントを表示先の現在フォントに設定します。\n\n';
+  s += `#endif // ${guard}\n`;
+  return s;
+}
+
+/**
  * スケッチに貼れる C/C++ ソースを出力する（仕様 §6.3）。
  * @param {Font} font
  * @param {object} opts
- * @param {'u8g2' | 'gfx'} opts.format
+ * @param {'u8g2' | 'gfx' | 'vlw' | 'bff'} opts.format
  * @param {string} opts.symbolName - フォントオブジェクトの C 識別子
  * @param {Attribution} [opts.attribution]
  * @param {boolean} [opts.dropInvalid] - 制約違反グリフを落として続行（既定 false = エラー）
+ * @param {1|2|4} [opts.bpp] - BFF の出力深度
  * @returns {string}
  */
 export function encodeCSource(font, opts) {
   const ident = sanitizeIdent(opts.symbolName);
-  const encodeOpts = { dropInvalid: opts.dropInvalid };
+  const encodeOpts = { dropInvalid: opts.dropInvalid, bpp: opts.bpp };
   switch (opts.format) {
     case 'u8g2':
       return emitU8g2Header(font, ident, opts.attribution, encodeOpts);
     case 'gfx':
       return emitGfxHeader(font, ident, opts.attribution, encodeOpts);
+    case 'vlw':
+    case 'bff':
+      return emitRuntimeHeader(font, ident, opts.attribution, opts.format, encodeOpts);
     default:
       throw new FormatError('UNKNOWN_FORMAT', `no C source emitter for ${opts.format}`, {
         format: opts.format,

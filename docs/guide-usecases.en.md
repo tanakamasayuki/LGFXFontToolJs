@@ -279,6 +279,10 @@ display.drawString("12:34", 0, 0);
 With `format: 'gfx'` the output is an Adafruit GFX-compatible `GFXfont`
 struct (`display.setFont(&clockFont);` stays the same).
 
+With `format: 'vlw'` or `'bff'`, the encoded binary is embedded unchanged as
+a C array. Load VLW with `display.loadFont(clockFont_data)` and BFF with
+`display.loadFont(clockFont_data, lgfx::IFont::font_type_t::ft_lvgl)`.
+
 ## 7. Removing and Adding Characters
 
 **Removing (subsetting)** — non-destructive; returns a new font containing

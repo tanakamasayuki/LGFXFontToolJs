@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeCSource, sanitizeIdent, summarizeRanges } from '../src/format/csource.js';
 import { encodeU8g2, decodeU8g2 } from '../src/format/u8g2.js';
+import { encodeVlw } from '../src/format/vlw.js';
+import { encodeBff, decodeBff } from '../src/format/bff.js';
 import { loadFont } from '../src/fonts/loader.js';
 import { subset } from '../src/model/subset.js';
 
@@ -51,4 +53,26 @@ test('encodeCSource(gfx): 連続集合は Adafruit 互換、飛び飛びは Enco
   assert.match(ranged, /static const lgfx::v1::EncodeRange KanaAbcRanges\[\]/);
   assert.match(ranged, /static const lgfx::v1::GFXfont KanaAbc = \{/);
   assert.match(ranged, /LovyanGFX extension/);
+});
+
+test('encodeCSource(vlw/bff): バイナリを変更せず配列へ埋め込む', async () => {
+  const font = subset(await loadFont('lgfxJapanGothic_16'), '日本語A9');
+  const bytesOf = (/** @type {string} */ src, /** @type {string} */ ident) => {
+    const re = new RegExp(`static const uint8_t ${ident}_data\\[(\\d+)\\][^=]*= \\{([\\s\\S]*?)\\};`);
+    const m = re.exec(src);
+    assert.ok(m);
+    const bytes = Uint8Array.from(m[2].match(/0x[0-9a-f]{2}/g)?.map(Number) ?? []);
+    assert.equal(bytes.length, Number(m[1]));
+    return bytes;
+  };
+
+  const vlw = encodeCSource(font, { format: 'vlw', symbolName: 'SmoothJa' });
+  assert.deepEqual([...bytesOf(vlw, 'SmoothJa')], [...encodeVlw(font)]);
+  assert.match(vlw, /display\.loadFont\(SmoothJa_data\)/);
+
+  const bff = encodeCSource(font, { format: 'bff', symbolName: 'CompactJa', bpp: 2 });
+  const bffBytes = bytesOf(bff, 'CompactJa');
+  assert.deepEqual([...bffBytes], [...encodeBff(font, { bpp: 2 })]);
+  assert.equal(/** @type {any} */ (decodeBff(bffBytes).meta.format).bff.bpp, 2);
+  assert.match(bff, /display\.loadFont\(CompactJa_data, lgfx::IFont::font_type_t::ft_lvgl\)/);
 });

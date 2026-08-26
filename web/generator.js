@@ -132,8 +132,8 @@ const OUTPUT_FORMATS = {
   u8g2: { ext: 'u8g2', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
   gfx: { ext: 'gfx1', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
   bdf: { ext: 'bdf', mime: 'text/plain;charset=utf-8', textExt: 'bdf', bpps: [1] },
-  vlw: { ext: 'vlw', mime: 'application/octet-stream', bpps: [8] },
-  bff: { ext: 'bff', mime: 'application/octet-stream', bpps: [1, 2, 4] },
+  vlw: { ext: 'vlw', mime: 'application/octet-stream', textExt: 'h', bpps: [8] },
+  bff: { ext: 'bff', mime: 'application/octet-stream', textExt: 'h', bpps: [1, 2, 4] },
 };
 
 // --- 共通ヘルパ -----------------------------------------------------------------
@@ -784,9 +784,10 @@ function buildHeader() {
     origin = origin ? `${origin} + ${fbCurated.family}` : `Google Fonts (${fbCurated.family})`;
   }
   return encodeCSource(generated, {
-    format: /** @type {'u8g2' | 'gfx'} */ (formatEl.value),
+    format: /** @type {'u8g2' | 'gfx' | 'vlw' | 'bff'} */ (formatEl.value),
     symbolName: ident,
     dropInvalid: dropInvalidEl.checked,
+    ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
     attribution: {
       typeface,
       license,
@@ -804,11 +805,25 @@ function renderHowto() {
     return;
   }
   if (formatEl.value === 'vlw') {
-    howtoCodeEl.textContent = t('gen.howtoVlw', { name: ident });
+    howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
+#include "${ident}.h"
+
+void setup() {
+  M5.begin();
+  if (!M5.Display.loadFont(${ident}_data)) return;
+  M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
+}`;
     return;
   }
   if (formatEl.value === 'bff') {
-    howtoCodeEl.textContent = t('gen.howtoBff', { name: ident, bpp: outputBpp() });
+    howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
+#include "${ident}.h"
+
+void setup() {
+  M5.begin();
+  if (!M5.Display.loadFont(${ident}_data, lgfx::IFont::font_type_t::ft_lvgl)) return;
+  M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
+}`;
     return;
   }
   howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>

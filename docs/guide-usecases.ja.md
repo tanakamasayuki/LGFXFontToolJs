@@ -266,6 +266,10 @@ display.drawString("12:34", 0, 0);
 `format: 'gfx'` にすると Adafruit GFX 互換の `GFXfont` 構造体で出力します
 （`display.setFont(&clockFont);` は同じ）。
 
+`format: 'vlw'` / `'bff'` はバイナリをそのままC配列へ埋め込みます。VLWは
+`display.loadFont(clockFont_data)`、BFFは
+`display.loadFont(clockFont_data, lgfx::IFont::font_type_t::ft_lvgl)`で読み込みます。
+
 ## 7. 文字を減らす・足す
 
 **減らす（サブセット化）** — 非破壊で、指定した文字だけの新しいフォントを

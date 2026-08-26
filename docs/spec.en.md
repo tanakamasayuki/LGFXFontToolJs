@@ -453,7 +453,8 @@ decodeCSource(text)  // -> Array<{name, format, font}>  Supports multiple fonts 
 encodeCSource(font, { format, symbolName, progmem })  // -> string
 ```
 
-- Matches each output format's idiom: GFXfont as an Adafruit-style `.h`, u8g2 as a `.c` with `U8G2_FONT_SECTION`, and `constexpr uint8_t []` for LovyanGFX.
+- `format` accepts `u8g2`, `gfx`, `vlw`, or `bff`. VLW/BFF headers embed the encoded binary unchanged as a C array for LovyanGFX `loadFont()`.
+- Matches each output format's idiom: GFXfont as an Adafruit-style `.h`, u8g2 with an `U8g2font` wrapper, and VLW/BFF as `const uint8_t []`.
 - The leading comment of the generated output always includes the source font name, character set, generation conditions, and license notice.
 
 ---

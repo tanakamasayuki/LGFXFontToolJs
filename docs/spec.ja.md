@@ -453,7 +453,8 @@ decodeCSource(text)  // -> Array<{name, format, font}>  1 ファイル複数フ�
 encodeCSource(font, { format, symbolName, progmem })  // -> string
 ```
 
-- 出力形式ごとのイディオムに合わせる: GFXfont は Adafruit 流の `.h`、u8g2 は `U8G2_FONT_SECTION` 付きの `.c`、LovyanGFX 向けは `constexpr uint8_t []`。
+- `format` は `u8g2` / `gfx` / `vlw` / `bff`。VLW/BFFはエンコード済みバイナリを変更せずC配列へ埋め込み、LovyanGFXの`loadFont()`で読み込める`.h`を出力する。
+- 出力形式ごとのイディオムに合わせる: GFXfont は Adafruit 流の `.h`、u8g2 は `U8g2font`ラッパ、VLW/BFFは`const uint8_t []`。
 - 生成物の先頭コメントに、元フォント名・文字集合・生成条件・ライセンス表示を必ず含める。
 
 ---
