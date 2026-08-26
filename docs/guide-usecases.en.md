@@ -151,11 +151,11 @@ In the [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.htm
 pick a local TTF/OTF/WOFF or a redistributable typeface from Google Fonts,
 specify the size and the character set (templates are available, such as a
 full Japanese UI set or a clock set), and download the result as a u8g2 /
-GFXfont `.h` file and more. A live preview lets you check the typeface and
+GFXfont `.h`, BDF, VLW, or BFF file. A live preview lets you check the typeface and
 size before generating, and any characters the typeface lacks are called
 out by name — you can fill them in from another typeface (Noto family)
 with one click. License attribution (including for the typefaces used for
-the fallback fill) is added to the output file automatically.
+the fallback fill) is added to `.h` output automatically.
 
 ### With code: `generateFont` (browser only)
 

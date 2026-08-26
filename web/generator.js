@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Generator（仕様 §14、UC1）。TTF / OTF / WOFF → u8g2 / GFXfont。
+ * Generator（仕様 §14、UC1）。TTF / OTF / WOFF → u8g2 / GFXfont / BDF / VLW / BFF。
  * fontgen（LGFXScreenBuilder）の後継。カード式の 4 ステップ:
  * 書体 → サイズと名前（ライブプレビュー付き）→ 文字 → 生成。
  *
@@ -120,8 +120,17 @@ let baseSizing = null;
 let generated = null;
 /** @type {{family: string, filled: number, still: number[]} | null} */
 let fbApplied = null;
-/** @type {string | null} renderResult が組んだ .h（download / copy が使い回す） */
-let currentHeader = null;
+/** @type {string | null} renderResult が組んだテキスト出力（download / copy が使い回す） */
+let currentTextOutput = null;
+
+/** @type {Record<string, {ext: string, mime: string, textExt?: string}>} */
+const OUTPUT_FORMATS = {
+  u8g2: { ext: 'u8g2', mime: 'application/octet-stream', textExt: 'h' },
+  gfx: { ext: 'gfx1', mime: 'application/octet-stream', textExt: 'h' },
+  bdf: { ext: 'bdf', mime: 'text/plain;charset=utf-8', textExt: 'bdf' },
+  vlw: { ext: 'vlw', mime: 'application/octet-stream' },
+  bff: { ext: 'bff', mime: 'application/octet-stream' },
+};
 
 // --- 共通ヘルパ -----------------------------------------------------------------
 
@@ -610,8 +619,9 @@ function renderResult() {
   if (!generated) return;
   const font = generated;
   const format = formatEl.value;
+  const output = OUTPUT_FORMATS[format];
   const check = canEncode(font, format);
-  currentHeader = null;
+  currentTextOutput = null;
 
   resGlyphsEl.textContent = String(font.glyphs.size);
   resHeightEl.textContent = `${font.lineHeight}px (${font.ascent}/${font.descent})`;
@@ -653,17 +663,23 @@ function renderResult() {
   // プレビュー（ライブラリの描画エンジン = デバイスと同じ規則）
   drawFontTo(previewEl, font, previewTextEl.value || sampleText, Number(zoomEl.value));
 
+  const hasTextOutput = output.textExt !== undefined;
+  dlHEl.hidden = !hasTextOutput;
+  copyEl.hidden = !hasTextOutput;
+  dlBinEl.hidden = format === 'bdf';
   dlHEl.disabled = !canBuild;
   dlBinEl.disabled = !canBuild;
   copyEl.disabled = !canBuild;
+  dlHEl.textContent = t('gen.downloadFormat', { ext: output.textExt ?? output.ext });
+  dlBinEl.textContent = t('gen.downloadFormat', { ext: output.ext });
 
-  // .h の頭出しプレビュー
+  // .h / BDF の頭出しプレビュー
   codeEl.textContent = '';
   codeNoteEl.textContent = '';
-  if (canBuild) {
+  if (canBuild && hasTextOutput) {
     try {
-      currentHeader = buildHeader();
-      const lines = currentHeader.split('\n');
+      currentTextOutput = buildTextOutput();
+      const lines = currentTextOutput.split('\n');
       const shown = Math.min(lines.length, 30);
       codeEl.textContent = lines.slice(0, shown).join('\n') + (lines.length > shown ? '\n…' : '');
       if (lines.length > shown) {
@@ -674,6 +690,17 @@ function renderResult() {
     }
   }
   renderHowto();
+}
+
+/** `.h` または BDF のようなテキスト出力を組む。 */
+function buildTextOutput() {
+  if (!generated) throw new Error('no font');
+  if (formatEl.value === 'bdf') {
+    return new TextDecoder().decode(
+      encode(generated, { format: 'bdf', dropInvalid: dropInvalidEl.checked }),
+    );
+  }
+  return buildHeader();
 }
 
 /** 帰属表示込みで .h を組む。補完を適用した場合は両書体を記録する */
@@ -708,6 +735,18 @@ function buildHeader() {
 
 function renderHowto() {
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
+  if (formatEl.value === 'bdf') {
+    howtoCodeEl.textContent = t('gen.howtoBdf');
+    return;
+  }
+  if (formatEl.value === 'vlw') {
+    howtoCodeEl.textContent = t('gen.howtoVlw', { name: ident });
+    return;
+  }
+  if (formatEl.value === 'bff') {
+    howtoCodeEl.textContent = t('gen.howtoBff', { name: ident });
+    return;
+  }
   howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
 #include "${ident}.h"
 
@@ -720,13 +759,15 @@ void setup() {
 
 dlHEl.addEventListener('click', () => {
   if (!generated) return;
-  const src = currentHeader ?? buildHeader();
-  download(src, `${sanitizeIdent(symbolEl.value || 'MyFont')}.h`, 'text/plain');
+  const output = OUTPUT_FORMATS[formatEl.value];
+  if (!output.textExt) return;
+  const src = currentTextOutput ?? buildTextOutput();
+  download(src, `${sanitizeIdent(symbolEl.value || 'MyFont')}.${output.textExt}`, 'text/plain');
 });
 
 copyEl.addEventListener('click', async () => {
   if (!generated) return;
-  const src = currentHeader ?? buildHeader();
+  const src = currentTextOutput ?? buildTextOutput();
   await navigator.clipboard.writeText(src);
   statusEl.textContent = t('gen.copied');
 });
@@ -738,9 +779,9 @@ dlBinEl.addEventListener('click', () => {
     format: formatEl.value,
     dropInvalid: dropInvalidEl.checked,
   });
-  const ext = formatEl.value === 'u8g2' ? 'u8g2' : 'gfx1';
+  const output = OUTPUT_FORMATS[formatEl.value];
   // Uint8Array は BlobPart として有効だが、lib.dom の型定義が ArrayBuffer 固定のため明示キャスト
-  download(/** @type {any} */ (bytes), `${ident}.${ext}`, 'application/octet-stream');
+  download(/** @type {any} */ (bytes), `${ident}.${output.ext}`, output.mime);
 });
 
 for (const el of [formatEl, dropInvalidEl, previewTextEl, zoomEl]) {
