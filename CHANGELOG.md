@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 1.1.0
 - (EN) Generated C headers no longer auto-include `<LovyanGFX.hpp>`. The `#if` that guarded it tested include-guard macros that never matched (`__LOVYANGFX_HPP__` vs the real `LOVYANGFX_HPP_`, `_M5GFX_H_` vs `__M5GFX_H__`), so for a sketch that included the font header first it could pull LovyanGFX into an M5GFX / M5Unified build. Include your graphics library before the generated header instead; VLW/BFF headers are data only and need no library header at all.
 - (JA) 生成した C ヘッダが `<LovyanGFX.hpp>` を自動 include しなくなった。判定していた `#if` は実際とは異なる include ガード名（`__LOVYANGFX_HPP__` / 実際は `LOVYANGFX_HPP_`、`_M5GFX_H_` / 実際は `__M5GFX_H__`）を見ており、フォントヘッダを先に include したスケッチでは M5GFX / M5Unified のビルドに LovyanGFX を引き込む可能性があった。描画ライブラリは生成ヘッダより前に include すること。VLW/BFF はデータのみでライブラリのヘッダを必要としない。
 - (EN) Internal `src/` comments and JSDoc are now consistently English; localized character samples and generated-header strings remain data. CI now rejects non-English implementation comments.
