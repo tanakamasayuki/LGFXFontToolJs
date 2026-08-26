@@ -355,7 +355,13 @@ async function updateLive() {
       threshold: thresholdNum(),
     });
     if (seq !== liveSeq) return;
-    drawFontTo(liveCanvasEl, font, text, Number(liveZoomEl.value));
+    drawFontTo(
+      liveCanvasEl,
+      font,
+      text,
+      Number(liveZoomEl.value),
+      /** @type {1|2|4|8} */ (outputBpp()),
+    );
     let s = t('gen.liveInfo', {
       px: pxNum(),
       line: font.lineHeight,
@@ -706,7 +712,13 @@ function renderResult() {
   renderFallbackOffer();
 
   // プレビュー（ライブラリの描画エンジン = デバイスと同じ規則）
-  drawFontTo(previewEl, font, previewTextEl.value || sampleText, Number(zoomEl.value));
+  drawFontTo(
+    previewEl,
+    font,
+    previewTextEl.value || sampleText,
+    Number(zoomEl.value),
+    /** @type {1|2|4|8} */ (outputBpp()),
+  );
 
   const hasTextOutput = output.textExt !== undefined;
   dlHEl.hidden = !hasTextOutput;

@@ -49,8 +49,9 @@ export function download(content, name, type) {
  * @param {Font} font
  * @param {string} text
  * @param {number} zoom
+ * @param {1|2|4|8} [coverageBpp] 表示時の被覆階調。BFF プレビューは出力 bpp を渡す。
  */
-export function drawFontTo(canvas, font, text, zoom) {
+export function drawFontTo(canvas, font, text, zoom, coverageBpp = 8) {
   const w = Math.max(8, Math.min(4000, textWidth(font, text) + 8));
   const h = Math.max(8, fontHeight(font) + 8);
   const z = Math.max(1, Math.min(zoom, Math.floor(8192 / w) || 1));
@@ -69,11 +70,26 @@ export function drawFontTo(canvas, font, text, zoom) {
     for (let x = 0; x < w; x++) {
       const value = getPixel(bmp, x, y);
       if (!value) continue;
-      ctx.globalAlpha = bmp.bpp === 8 ? value / 255 : 1;
+      ctx.globalAlpha = bmp.bpp === 8 ? quantizeCoverage(value, coverageBpp) / 255 : 1;
       ctx.fillRect(x * z, y * z, z, z);
     }
   }
   ctx.globalAlpha = 1;
+}
+
+/**
+ * 8bpp 被覆値を指定 bpp で一度符号化し、BFF デコーダと同じ規則で 0..255 に戻す。
+ * @param {number} value
+ * @param {1|2|4|8} bpp
+ */
+export function quantizeCoverage(value, bpp) {
+  const a8 = Math.min(255, Math.max(0, Math.round(value)));
+  if (bpp === 8) return a8;
+  const maxAlpha = (1 << bpp) - 1;
+  const quantized = Math.round((a8 * maxAlpha) / 255);
+  return quantized >= maxAlpha
+    ? 255
+    : Math.floor((255 * quantized + (maxAlpha >> 1)) / maxAlpha);
 }
 
 /** 拡張子からの形式ヒント。VLW はマジックを持たず detect できないため必須 */
