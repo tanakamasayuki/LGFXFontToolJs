@@ -128,6 +128,10 @@ let fbApplied = null;
 /** @type {string | null} Text output built by renderResult (reused by download / copy) */
 let currentTextOutput = null;
 
+/** Lines of generated source shown before eliding. The licence notice and the
+ *  guards take about 35 lines, so this has to clear them to show any data. */
+const PREVIEW_LINES = 60;
+
 /** @type {Record<string, {ext: string, mime: string, textExt?: string, bpps: number[]}>} */
 const OUTPUT_FORMATS = {
   u8g2: { ext: 'u8g2', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
@@ -751,7 +755,7 @@ function renderResult() {
     try {
       currentTextOutput = buildTextOutput();
       const lines = currentTextOutput.split('\n');
-      const shown = Math.min(lines.length, 30);
+      const shown = Math.min(lines.length, PREVIEW_LINES);
       codeEl.textContent = lines.slice(0, shown).join('\n') + (lines.length > shown ? '\n…' : '');
       if (lines.length > shown) {
         codeNoteEl.textContent = t('gen.codeNote', { shown, total: lines.length });
