@@ -48,6 +48,7 @@ const weightEl = /** @type {HTMLSelectElement} */ ($('weight'));
 const italicEl = /** @type {HTMLInputElement} */ ($('italic'));
 const pxEl = /** @type {HTMLInputElement} */ ($('px'));
 const thresholdEl = /** @type {HTMLInputElement} */ ($('threshold'));
+const thresholdControlEl = $('threshold-control');
 const symbolEl = /** @type {HTMLInputElement} */ ($('symbol'));
 const liveTextEl = /** @type {HTMLInputElement} */ ($('live-text'));
 const liveZoomEl = /** @type {HTMLSelectElement} */ ($('live-zoom'));
@@ -64,6 +65,7 @@ const charmapEl = $('charmap');
 const charmapCopyEl = /** @type {HTMLButtonElement} */ ($('charmap-copy'));
 const charmapCopyStatusEl = $('charmap-copy-status');
 const formatEl = /** @type {HTMLSelectElement} */ ($('format'));
+const bppEl = /** @type {HTMLSelectElement} */ ($('bpp'));
 const typefaceEl = /** @type {HTMLInputElement} */ ($('typeface'));
 const licenseEl = /** @type {HTMLInputElement} */ ($('license'));
 const dropInvalidEl = /** @type {HTMLInputElement} */ ($('drop-invalid'));
@@ -123,13 +125,13 @@ let fbApplied = null;
 /** @type {string | null} renderResult が組んだテキスト出力（download / copy が使い回す） */
 let currentTextOutput = null;
 
-/** @type {Record<string, {ext: string, mime: string, textExt?: string}>} */
+/** @type {Record<string, {ext: string, mime: string, textExt?: string, bpps: number[]}>} */
 const OUTPUT_FORMATS = {
-  u8g2: { ext: 'u8g2', mime: 'application/octet-stream', textExt: 'h' },
-  gfx: { ext: 'gfx1', mime: 'application/octet-stream', textExt: 'h' },
-  bdf: { ext: 'bdf', mime: 'text/plain;charset=utf-8', textExt: 'bdf' },
-  vlw: { ext: 'vlw', mime: 'application/octet-stream' },
-  bff: { ext: 'bff', mime: 'application/octet-stream' },
+  u8g2: { ext: 'u8g2', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
+  gfx: { ext: 'gfx1', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
+  bdf: { ext: 'bdf', mime: 'text/plain;charset=utf-8', textExt: 'bdf', bpps: [1] },
+  vlw: { ext: 'vlw', mime: 'application/octet-stream', bpps: [8] },
+  bff: { ext: 'bff', mime: 'application/octet-stream', bpps: [1, 2, 4] },
 };
 
 // --- 共通ヘルパ -----------------------------------------------------------------
@@ -137,6 +139,37 @@ const OUTPUT_FORMATS = {
 const pxNum = () => Number(pxEl.value) || 24;
 const thresholdNum = () => Math.min(255, Math.max(1, Number(thresholdEl.value) || 128));
 const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.checked });
+const outputBpp = () => Number(bppEl.value) || 1;
+/** BFF 2/4bpp と VLW 8bpp は、内部では共通の 8bpp alpha Bitmap を使う。 */
+const modelBpp = () => /** @type {1|8} */ (outputBpp() === 1 ? 1 : 8);
+
+/** @param {import('../src/model/font.js').Font} font */
+function fontBpp(font) {
+  const first = font.glyphs.values().next().value;
+  return first?.bitmap.bpp ?? /** @type {any} */ (font.meta.format)?.gen?.bpp ?? 1;
+}
+
+function encodeOptions() {
+  return {
+    format: formatEl.value,
+    dropInvalid: dropInvalidEl.checked,
+    ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
+  };
+}
+
+function syncFormatControls() {
+  const supported = OUTPUT_FORMATS[formatEl.value].bpps;
+  const previous = outputBpp();
+  bppEl.textContent = '';
+  for (const bpp of supported) {
+    const option = document.createElement('option');
+    option.value = String(bpp);
+    option.textContent = `${bpp}bpp${bpp > 1 ? ' AA' : ''}`;
+    bppEl.appendChild(option);
+  }
+  bppEl.value = String(supported.includes(previous) ? previous : supported[0]);
+  thresholdControlEl.hidden = modelBpp() !== 1;
+}
 
 /**
  * 生成済み fallback を合成し、全グリフの実インクから行ボックスを更新する。
@@ -318,6 +351,7 @@ async function updateLive() {
       px: pxNum(),
       codepoints: cps,
       style: styleNow(),
+      bpp: modelBpp(),
       threshold: thresholdNum(),
     });
     if (seq !== liveSeq) return;
@@ -502,6 +536,7 @@ generateEl.addEventListener('click', async () => {
       px: pxNum(),
       codepoints: bmp,
       style: styleNow(),
+      bpp: modelBpp(),
       threshold: thresholdNum(),
       familyName: typefaceEl.value,
       onProgress: ({ done, total }) => {
@@ -589,6 +624,7 @@ fbApplyEl.addEventListener('click', async () => {
       px: pxNum(),
       codepoints: baseMissing,
       style: styleNow(),
+      bpp: /** @type {1|8} */ (fontBpp(baseFont)),
       threshold: thresholdNum(),
       sizing: baseSizing ?? undefined,
       onProgress: ({ done, total }) => {
@@ -620,7 +656,16 @@ function renderResult() {
   const font = generated;
   const format = formatEl.value;
   const output = OUTPUT_FORMATS[format];
-  const check = canEncode(font, format);
+  const baseCheck = canEncode(font, format);
+  const check = { ok: baseCheck.ok, issues: [...baseCheck.issues] };
+  if (fontBpp(font) !== modelBpp()) {
+    check.ok = false;
+    check.issues.unshift({
+      level: 'error',
+      code: 'REGENERATE_FOR_BPP',
+      params: { generated: fontBpp(font), selected: outputBpp() },
+    });
+  }
   currentTextOutput = null;
 
   resGlyphsEl.textContent = String(font.glyphs.size);
@@ -632,7 +677,7 @@ function renderResult() {
   resBytesEl.textContent = '—';
   if (canBuild) {
     try {
-      const bytes = encode(font, { format, dropInvalid: dropInvalidEl.checked });
+      const bytes = encode(font, encodeOptions());
       resBytesEl.textContent = `${bytes.length.toLocaleString()} B (${format})`;
     } catch {
       // サイズ表示だけの失敗は issues 側で伝わる
@@ -744,7 +789,7 @@ function renderHowto() {
     return;
   }
   if (formatEl.value === 'bff') {
-    howtoCodeEl.textContent = t('gen.howtoBff', { name: ident });
+    howtoCodeEl.textContent = t('gen.howtoBff', { name: ident, bpp: outputBpp() });
     return;
   }
   howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
@@ -775,18 +820,28 @@ copyEl.addEventListener('click', async () => {
 dlBinEl.addEventListener('click', () => {
   if (!generated) return;
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
-  const bytes = encode(generated, {
-    format: formatEl.value,
-    dropInvalid: dropInvalidEl.checked,
-  });
+  const bytes = encode(generated, encodeOptions());
   const output = OUTPUT_FORMATS[formatEl.value];
   // Uint8Array は BlobPart として有効だが、lib.dom の型定義が ArrayBuffer 固定のため明示キャスト
   download(/** @type {any} */ (bytes), `${ident}.${output.ext}`, output.mime);
 });
 
-for (const el of [formatEl, dropInvalidEl, previewTextEl, zoomEl]) {
+for (const el of [dropInvalidEl, previewTextEl, zoomEl]) {
   el.addEventListener('input', renderResult);
 }
+
+formatEl.addEventListener('input', () => {
+  syncFormatControls();
+  scheduleLive();
+  renderHowto();
+  renderResult();
+});
+bppEl.addEventListener('input', () => {
+  thresholdControlEl.hidden = modelBpp() !== 1;
+  scheduleLive();
+  renderHowto();
+  renderResult();
+});
 
 langEl.addEventListener('input', async () => {
   await setLocale(langEl.value);
@@ -797,6 +852,7 @@ langEl.addEventListener('input', async () => {
 
 await initI18n();
 liveTextEl.value = sampleText;
+syncFormatControls();
 applyLanguage();
 setSourceKind('google');
 syncAttribution();

@@ -227,7 +227,7 @@ export function canEncode(font, format) {
  * 中立モデルを指定形式のバイト列へエンコードする（仕様 §7.2）。
  * 制約違反があれば EncodeConstraintError を投げる。切り詰めない。
  * @param {Font} font
- * @param {{format: string, dropInvalid?: boolean}} opts
+ * @param {{format: string, dropInvalid?: boolean, bpp?: 1|2|4}} opts
  * @returns {Uint8Array}
  */
 export function encode(font, opts) {

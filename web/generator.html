@@ -86,7 +86,7 @@
         <label><span data-i18n="gen.px">Character height (px)</span>
           <input id="px" type="number" value="24" min="6" max="120" step="1">
         </label>
-        <label><span data-i18n="gen.threshold">Ink threshold</span>
+        <label id="threshold-control"><span data-i18n="gen.threshold">Ink threshold</span>
           <input id="threshold" type="number" value="128" min="1" max="255" step="1">
         </label>
         <label class="grow"><span data-i18n="gen.symbolName">Font name (C identifier)</span>
@@ -96,8 +96,8 @@
       <p class="sub" data-i18n="gen.sizeNote">The size is the character height in pixels — the
         ink height of a reference glyph (an ideograph for CJK-capable fonts, a capital
         otherwise), so "24" looks the same size in every typeface. The line height is derived
-        from the glyphs and reported next to the preview. Output is 1bpp: the threshold decides
-        how much anti-aliased coverage counts as "on"; lowering it makes the font heavier.</p>
+        from the glyphs and reported next to the preview. For 1bpp output, the threshold decides
+        how much anti-aliased coverage counts as "on"; AA output preserves the coverage.</p>
 
       <div class="controls">
         <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
@@ -154,6 +154,9 @@
             <option value="bff">BFF (LovyanGFX / LVGL)</option>
           </select>
         </label>
+        <label><span data-i18n="gen.bpp">Pixel depth</span>
+          <select id="bpp"><option value="1">1bpp</option></select>
+        </label>
         <label class="grow"><span data-i18n="gen.typeface">Typeface name (for attribution)</span>
           <input id="typeface" type="text" value="">
         </label>
@@ -199,8 +202,8 @@
           </label>
         </div>
         <div class="preview-wrap"><canvas id="preview"></canvas></div>
-        <p class="sub" data-i18n="gen.previewNote">Rendered from the generated 1bpp glyphs with
-          the library's LovyanGFX-exact engine — this is exactly what the device will draw.</p>
+        <p class="sub" data-i18n="gen.previewNote">Rendered from the generated glyph coverage
+          with the library's LovyanGFX-compatible engine.</p>
 
         <div class="controls">
           <button id="dl-h" class="primary" data-i18n="gen.downloadH">Download .h</button>

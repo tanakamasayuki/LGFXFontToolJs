@@ -54,7 +54,8 @@ export function drawFontTo(canvas, font, text, zoom) {
   const w = Math.max(8, Math.min(4000, textWidth(font, text) + 8));
   const h = Math.max(8, fontHeight(font) + 8);
   const z = Math.max(1, Math.min(zoom, Math.floor(8192 / w) || 1));
-  const bmp = createBitmap(w, h, 1);
+  const glyphBpp = font.glyphs.values().next().value?.bitmap.bpp ?? 1;
+  const bmp = createBitmap(w, h, glyphBpp === 8 ? 8 : 1);
   drawString(bmp, font, text, 4, 4);
   canvas.width = w * z;
   canvas.height = h * z;
@@ -66,9 +67,13 @@ export function drawFontTo(canvas, font, text, zoom) {
   ctx.fillStyle = '#e8f0ff';
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (getPixel(bmp, x, y)) ctx.fillRect(x * z, y * z, z, z);
+      const value = getPixel(bmp, x, y);
+      if (!value) continue;
+      ctx.globalAlpha = bmp.bpp === 8 ? value / 255 : 1;
+      ctx.fillRect(x * z, y * z, z, z);
     }
   }
+  ctx.globalAlpha = 1;
 }
 
 /** 拡張子からの形式ヒント。VLW はマジックを持たず detect できないため必須 */

@@ -27,7 +27,7 @@ Plain ESM with zero runtime dependencies and no build step — runs in Node.js a
 | App | What it does |
 | --- | --- |
 | [Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/viewer.html) | Browse all 186 built-in fonts with pixel-exact preview |
-| [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html) | TTF / Google Fonts → u8g2 / GFXfont / BDF / VLW / BFF, with charset selection, fallback fill-in and automatic header attribution |
+| [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html) | TTF / Google Fonts → u8g2 / GFXfont / BDF / 8bpp VLW / 1–4bpp BFF, with AA preview, charset selection, fallback fill-in and automatic header attribution |
 | [Converter](https://tanakamasayuki.github.io/LGFXFontToolJs/converter.html) | Drop a font file / C source, convert between formats |
 | [Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html) | Coverage, metrics, size comparison across every format, text checks |
 

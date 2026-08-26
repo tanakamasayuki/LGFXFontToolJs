@@ -255,7 +255,8 @@ function drawsItselfElsewhere(code, size, family, style, threshold) {
  * @property {number} x   - 左ベアリング
  * @property {number} y   - ベースライン → ビットマップ下端（上が正）
  * @property {number} dx  - 送り幅
- * @property {Uint8Array} bits - 行優先 0/1
+ * @property {1|8} bpp
+ * @property {Uint8Array} bits - 行優先。1bpp は 0/1、8bpp は alpha 0..255
  */
 
 /**
@@ -266,9 +267,10 @@ function drawsItselfElsewhere(code, size, family, style, threshold) {
  * @param {string} family
  * @param {TtfStyle} style
  * @param {number} threshold
+ * @param {1|8} [bpp]
  * @returns {RasterGlyph | null}
  */
-function rasterizeOne(surf, code, size, family, style, threshold) {
+function rasterizeOne(surf, code, size, family, style, threshold, bpp = 1) {
   const ch = String.fromCodePoint(code);
   const { ctx, w, h, originX, originY } = surf;
 
@@ -302,13 +304,16 @@ function rasterizeOne(surf, code, size, family, style, threshold) {
     }
   }
 
+  // AA 出力では Canvas の非ゼロ被覆をすべて保持する。1bpp の外接矩形だけは
+  // 従来どおり threshold 後のインクから求め、既存出力のメトリクスを変えない。
+  const trimThreshold = bpp === 8 ? 1 : threshold;
   let minX = w;
   let minY = h;
   let maxX = -1;
   let maxY = -1;
   for (let py = 0; py < h; py++) {
     for (let px = 0; px < w; px++) {
-      if (a.px[(py * w + px) * 4 + 3] < threshold) continue;
+      if (a.px[(py * w + px) * 4 + 3] < trimThreshold) continue;
       if (px < minX) minX = px;
       if (px > maxX) maxX = px;
       if (py < minY) minY = py;
@@ -316,7 +321,7 @@ function rasterizeOne(surf, code, size, family, style, threshold) {
     }
   }
   if (maxX < 0) {
-    return { code, w: 0, h: 0, x: 0, y: 0, dx: Math.round(a.adv), bits: new Uint8Array(0) };
+    return { code, w: 0, h: 0, x: 0, y: 0, dx: Math.round(a.adv), bpp, bits: new Uint8Array(0) };
   }
 
   const gw = maxX - minX + 1;
@@ -324,7 +329,8 @@ function rasterizeOne(surf, code, size, family, style, threshold) {
   const bits = new Uint8Array(gw * gh);
   for (let py = 0; py < gh; py++) {
     for (let px = 0; px < gw; px++) {
-      bits[py * gw + px] = a.px[((minY + py) * w + (minX + px)) * 4 + 3] >= threshold ? 1 : 0;
+      const alpha = a.px[((minY + py) * w + (minX + px)) * 4 + 3];
+      bits[py * gw + px] = bpp === 8 ? alpha : alpha >= threshold ? 1 : 0;
     }
   }
 
@@ -335,6 +341,7 @@ function rasterizeOne(surf, code, size, family, style, threshold) {
     x: minX - originX, // ペンからの左ベアリング
     y: originY - (maxY + 1), // ベースライン → ビットマップ下端（上が正）
     dx: Math.round(a.adv),
+    bpp,
     bits,
   };
 }
@@ -346,6 +353,7 @@ function rasterizeOne(surf, code, size, family, style, threshold) {
  * @param {number} opts.size - 目標の文字高さ（px）
  * @param {number[]} opts.codepoints - 昇順のコードポイント列
  * @param {TtfStyle} [opts.style]
+ * @param {1|8} [opts.bpp] - 出力被覆値。既定 1
  * @param {number} [opts.threshold] - 1bpp 化の alpha 閾値（1..255。既定 128）
  * @param {FontSizingInput} [opts.sizing] - measureTtf を省略して再利用するサイジング
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
@@ -358,11 +366,13 @@ export async function rasterizeSet({
   size,
   codepoints,
   style = {},
+  bpp = 1,
   threshold = 128,
   sizing: inheritedSizing,
   onProgress,
 }) {
   ensureRasterizer();
+  if (bpp !== 1 && bpp !== 8) throw new RangeError(`rasterizeSet: bpp must be 1 or 8 (got ${bpp})`);
   if (inheritedSizing && (!Number.isFinite(inheritedSizing.cssPx) || inheritedSizing.cssPx <= 0)) {
     throw new RangeError('rasterizeSet: sizing.cssPx must be a positive finite number');
   }
@@ -382,7 +392,7 @@ export async function rasterizeSet({
   // CJK 1 万字でもタブが固まらないよう、チャンクごとにイベントループへ戻す
   const CHUNK = 200;
   for (let i = 0; i < codepoints.length; i++) {
-    const g = rasterizeOne(surf, codepoints[i], sizing.cssPx, family, style, threshold);
+    const g = rasterizeOne(surf, codepoints[i], sizing.cssPx, family, style, threshold, bpp);
     if (g) glyphs.push(g);
     else missing.push(codepoints[i]);
     if ((i + 1) % CHUNK === 0 || i === codepoints.length - 1) {

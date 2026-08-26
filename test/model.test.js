@@ -6,7 +6,7 @@ import { subset, merge } from '../src/model/subset.js';
 import { serializeFont, deserializeFont } from '../src/model/serialize.js';
 import { tinyFont, bitmapFromText } from './helpers.js';
 import { loadFont } from '../src/fonts/loader.js';
-import { lineBoxOfModelGlyphs } from '../src/gen/generate.js';
+import { lineBoxOfModelGlyphs, toModelGlyph } from '../src/gen/generate.js';
 
 test('Bitmap: 1bpp の get/set と MSB first', () => {
   const bmp = createBitmap(10, 2, 1);
@@ -20,6 +20,23 @@ test('Bitmap: 1bpp の get/set と MSB first', () => {
   assert.equal(getPixel(bmp, 1, 0), 0);
   assert.equal(getPixel(bmp, -1, 0), 0);
   assert.equal(getPixel(bmp, 10, 0), 0);
+});
+
+test('生成グリフ: 8bpp の Canvas alpha を中立モデルへ保持する', () => {
+  const glyph = toModelGlyph({
+    code: 0x41,
+    w: 3,
+    h: 1,
+    x: -1,
+    y: 2,
+    dx: 4,
+    bpp: 8,
+    bits: new Uint8Array([0, 96, 255]),
+  });
+  assert.equal(glyph.bitmap.bpp, 8);
+  assert.deepEqual([...glyph.bitmap.data], [0, 96, 255]);
+  assert.equal(glyph.xOffset, -1);
+  assert.equal(glyph.yOffset, -3);
 });
 
 test('subset: 指定文字だけ残る（非破壊）', () => {

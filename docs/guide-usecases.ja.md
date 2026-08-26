@@ -144,7 +144,7 @@ test('UI 文言はフォントに収録済み', async () => {
 [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html) で、
 手元の TTF/OTF/WOFF か Google Fonts の再配布可能な書体を選び、サイズと
 文字集合（日本語 UI 一式・時計用など のテンプレートあり）を指定して、
-u8g2 / GFXfont の `.h`、BDF、VLW、BFF としてダウンロードできます。生成前のライブ
+u8g2 / GFXfont の `.h`、BDF、8bpp AA付きVLW、1〜4bpp BFFとしてダウンロードできます。生成前のライブ
 プレビューで書体とサイズを確認でき、書体に無かった文字は「どの文字が
 無いか」を名指しで提示して、別書体（Noto 系）から 1 クリックで補完
 できます。`.h` にはライセンスの帰属表示も（補完に使った書体の分まで）
@@ -161,6 +161,7 @@ import { generateFont, resolveCharset, encodeCSource } from 'lgfx-font-tool';
 const { font, missing, filled } = await generateFont({
   source: ttfArrayBuffer,          // または URL。登録済み CSS ファミリ名なら family: '...'
   px: 24,                          // 文字インクの高さ
+  bpp: 8,                          // 1: 二値 / 8: AA被覆値（VLW・BFF向け）
   codepoints: resolveCharset({
     sets: ['ascii', 'hiragana', 'katakana', 'jaPunct', 'hanJa1'],
     customText: '℃㎡',            // 個別に足したい文字

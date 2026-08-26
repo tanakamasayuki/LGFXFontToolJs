@@ -60,6 +60,15 @@ test('BFF 往復: 4bpp（グラデーション）の正規化が可逆', () => {
   assert.equal(g0.bitmap.width, 0);
 });
 
+test('BFF 出力: 8bpp alpha を指定した 2bpp へ量子化する', () => {
+  const restored = decodeBff(encodeBff(alphaFont(), { bpp: 2 }));
+  assert.equal(/** @type {any} */ (restored.meta.format).bff.bpp, 2);
+  const glyph = restored.glyphs.get(0x41);
+  assert.ok(glyph);
+  // 2bpp の 4 段階を、デコーダは中立モデルの 0..255 に正規化する。
+  assert.deepEqual([...glyph.bitmap.data], [0, 0, 170, 255, 255, 170, 0, 0]);
+});
+
 test('BFF 往復: 内蔵フォント（1bpp）と 2 回目の安定', async () => {
   const src = subset(await loadFont('lgfxJapanGothic_16'), 'こんにちは漢字09A ');
   const once = decodeBff(encodeBff(src));

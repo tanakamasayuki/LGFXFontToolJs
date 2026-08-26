@@ -151,7 +151,7 @@ In the [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.htm
 pick a local TTF/OTF/WOFF or a redistributable typeface from Google Fonts,
 specify the size and the character set (templates are available, such as a
 full Japanese UI set or a clock set), and download the result as a u8g2 /
-GFXfont `.h`, BDF, VLW, or BFF file. A live preview lets you check the typeface and
+GFXfont `.h`, BDF, 8bpp anti-aliased VLW, or 1–4bpp BFF file. A live preview lets you check the typeface and
 size before generating, and any characters the typeface lacks are called
 out by name — you can fill them in from another typeface (Noto family)
 with one click. License attribution (including for the typefaces used for
@@ -168,6 +168,7 @@ import { generateFont, resolveCharset, encodeCSource } from 'lgfx-font-tool';
 const { font, missing, filled } = await generateFont({
   source: ttfArrayBuffer,          // or a URL. For a registered CSS family name, use family: '...'
   px: 24,                          // height of the character ink
+  bpp: 8,                          // 1: binary; 8: AA coverage for VLW/BFF
   codepoints: resolveCharset({
     sets: ['ascii', 'hiragana', 'katakana', 'jaPunct', 'hanJa1'],
     customText: '℃㎡',            // extra characters to add individually

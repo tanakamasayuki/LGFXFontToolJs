@@ -16,11 +16,12 @@ import { createFont } from '../model/font.js';
  * @param {RasterGlyph} g
  * @returns {import('../model/font.js').Glyph}
  */
-function toModelGlyph(g) {
-  const bitmap = createBitmap(g.w, g.h, 1);
+export function toModelGlyph(g) {
+  const bitmap = createBitmap(g.w, g.h, g.bpp);
   for (let y = 0; y < g.h; y++) {
     for (let x = 0; x < g.w; x++) {
-      if (g.bits[y * g.w + x]) setPixel(bitmap, x, y, 1);
+      const value = g.bits[y * g.w + x];
+      if (value) setPixel(bitmap, x, y, value);
     }
   }
   // g.y は「ベースライン → ビットマップ下端」（上が正）。モデルの yOffset は
@@ -39,7 +40,7 @@ function toModelGlyph(g) {
  * ソース 1 つ（source または family）を指定文字集合でラスタライズする 1 パス。
  * @param {{source?: ArrayBuffer | string, family?: string}} src
  * @param {number[]} codepoints
- * @param {{px: number, style?: {weight?: number, italic?: boolean}, threshold?: number, sizing?: FontSizingInput,
+ * @param {{px: number, style?: {weight?: number, italic?: boolean}, bpp?: 1|8, threshold?: number, sizing?: FontSizingInput,
  *          familyName?: string, onProgress?: (p: {done: number, total: number}) => void}} opts
  *   - generateFont の opts（px / style / threshold / familyName / onProgress を共有）
  * @returns {Promise<{font: Font, missing: number[], sizing: FontSizing}>}
@@ -56,6 +57,7 @@ async function generateOne(src, codepoints, opts) {
       size: opts.px,
       codepoints,
       style: opts.style ?? {},
+      bpp: opts.bpp ?? 1,
       threshold: opts.threshold ?? 128,
       sizing: opts.sizing,
       onProgress: opts.onProgress,
@@ -75,7 +77,7 @@ async function generateOne(src, codepoints, opts) {
       glyphs: map,
       meta: {
         sourceFormat: 'ttf-raster',
-        drawProfile: 'gfx',
+        drawProfile: (opts.bpp ?? 1) === 8 ? 'vlw' : 'gfx',
         fallback: space
           ? { advance: space.xAdvance, width: space.bitmap.width, xOffset: space.xOffset }
           : { advance: 0, width: 0, xOffset: 0, drawBox: false },
@@ -87,6 +89,7 @@ async function generateOne(src, codepoints, opts) {
             probe: sizing.probe,
             probeHeight: sizing.probeHeight,
             threshold: opts.threshold ?? 128,
+            bpp: opts.bpp ?? 1,
             weight: opts.style?.weight ?? 400,
             italic: opts.style?.italic ?? false,
           },
@@ -155,6 +158,7 @@ function mergeGenerated(base, overlay) {
  * @param {number} opts.px - 文字高さ（行ボックスではなく文字インクの高さ）
  * @param {number[] | string} opts.codepoints - 収録する文字（コードポイント列 or 文字列）
  * @param {{weight?: number, italic?: boolean}} [opts.style]
+ * @param {1|8} [opts.bpp] - グリフの被覆値深度。既定 1
  * @param {number} [opts.threshold] - 1bpp 化の alpha 閾値（1..255。既定 128）
  * @param {FontSizingInput} [opts.sizing] - cssPx を固定するサイジング（別呼び出しでの補完用）
  * @param {string} [opts.familyName]

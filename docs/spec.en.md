@@ -657,9 +657,9 @@ await generateFont({
 
 Generation requires that the same input produce the same font.
 
-- Thresholding, metric rounding, and glyph-boundary cropping are performed by **deterministic code** within this library. With identical settings (px, threshold, weight), the output depends only on the input font and the browser.
+- Thresholding, metric rounding, and glyph-boundary cropping are performed by **deterministic code** within this library. With identical settings (px, bpp, threshold, weight), the output depends only on the input font and the browser.
 - Anti-aliasing results may differ across browser engines and operating systems. This is accepted (§10.1 — the generated output is the ground truth as-is, so where reproducibility matters, save the generated output itself as the artifact). This property is stated explicitly in the documentation.
-- The generated `Font`'s `meta` records the generation conditions (source file name, px, threshold, UA).
+- The generated `Font`'s `meta` records the generation conditions (source file name, px, bpp, threshold, UA).
 
 ---
 

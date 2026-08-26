@@ -22,7 +22,7 @@ LovyanGFX v1.2.26 の内蔵フォント 186 本の同梱コレクションから
 | アプリ | できること |
 | --- | --- |
 | [Viewer](https://tanakamasayuki.github.io/LGFXFontToolJs/viewer.html) | 内蔵 186 本の一覧とピクセル一致プレビュー |
-| [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html) | TTF / Google Fonts → u8g2 / GFXfont / BDF / VLW / BFF。文字集合選択・補完・ヘッダの帰属表示を自動化 |
+| [Generator](https://tanakamasayuki.github.io/LGFXFontToolJs/generator.html) | TTF / Google Fonts → u8g2 / GFXfont / BDF / 8bpp VLW / 1〜4bpp BFF。AAプレビュー・文字集合選択・補完・ヘッダの帰属表示を自動化 |
 | [Converter](https://tanakamasayuki.github.io/LGFXFontToolJs/converter.html) | フォントファイル / C ソースを放り込んで形式変換 |
 | [Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html) | 収録・被覆率・全形式サイズ比較・文言チェック |
 

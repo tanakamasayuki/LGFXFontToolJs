@@ -1,6 +1,10 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) `generateFont({ bpp: 8 })` now preserves browser Canvas alpha coverage in the neutral model. The Web Generator emits true 8bpp anti-aliased VLW and selectable 1/2/4bpp BFF, previews coverage levels, and requires regeneration when switching between binary and AA generation.
+- (JA) `generateFont({ bpp: 8 })` がブラウザ Canvas のアルファ被覆値を中立モデルへ保持するようになった。Web Generator は真の8bppアンチエイリアスVLWと選択可能な1/2/4bpp BFFを出力し、被覆階調をプレビューする。二値生成とAA生成を切り替えた場合は再生成を必須とする。
+- (EN) The existing `generateFont()` default remains 1bpp with `threshold: 128`; BFF quantizes 8bpp model coverage to the requested 2 or 4 bits at encoding time.
+- (JA) 既存の `generateFont()` の既定値は `threshold: 128` の1bppのまま維持した。BFFは8bpp中立モデルの被覆値をエンコード時に指定された2bitまたは4bitへ量子化する。
 
 ## 1.0.0
 - (EN) `generateFont()` now returns `sizing: { cssPx, probe, probeHeight }`, and a later `generateFont({ sizing })` call can reuse it. Passing only `sizing: { cssPx }` is also supported, so a fallback generated separately no longer has to derive its own scale from a different probe character.
