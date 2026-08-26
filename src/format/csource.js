@@ -138,33 +138,41 @@ const PROGMEM_GUARD = `#ifndef LGFXFT_PROGMEM
 const HEADER_COMMENTS = {
   en: {
     u8g2Include: 'Include LovyanGFX (or M5GFX / M5Unified) before this header so lgfx::U8g2font is available.',
-    gfxRange: 'EncodeRange is a LovyanGFX extension and works only with LovyanGFX / M5GFX.',
+    gfxRange:
+      'EncodeRange is a LovyanGFX extension: include LovyanGFX (or M5GFX / M5Unified) before this header. Plain Adafruit GFX cannot use it.',
     gfxPlain: 'Adafruit GFX compatible; use gfxfont.h with Adafruit_GFX, or include directly with LovyanGFX.',
-    runtimeInclude: 'Include LovyanGFX (or M5GFX / M5Unified) before this header.',
+    runtimeData:
+      'Data only — no library header is needed to compile this. Load it at runtime with LovyanGFX (or M5GFX / M5Unified).',
     usage: 'Usage',
     runtimeActive: 'On success, loadFont also selects this as the display\'s current font.',
   },
   ja: {
     u8g2Include: 'LovyanGFX（または同じ型を再輸出する M5GFX / M5Unified）を先に include して、lgfx::U8g2font が見える状態にしてください。',
-    gfxRange: 'EncodeRange は LovyanGFX の拡張です。LovyanGFX / M5GFX 系でのみ使えます。',
+    gfxRange:
+      'EncodeRange は LovyanGFX の拡張です。LovyanGFX（または M5GFX / M5Unified）を先に include してください。素の Adafruit GFX では使えません。',
     gfxPlain: 'Adafruit GFX 互換です。Adafruit_GFX では gfxfont.h、LovyanGFX ではそのまま使えます。',
-    runtimeInclude: 'LovyanGFX（または M5GFX / M5Unified）を先に include してください。',
+    runtimeData:
+      'データのみです。コンパイルにライブラリのヘッダは要りません。実行時に LovyanGFX（または M5GFX / M5Unified）から読み込んでください。',
     usage: '使い方',
     runtimeActive: 'loadFont は成功すると、このフォントを表示先の現在フォントに設定します。',
   },
   'zh-Hans': {
     u8g2Include: '请先包含 LovyanGFX（或 M5GFX / M5Unified），以便使用 lgfx::U8g2font。',
-    gfxRange: 'EncodeRange 是 LovyanGFX 扩展，仅适用于 LovyanGFX / M5GFX。',
+    gfxRange:
+      'EncodeRange 是 LovyanGFX 扩展：请先包含 LovyanGFX（或 M5GFX / M5Unified）。原版 Adafruit GFX 无法使用。',
     gfxPlain: '兼容 Adafruit GFX；Adafruit_GFX 请使用 gfxfont.h，LovyanGFX 可直接使用。',
-    runtimeInclude: '请先包含 LovyanGFX（或 M5GFX / M5Unified）。',
+    runtimeData:
+      '仅为数据，编译时无需包含库头文件。请在运行时通过 LovyanGFX（或 M5GFX / M5Unified）加载。',
     usage: '用法',
     runtimeActive: 'loadFont 成功后还会将此字体设为显示设备的当前字体。',
   },
   'zh-Hant': {
     u8g2Include: '請先包含 LovyanGFX（或 M5GFX / M5Unified），以便使用 lgfx::U8g2font。',
-    gfxRange: 'EncodeRange 是 LovyanGFX 擴充，僅適用於 LovyanGFX / M5GFX。',
+    gfxRange:
+      'EncodeRange 是 LovyanGFX 擴充：請先包含 LovyanGFX（或 M5GFX / M5Unified）。原版 Adafruit GFX 無法使用。',
     gfxPlain: '相容 Adafruit GFX；Adafruit_GFX 請使用 gfxfont.h，LovyanGFX 可直接使用。',
-    runtimeInclude: '請先包含 LovyanGFX（或 M5GFX / M5Unified）。',
+    runtimeData:
+      '僅為資料，編譯時不需要包含函式庫標頭。請在執行時透過 LovyanGFX（或 M5GFX / M5Unified）載入。',
     usage: '用法',
     runtimeActive: 'loadFont 成功後也會將此字型設為顯示裝置的目前字型。',
   },
@@ -191,10 +199,7 @@ function emitU8g2Header(font, ident, attribution, encodeOpts, language) {
   s += '\n';
   s += `#ifndef ${guard}\n#define ${guard}\n\n`;
   s += '#include <stdint.h>\n\n';
-  s += `// ${comments.u8g2Include}\n`;
-  s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
-  s += '  #include <LovyanGFX.hpp>\n';
-  s += '#endif\n\n';
+  s += `// ${comments.u8g2Include}\n\n`;
   s += PROGMEM_GUARD + '\n';
   s += `static const uint8_t ${ident}_data[${data.length}] LGFXFT_PROGMEM = {\n`;
   s += hexTable(data, '  ');
@@ -234,14 +239,7 @@ function emitGfxHeader(font, ident, attribution, encodeOpts, language) {
   s += '\n';
   s += `#ifndef ${guard}\n#define ${guard}\n\n`;
   s += '#include <stdint.h>\n\n';
-  if (ranged) {
-    s += `// ${comments.gfxRange}\n`;
-    s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
-    s += '  #include <LovyanGFX.hpp>\n';
-    s += '#endif\n\n';
-  } else {
-    s += `// ${comments.gfxPlain}\n\n`;
-  }
+  s += `// ${ranged ? comments.gfxRange : comments.gfxPlain}\n\n`;
   s += PROGMEM_GUARD + '\n';
 
   s += `static const uint8_t ${ident}Bitmaps[] LGFXFT_PROGMEM = {\n`;
@@ -311,10 +309,7 @@ function emitRuntimeHeader(font, ident, attribution, format, encodeOpts, languag
   s += '\n';
   s += `#ifndef ${guard}\n#define ${guard}\n\n`;
   s += '#include <stdint.h>\n\n';
-  s += `// ${comments.runtimeInclude}\n`;
-  s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
-  s += '  #include <LovyanGFX.hpp>\n';
-  s += '#endif\n\n';
+  s += `// ${comments.runtimeData}\n\n`;
   s += PROGMEM_GUARD + '\n';
   s += `static const uint8_t ${ident}_data[${data.length}] LGFXFT_PROGMEM = {\n`;
   s += hexTable(data, '  ');

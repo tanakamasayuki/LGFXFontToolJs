@@ -456,6 +456,7 @@ encodeCSource(font, { format, symbolName, language })  // -> string
 - `format` は `u8g2` / `gfx` / `vlw` / `bff`。VLW/BFFはエンコード済みバイナリを変更せずC配列へ埋め込み、LovyanGFXの`loadFont()`で読み込める`.h`を出力する。
 - `language` は生成ヘッダの操作説明コメントを `en` / `ja` / `zh-Hans` / `zh-Hant` から選ぶ。省略時は英語。
 - 出力形式ごとのイディオムに合わせる: GFXfont は Adafruit 流の `.h`、u8g2 は `U8g2font`ラッパ、VLW/BFFは`const uint8_t []`。
+- 生成ヘッダは描画ライブラリのヘッダを自前で include しない。LovyanGFX（または M5GFX / M5Unified）、素の GFXfont なら Adafruit GFX を先に include すること。VLW/BFF はデータのみで `<stdint.h>` 以外を必要としない。
 - 生成物の先頭コメントに、元フォント名・文字集合・生成条件・ライセンス表示を必ず含める。
 
 ---
