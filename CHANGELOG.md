@@ -1,8 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
-- (EN) `encodeCSource()` and the Web Generator can now emit VLW/BFF binaries unchanged as embedded C arrays in `.h` files, ready for LovyanGFX `loadFont()`; raw `.vlw` / `.bff` downloads remain available.
-- (JA) `encodeCSource()` と Web Generator が、VLW/BFF バイナリを変更せず C 配列へ埋め込んだ `.h` を出力できるようになった。LovyanGFX の `loadFont()` で読み込め、従来の `.vlw` / `.bff` ダウンロードも利用できる。
+- (EN) `encodeCSource()` and the Web Generator can now emit VLW/BFF binaries unchanged as embedded C arrays in `.h` files, ready for LovyanGFX `loadFont()`; raw `.vlw` / `.bff` downloads remain available. Operational comments follow the Generator language (`language` option; English by default).
+- (JA) `encodeCSource()` と Web Generator が、VLW/BFF バイナリを変更せず C 配列へ埋め込んだ `.h` を出力できるようになった。LovyanGFX の `loadFont()` で読み込め、従来の `.vlw` / `.bff` ダウンロードも利用できる。操作説明コメントはGeneratorの表示言語に従う（`language`オプション、既定は英語）。
 - (EN) `generateFont({ bpp: 8 })` now preserves browser Canvas alpha coverage in the neutral model. The Web Generator emits true 8bpp anti-aliased VLW and selectable 1/2/4bpp BFF, previews coverage levels, and requires regeneration when switching between binary and AA generation.
 - (JA) `generateFont({ bpp: 8 })` がブラウザ Canvas のアルファ被覆値を中立モデルへ保持するようになった。Web Generator は真の8bppアンチエイリアスVLWと選択可能な1/2/4bpp BFFを出力し、被覆階調をプレビューする。二値生成とAA生成を切り替えた場合は再生成を必須とする。
 - (EN) The existing `generateFont()` default remains 1bpp with `threshold: 128`; BFF quantizes 8bpp model coverage to the requested 2 or 4 bits at encoding time.

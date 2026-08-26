@@ -269,6 +269,7 @@ display.drawString("12:34", 0, 0);
 `format: 'vlw'` / `'bff'` はバイナリをそのままC配列へ埋め込みます。VLWは
 `display.loadFont(clockFont_data)`、BFFは
 `display.loadFont(clockFont_data, lgfx::IFont::font_type_t::ft_lvgl)`で読み込みます。
+生成ヘッダの操作説明コメントは`language: 'ja'`で日本語にできます（既定は英語）。
 
 ## 7. 文字を減らす・足す
 

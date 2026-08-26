@@ -1,16 +1,16 @@
 // @ts-check
 /**
- * C/C++ ソース出力（仕様 §6.3、UC1）。スケッチに貼れる .h を生成する。
+ * C/C++ source output (spec §6.3, UC1). Generates headers ready for sketches.
  *
- * - u8g2: バイト配列 + lgfx::U8g2font ラッパ（LGFXScreenBuilder fontgen の
- *   emit.js の形式を踏襲。LovyanGFX / M5GFX でそのまま setFont(&Name) できる）
- * - gfx : Adafruit GFX 流の Bitmaps / Glyphs / GFXfont。飛び飛びの文字集合は
- *   LovyanGFX 拡張の EncodeRange 付きで出す（この場合 LovyanGFX 専用）
- * - vlw / bff: バイナリをそのまま uint8_t 配列へ埋め込む。LovyanGFX の
- *   display.loadFont(array, font_type) で実行時フォントとして読み込む
+ * - u8g2: byte array plus an lgfx::U8g2font wrapper, following the
+ *   LGFXScreenBuilder fontgen emitter; usable directly with setFont(&Name).
+ * - gfx: Adafruit-style Bitmaps / Glyphs / GFXfont. Sparse character sets use
+ *   LovyanGFX's EncodeRange extension and are therefore LovyanGFX-only.
+ * - vlw / bff: embeds the binary unchanged as a uint8_t array for loading with
+ *   LovyanGFX display.loadFont(array, font_type).
  *
- * 生成物の先頭には帰属表示を必ず埋め込む（仕様 §6.3 / §8.4）。OFL や Apache は
- * 派生フォントデータに表示の同伴を要求しており、生成された配列は派生データである。
+ * Generated output always starts with attribution (spec §6.3 / §8.4). OFL and
+ * Apache terms require notices to accompany derived font data.
  */
 import { encodeU8g2, decodeU8g2 } from './u8g2.js';
 import { encodeGfx, decodeGfx, unpackGfxContainer, packGfxContainer } from './gfxfont.js';
@@ -25,7 +25,7 @@ import { FormatError } from '../util/errors.js';
 const HEX = (b) => '0x' + b.toString(16).padStart(2, '0');
 
 /**
- * ユーザー入力から C の識別子を作る（先頭が数字なら接頭辞を付ける）。
+ * Converts user input to a C identifier, adding a prefix when it starts with a digit.
  * @param {string} name
  */
 export function sanitizeIdent(name) {
@@ -34,7 +34,7 @@ export function sanitizeIdent(name) {
 }
 
 /**
- * コードポイント列を "U+0020-U+007E, U+00B0" 形式に要約する。
+ * Summarizes code points as "U+0020-U+007E, U+00B0".
  * @param {number[]} cps
  * @param {number} [limit]
  */
@@ -61,15 +61,15 @@ export function summarizeRanges(cps, limit = 24) {
 
 /**
  * @typedef {object} Attribution
- * @property {string} [typeface] - 元書体名
+ * @property {string} [typeface] - source typeface name
  * @property {string} [author]
- * @property {string} [license]  - ライセンス名（例 'SIL Open Font License 1.1'）
+ * @property {string} [license]  - license name, e.g. 'SIL Open Font License 1.1'
  * @property {string} [licenseUrl]
- * @property {string} [origin]   - 入手元
+ * @property {string} [origin]   - source location
  */
 
 /**
- * 帰属・来歴コメント本文（ダウンロード前に UI で見せられるよう分離）。
+ * Builds the attribution/provenance notice separately so the UI can preview it.
  * @param {Font} font
  * @param {{ident: string, format: string, bytes: number, attribution?: Attribution}} info
  */
@@ -133,15 +133,57 @@ const PROGMEM_GUARD = `#ifndef LGFXFT_PROGMEM
 #endif
 `;
 
+/** @typedef {'en'|'ja'|'zh-Hans'|'zh-Hant'} CSourceLanguage */
+
+const HEADER_COMMENTS = {
+  en: {
+    u8g2Include: 'Include LovyanGFX (or M5GFX / M5Unified) before this header so lgfx::U8g2font is available.',
+    gfxRange: 'EncodeRange is a LovyanGFX extension and works only with LovyanGFX / M5GFX.',
+    gfxPlain: 'Adafruit GFX compatible; use gfxfont.h with Adafruit_GFX, or include directly with LovyanGFX.',
+    runtimeInclude: 'Include LovyanGFX (or M5GFX / M5Unified) before this header.',
+    usage: 'Usage',
+    runtimeActive: 'On success, loadFont also selects this as the display\'s current font.',
+  },
+  ja: {
+    u8g2Include: 'LovyanGFX（または同じ型を再輸出する M5GFX / M5Unified）を先に include して、lgfx::U8g2font が見える状態にしてください。',
+    gfxRange: 'EncodeRange は LovyanGFX の拡張です。LovyanGFX / M5GFX 系でのみ使えます。',
+    gfxPlain: 'Adafruit GFX 互換です。Adafruit_GFX では gfxfont.h、LovyanGFX ではそのまま使えます。',
+    runtimeInclude: 'LovyanGFX（または M5GFX / M5Unified）を先に include してください。',
+    usage: '使い方',
+    runtimeActive: 'loadFont は成功すると、このフォントを表示先の現在フォントに設定します。',
+  },
+  'zh-Hans': {
+    u8g2Include: '请先包含 LovyanGFX（或 M5GFX / M5Unified），以便使用 lgfx::U8g2font。',
+    gfxRange: 'EncodeRange 是 LovyanGFX 扩展，仅适用于 LovyanGFX / M5GFX。',
+    gfxPlain: '兼容 Adafruit GFX；Adafruit_GFX 请使用 gfxfont.h，LovyanGFX 可直接使用。',
+    runtimeInclude: '请先包含 LovyanGFX（或 M5GFX / M5Unified）。',
+    usage: '用法',
+    runtimeActive: 'loadFont 成功后还会将此字体设为显示设备的当前字体。',
+  },
+  'zh-Hant': {
+    u8g2Include: '請先包含 LovyanGFX（或 M5GFX / M5Unified），以便使用 lgfx::U8g2font。',
+    gfxRange: 'EncodeRange 是 LovyanGFX 擴充，僅適用於 LovyanGFX / M5GFX。',
+    gfxPlain: '相容 Adafruit GFX；Adafruit_GFX 請使用 gfxfont.h，LovyanGFX 可直接使用。',
+    runtimeInclude: '請先包含 LovyanGFX（或 M5GFX / M5Unified）。',
+    usage: '用法',
+    runtimeActive: 'loadFont 成功後也會將此字型設為顯示裝置的目前字型。',
+  },
+};
+
+/** @param {CSourceLanguage | undefined} language */
+const headerComments = (language) => HEADER_COMMENTS[language ?? 'en'] ?? HEADER_COMMENTS.en;
+
 /**
- * u8g2 形式の .h を出力する。
+ * Emits a u8g2 header.
  * @param {Font} font
  * @param {string} ident
  * @param {Attribution | undefined} attribution
  * @param {{dropInvalid?: boolean}} encodeOpts
+ * @param {CSourceLanguage | undefined} language
  */
-function emitU8g2Header(font, ident, attribution, encodeOpts) {
+function emitU8g2Header(font, ident, attribution, encodeOpts, language) {
   const data = encodeU8g2(font, encodeOpts);
+  const comments = headerComments(language);
   const guard = `LGFXFT_FONT_${ident.toUpperCase()}_H`;
   let s = asComment(
     licenseNotice(font, { ident, format: 'u8g2 (1bpp) — lgfx::U8g2font', bytes: data.length, attribution }),
@@ -149,8 +191,7 @@ function emitU8g2Header(font, ident, attribution, encodeOpts) {
   s += '\n';
   s += `#ifndef ${guard}\n#define ${guard}\n\n`;
   s += '#include <stdint.h>\n\n';
-  s += '// LovyanGFX（または同じ型を再輸出する M5GFX / M5Unified）を先に include して\n';
-  s += '// lgfx::U8g2font が見えている必要があります。\n';
+  s += `// ${comments.u8g2Include}\n`;
   s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
   s += '  #include <LovyanGFX.hpp>\n';
   s += '#endif\n\n';
@@ -158,22 +199,24 @@ function emitU8g2Header(font, ident, attribution, encodeOpts) {
   s += `static const uint8_t ${ident}_data[${data.length}] LGFXFT_PROGMEM = {\n`;
   s += hexTable(data, '  ');
   s += '};\n\n';
-  s += `// 使い方:  display.setFont(&${ident});\n`;
+  s += `// ${comments.usage}:  display.setFont(&${ident});\n`;
   s += `static const lgfx::U8g2font ${ident}(${ident}_data);\n\n`;
   s += `#endif // ${guard}\n`;
   return s;
 }
 
 /**
- * GFXfont 形式の .h を出力する。
- * 単一範囲なら素の Adafruit GFX 互換、飛び飛びなら LovyanGFX 拡張（EncodeRange）。
+ * Emits a GFXfont header. A single range is plain Adafruit GFX compatible;
+ * sparse ranges use LovyanGFX's EncodeRange extension.
  * @param {Font} font
  * @param {string} ident
  * @param {Attribution | undefined} attribution
  * @param {{dropInvalid?: boolean}} encodeOpts
+ * @param {CSourceLanguage | undefined} language
  */
-function emitGfxHeader(font, ident, attribution, encodeOpts) {
+function emitGfxHeader(font, ident, attribution, encodeOpts, language) {
   const gfx = unpackGfxContainer(encodeGfx(font, encodeOpts));
+  const comments = headerComments(language);
   const ranged = gfx.ranges.length > 0;
   const bytes = gfx.bitmap.length + gfx.glyphs.length * 7 + gfx.ranges.length * 6 + 5;
   const guard = `LGFXFT_FONT_${ident.toUpperCase()}_H`;
@@ -192,12 +235,12 @@ function emitGfxHeader(font, ident, attribution, encodeOpts) {
   s += `#ifndef ${guard}\n#define ${guard}\n\n`;
   s += '#include <stdint.h>\n\n';
   if (ranged) {
-    s += '// EncodeRange は LovyanGFX の拡張です。LovyanGFX / M5GFX 系でのみ使えます。\n';
+    s += `// ${comments.gfxRange}\n`;
     s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
     s += '  #include <LovyanGFX.hpp>\n';
     s += '#endif\n\n';
   } else {
-    s += '// Adafruit GFX 互換。Adafruit_GFX なら gfxfont.h、LovyanGFX ならそのまま使えます。\n\n';
+    s += `// ${comments.gfxPlain}\n\n`;
   }
   s += PROGMEM_GUARD + '\n';
 
@@ -222,14 +265,14 @@ function emitGfxHeader(font, ident, attribution, encodeOpts) {
       }\n`;
     });
     s += '};\n\n';
-    s += `// 使い方:  display.setFont(&${ident});\n`;
+    s += `// ${comments.usage}:  display.setFont(&${ident});\n`;
     s += `static const lgfx::v1::GFXfont ${ident} = {\n`;
     s += `  (uint8_t*)${ident}Bitmaps,\n`;
     s += `  (lgfx::v1::GFXglyph*)${ident}Glyphs,\n`;
     s += `  0x${gfx.first.toString(16)}, 0x${gfx.last.toString(16)}, ${gfx.yAdvance},\n`;
     s += `  ${gfx.ranges.length}, (lgfx::v1::EncodeRange*)${ident}Ranges };\n\n`;
   } else {
-    s += `// 使い方:  display.setFont(&${ident});\n`;
+    s += `// ${comments.usage}:  display.setFont(&${ident});\n`;
     s += `static const GFXfont ${ident} LGFXFT_PROGMEM = {\n`;
     s += `  (uint8_t*)${ident}Bitmaps,\n`;
     s += `  (GFXglyph*)${ident}Glyphs,\n`;
@@ -240,20 +283,22 @@ function emitGfxHeader(font, ident, attribution, encodeOpts) {
 }
 
 /**
- * VLW / BFF バイナリを変更せず C 配列へ埋め込む。
- * LovyanGFX の loadFont(const uint8_t*, font_type) が PointerWrapper を内部生成する。
+ * Embeds a VLW / BFF binary unchanged as a C array. LovyanGFX
+ * loadFont(const uint8_t*, font_type) creates the PointerWrapper internally.
  * @param {Font} font
  * @param {string} ident
  * @param {Attribution | undefined} attribution
  * @param {'vlw'|'bff'} format
  * @param {{dropInvalid?: boolean, bpp?: 1|2|4}} encodeOpts
+ * @param {CSourceLanguage | undefined} language
  */
-function emitRuntimeHeader(font, ident, attribution, format, encodeOpts) {
+function emitRuntimeHeader(font, ident, attribution, format, encodeOpts, language) {
   const data =
     format === 'vlw'
       ? encodeVlw(font, { dropInvalid: encodeOpts.dropInvalid })
       : encodeBff(font, encodeOpts);
   const guard = `LGFXFT_FONT_${ident.toUpperCase()}_H`;
+  const comments = headerComments(language);
   const isBff = format === 'bff';
   const formatLabel = isBff
     ? 'BFF (1–4bpp) — LovyanGFX runtime font'
@@ -266,7 +311,7 @@ function emitRuntimeHeader(font, ident, attribution, format, encodeOpts) {
   s += '\n';
   s += `#ifndef ${guard}\n#define ${guard}\n\n`;
   s += '#include <stdint.h>\n\n';
-  s += '// LovyanGFX（または M5GFX / M5Unified）を先に include してください。\n';
+  s += `// ${comments.runtimeInclude}\n`;
   s += '#if !defined(LGFX_USE_V1) && !defined(__LOVYANGFX_HPP__) && !defined(_M5GFX_H_)\n';
   s += '  #include <LovyanGFX.hpp>\n';
   s += '#endif\n\n';
@@ -274,21 +319,22 @@ function emitRuntimeHeader(font, ident, attribution, format, encodeOpts) {
   s += `static const uint8_t ${ident}_data[${data.length}] LGFXFT_PROGMEM = {\n`;
   s += hexTable(data, '  ');
   s += '};\n\n';
-  s += `// 使い方:  display.loadFont(${loadArgs});\n`;
-  s += '// loadFont は成功すると、このフォントを表示先の現在フォントに設定します。\n\n';
+  s += `// ${comments.usage}:  display.loadFont(${loadArgs});\n`;
+  s += `// ${comments.runtimeActive}\n\n`;
   s += `#endif // ${guard}\n`;
   return s;
 }
 
 /**
- * スケッチに貼れる C/C++ ソースを出力する（仕様 §6.3）。
+ * Emits C/C++ source ready for inclusion in a sketch (spec §6.3).
  * @param {Font} font
  * @param {object} opts
  * @param {'u8g2' | 'gfx' | 'vlw' | 'bff'} opts.format
- * @param {string} opts.symbolName - フォントオブジェクトの C 識別子
+ * @param {string} opts.symbolName - C identifier for the font object/data
  * @param {Attribution} [opts.attribution]
- * @param {boolean} [opts.dropInvalid] - 制約違反グリフを落として続行（既定 false = エラー）
- * @param {1|2|4} [opts.bpp] - BFF の出力深度
+ * @param {boolean} [opts.dropInvalid] - drop invalid glyphs instead of failing (default false)
+ * @param {1|2|4} [opts.bpp] - BFF output depth
+ * @param {CSourceLanguage} [opts.language] - generated operational-comment language (default `en`)
  * @returns {string}
  */
 export function encodeCSource(font, opts) {
@@ -296,12 +342,12 @@ export function encodeCSource(font, opts) {
   const encodeOpts = { dropInvalid: opts.dropInvalid, bpp: opts.bpp };
   switch (opts.format) {
     case 'u8g2':
-      return emitU8g2Header(font, ident, opts.attribution, encodeOpts);
+      return emitU8g2Header(font, ident, opts.attribution, encodeOpts, opts.language);
     case 'gfx':
-      return emitGfxHeader(font, ident, opts.attribution, encodeOpts);
+      return emitGfxHeader(font, ident, opts.attribution, encodeOpts, opts.language);
     case 'vlw':
     case 'bff':
-      return emitRuntimeHeader(font, ident, opts.attribution, opts.format, encodeOpts);
+      return emitRuntimeHeader(font, ident, opts.attribution, opts.format, encodeOpts, opts.language);
     default:
       throw new FormatError('UNKNOWN_FORMAT', `no C source emitter for ${opts.format}`, {
         format: opts.format,
@@ -310,10 +356,9 @@ export function encodeCSource(font, opts) {
 }
 
 //----------------------------------------------------------------------------
-// C/C++ ソースの読み込み（仕様 §6.3、UC5）。
-// GitHub や Arduino ライブラリで配布される .h / .c を貼り付けたら読める、を
-// 実現する。C プリプロセッサの完全実装はしない（実在のフォント配布ファイルが
-// 読めれば足りる）。
+// C/C++ source input (spec §6.3, UC5). This accepts real-world headers and
+// source files distributed on GitHub or in Arduino libraries; it deliberately
+// does not implement a complete C preprocessor.
 
 /** @param {string} text */
 function stripComments(text) {
@@ -321,7 +366,7 @@ function stripComments(text) {
 }
 
 /**
- * `{ ... }` の中の数値リストをバイト列にする。
+ * Parses a numeric list inside `{ ... }` into bytes.
  * @param {string} body
  */
 function parseByteList(body) {
@@ -333,10 +378,10 @@ function parseByteList(body) {
 }
 
 /**
- * C 文字列リテラル（連結可・8進/16進エスケープ対応）をバイト列にする。
- * u8g2 の bdfconv が出力する形式。
+ * Parses concatenated C string literals, including octal and hex escapes,
+ * into bytes. This is the form emitted by u8g2 bdfconv.
  * @param {string} text
- * @param {number} start - `=` の直後
+ * @param {number} start - immediately after `=`
  * @returns {Uint8Array}
  */
 function parseCStringLiterals(text, start) {
@@ -389,22 +434,23 @@ function parseCStringLiterals(text, start) {
 }
 
 /**
- * `uint8_t NAME[...] = {...};` / `= "...";` をすべて集める。
- * @param {string} text - コメント除去済み
+ * Collects all `uint8_t NAME[...] = {...};` / `= "...";` declarations.
+ * @param {string} text - comment-stripped source
  * @returns {Map<string, Uint8Array>}
  */
 function collectByteArrays(text) {
   /** @type {Map<string, Uint8Array>} */
   const out = new Map();
-  // 配列名の後ろには PROGMEM / LGFXFT_PROGMEM / U8G2_FONT_SECTION("...") などの
-  // 修飾マクロ（引数付き含む）が来ることがある
+  // Qualifier macros such as PROGMEM, LGFXFT_PROGMEM, or
+  // U8G2_FONT_SECTION("...") may follow the array name.
   const declRe =
     /(?:const|constexpr|static|PROGMEM|unsigned|\s)*(?:uint8_t|unsigned\s+char)\s+(\w+)\s*\[[^\]]*\]\s*(?:\w+(?:\([^)]*\))?\s*)*=\s*/g;
   let m;
   while ((m = declRe.exec(text)) !== null) {
     const name = m[1];
     const at = declRe.lastIndex;
-    // 直後が '{' なら数値リスト、'"'（空白を挟むかもしれない）なら文字列リテラル
+    // A following `{` starts a numeric list; `"` (possibly after whitespace)
+    // starts a string literal.
     const rest = text.slice(at, at + 8);
     if (rest.trimStart().startsWith('{')) {
       const open = text.indexOf('{', at);
@@ -420,7 +466,7 @@ function collectByteArrays(text) {
 }
 
 /**
- * `GFXglyph NAME[] = { {..}, ... };` をすべて集める。
+ * Collects all `GFXglyph NAME[] = { {..}, ... };` declarations.
  * @param {string} text
  * @returns {Map<string, GfxGlyphRec[]>}
  */
@@ -453,7 +499,7 @@ function collectGlyphArrays(text) {
 }
 
 /**
- * `EncodeRange NAME[] = { {s,e,b}, ... };` をすべて集める。
+ * Collects all `EncodeRange NAME[] = { {s,e,b}, ... };` declarations.
  * @param {string} text
  * @returns {Map<string, {start: number, end: number, base: number}[]>}
  */
@@ -478,12 +524,12 @@ function collectRangeArrays(text) {
 }
 
 /**
- * C/C++ ソーステキストからフォントをデコードする（1 ファイル複数フォント対応）。
+ * Decodes fonts from C/C++ source text; supports multiple fonts per file.
  *
- * 対応:
- * - GFXfont 構造体（Adafruit GFX の .h、LovyanGFX 拡張の EncodeRange 付き含む）
- * - u8g2 のバイト配列（数値リスト・文字列リテラルのどちらも。bdfconv / fontgen /
- *   本ライブラリの出力）
+ * Supported forms:
+ * - GFXfont structs, including LovyanGFX EncodeRange extensions
+ * - u8g2 byte arrays as numeric lists or string literals from bdfconv,
+ *   fontgen, or this library
  *
  * @param {string} source
  * @returns {{name: string, format: 'gfx' | 'u8g2', font: Font}[]}
@@ -498,20 +544,20 @@ export function decodeCSource(source) {
   const fonts = [];
   const used = new Set();
 
-  // --- GFXfont 構造体 ---
+  // --- GFXfont structs ---
   const structRe = /GFXfont\s+(\w+)\s*(?:\w+\s*)*=\s*\{([\s\S]*?)\};/g;
   let m;
   while ((m = structRe.exec(text)) !== null) {
     const name = m[1];
     const body = m[2];
-    // 参照している配列名（bitmap → glyph → range の出現順）
+    // Referenced array names in bitmap, glyph, range order.
     const refs = [...body.matchAll(/\b(\w+)\b/g)].map((r) => r[1]);
     const bitmapSym = refs.find((r) => arrays.has(r));
     const glyphSym = refs.find((r) => glyphArrays.has(r));
     const rangeSym = refs.find((r) => rangeArrays.has(r));
     if (!bitmapSym || !glyphSym) continue;
     const nums = body.match(/(?<![\w.])(?:0[xX][0-9a-fA-F]+|\d+)(?![\w.])/g)?.map(Number) ?? [];
-    // 数値は first, last, yAdvance [, rangeNum] の順で現れる
+    // Numeric fields appear as first, last, yAdvance [, rangeNum].
     if (nums.length < 3) continue;
     const [first, last, yAdvance] = nums;
     used.add(bitmapSym);
@@ -532,15 +578,15 @@ export function decodeCSource(source) {
     });
   }
 
-  // U8g2font ラッパ宣言（lgfx::U8g2font NAME(NAME_data) 等）があれば、
-  // データ配列名ではなくフォント名の方を採る
+  // Prefer the font name from an U8g2font wrapper declaration such as
+  // lgfx::U8g2font NAME(NAME_data), rather than the backing array name.
   const wrapperNames = new Map();
   const wrapRe = /\bU8g2font\s+(\w+)\s*\(\s*(\w+)\s*\)/g;
   while ((m = wrapRe.exec(text)) !== null) {
     wrapperNames.set(m[2], m[1]);
   }
 
-  // --- 残りのバイト配列を u8g2 として試す ---
+  // --- Try remaining byte arrays as u8g2 ---
   for (const [name, bytes] of arrays) {
     if (used.has(name) || bytes.length < 30) continue;
     try {
@@ -548,7 +594,7 @@ export function decodeCSource(source) {
       const font = decodeU8g2(bytes, { familyName: fontName });
       if (font.glyphs.size > 0) fonts.push({ name: fontName, format: 'u8g2', font });
     } catch {
-      // u8g2 ではない配列（画像など）は黙って読み飛ばす
+      // Silently skip non-u8g2 arrays such as images.
     }
   }
 

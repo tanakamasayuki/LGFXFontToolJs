@@ -450,10 +450,11 @@ decodeCSource(text)  // -> Array<{name, format, font}>  Supports multiple fonts 
 **Encode (Phase 2)** — emits source that can be pasted into a sketch.
 
 ```js
-encodeCSource(font, { format, symbolName, progmem })  // -> string
+encodeCSource(font, { format, symbolName, language })  // -> string
 ```
 
 - `format` accepts `u8g2`, `gfx`, `vlw`, or `bff`. VLW/BFF headers embed the encoded binary unchanged as a C array for LovyanGFX `loadFont()`.
+- `language` selects `en`, `ja`, `zh-Hans`, or `zh-Hant` for operational comments in the generated header; it defaults to English.
 - Matches each output format's idiom: GFXfont as an Adafruit-style `.h`, u8g2 with an `U8g2font` wrapper, and VLW/BFF as `const uint8_t []`.
 - The leading comment of the generated output always includes the source font name, character set, generation conditions, and license notice.
 

@@ -76,3 +76,21 @@ test('encodeCSource(vlw/bff): バイナリを変更せず配列へ埋め込む',
   assert.equal(/** @type {any} */ (decodeBff(bffBytes).meta.format).bff.bpp, 2);
   assert.match(bff, /display\.loadFont\(CompactJa_data, lgfx::IFont::font_type_t::ft_lvgl\)/);
 });
+
+test('encodeCSource: 説明コメントは指定言語、未指定時は英語', async () => {
+  const font = subset(await loadFont('lgfxJapanGothic_16'), 'A9');
+  const cases = /** @type {const} */ ([
+    [undefined, 'Usage'],
+    ['ja', '使い方'],
+    ['zh-Hans', '用法'],
+    ['zh-Hant', '用法'],
+  ]);
+  for (const [language, marker] of cases) {
+    const src = encodeCSource(font, {
+      format: 'vlw',
+      symbolName: 'Localized',
+      ...(language ? { language } : {}),
+    });
+    assert.match(src, new RegExp(`// ${marker}:  display\\.loadFont`));
+  }
+});

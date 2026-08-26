@@ -282,6 +282,8 @@ struct (`display.setFont(&clockFont);` stays the same).
 With `format: 'vlw'` or `'bff'`, the encoded binary is embedded unchanged as
 a C array. Load VLW with `display.loadFont(clockFont_data)` and BFF with
 `display.loadFont(clockFont_data, lgfx::IFont::font_type_t::ft_lvgl)`.
+Set `language: 'ja'`, `'zh-Hans'`, or `'zh-Hant'` to localize operational
+comments in the header; the default is English.
 
 ## 7. Removing and Adding Characters
 

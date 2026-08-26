@@ -155,6 +155,7 @@ function encodeOptions() {
   return {
     format: formatEl.value,
     dropInvalid: dropInvalidEl.checked,
+    language: /** @type {'en'|'ja'|'zh-Hans'|'zh-Hant'} */ (langEl.value),
     ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
   };
 }
