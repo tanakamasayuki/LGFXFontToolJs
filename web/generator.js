@@ -93,7 +93,7 @@ const copyEl = /** @type {HTMLButtonElement} */ ($('copy'));
 const dlBinEl = /** @type {HTMLButtonElement} */ ($('dl-bin'));
 const codeNoteEl = $('code-note');
 const codeEl = $('code');
-const howtoCodeEl = $('howto-code');
+const howtoEl = $('howto');
 
 // --- State --------------------------------------------------------------------
 
@@ -152,11 +152,14 @@ function fontBpp(font) {
   return first?.bitmap.bpp ?? /** @type {any} */ (font.meta.format)?.gen?.bpp ?? 1;
 }
 
+/** The UI locale doubles as the comment language of the generated C source. */
+const sourceLanguage = () => /** @type {'en'|'ja'|'zh-Hans'|'zh-Hant'} */ (currentLocale());
+
 function encodeOptions() {
   return {
     format: formatEl.value,
     dropInvalid: dropInvalidEl.checked,
-    language: /** @type {'en'|'ja'|'zh-Hans'|'zh-Hant'} */ (langEl.value),
+    language: sourceLanguage(),
     ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
   };
 }
@@ -791,6 +794,7 @@ function buildHeader() {
     format: /** @type {'u8g2' | 'gfx' | 'vlw' | 'bff'} */ (formatEl.value),
     symbolName: ident,
     dropInvalid: dropInvalidEl.checked,
+    language: sourceLanguage(),
     ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
     attribution: {
       typeface,
@@ -802,42 +806,72 @@ function buildHeader() {
   });
 }
 
+/** Appends one labelled code block to the "how to use" card.
+ * @param {string} label @param {string} code */
+function howtoBlock(label, code) {
+  const heading = document.createElement('h3');
+  heading.className = 'sub';
+  heading.textContent = label;
+  const pre = document.createElement('pre');
+  pre.className = 'code';
+  pre.textContent = code;
+  howtoEl.append(heading, pre);
+}
+
+/**
+ * The one line that differs per output format: a runtime format is loaded from
+ * the embedded array, a compiled-in format is just selected.
+ * @param {string} display - the display object of the surrounding snippet
+ * @param {string} ident
+ */
+function howtoSetFont(display, ident) {
+  if (formatEl.value === 'vlw') return `if (!${display}.loadFont(${ident}_data)) return;`;
+  if (formatEl.value === 'bff') {
+    return `if (!${display}.loadFont(${ident}_data, lgfx::IFont::font_type_t::ft_lvgl)) return;`;
+  }
+  return `${display}.setFont(&${ident});`;
+}
+
+/**
+ * Two separate sketches rather than one with an "or" comment: M5Unified's M5.Display
+ * and a plain LovyanGFX LGFX instance are not interchangeable in the same body.
+ */
 function renderHowto() {
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
+  howtoEl.textContent = '';
   if (formatEl.value === 'bdf') {
-    howtoCodeEl.textContent = t('gen.howtoBdf');
+    const note = document.createElement('p');
+    note.className = 'sub';
+    note.textContent = t('gen.howtoBdf');
+    howtoEl.appendChild(note);
     return;
   }
-  if (formatEl.value === 'vlw') {
-    howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
+  const sample = sampleText.replaceAll('"', '\\"');
+  howtoBlock(
+    'M5Unified / M5GFX',
+    `#include <M5Unified.h>
 #include "${ident}.h"
 
 void setup() {
   M5.begin();
-  if (!M5.Display.loadFont(${ident}_data)) return;
-  M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
-}`;
-    return;
-  }
-  if (formatEl.value === 'bff') {
-    howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
+  ${howtoSetFont('M5.Display', ident)}
+  M5.Display.drawString("${sample}", 10, 10);
+}`,
+  );
+  howtoBlock(
+    'LovyanGFX',
+    `#include <LovyanGFX.hpp>
+#include <LGFX_AUTODETECT.hpp>
 #include "${ident}.h"
 
-void setup() {
-  M5.begin();
-  if (!M5.Display.loadFont(${ident}_data, lgfx::IFont::font_type_t::ft_lvgl)) return;
-  M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
-}`;
-    return;
-  }
-  howtoCodeEl.textContent = `#include <M5Unified.h>      // or <LovyanGFX.hpp>
-#include "${ident}.h"
+static LGFX display;
 
 void setup() {
-  M5.begin();
-  M5.Display.setFont(&${ident});
-  M5.Display.drawString("${sampleText.replaceAll('"', '\\"')}", 10, 10);
-}`;
+  display.init();
+  ${howtoSetFont('display', ident)}
+  display.drawString("${sample}", 10, 10);
+}`,
+  );
 }
 
 dlHEl.addEventListener('click', () => {
