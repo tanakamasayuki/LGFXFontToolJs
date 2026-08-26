@@ -1,7 +1,8 @@
 // @ts-check
 /**
- * Web アプリ共通の小物（DOM ヘルパ・描画・ダウンロード・ファイル読込）。
- * ライブラリ本体には置かない — I/O と DOM はアプリ側の責務（仕様 §2.3）。
+ * Small helpers shared by the web apps (DOM helpers, drawing, download, file input).
+ * These do not belong in the library itself — I/O and the DOM are the app's
+ * responsibility (spec §2.3).
  */
 import {
   createBitmap,
@@ -44,12 +45,14 @@ export function download(content, name, type) {
 }
 
 /**
- * ライブラリの描画エンジンで canvas に描く（= 実機と同じ規則）。
+ * Draws onto a canvas with the library's rendering engine (the same rules as
+ * the real device).
  * @param {HTMLCanvasElement} canvas
  * @param {Font} font
  * @param {string} text
  * @param {number} zoom
- * @param {1|2|4|8} [coverageBpp] 表示時の被覆階調。BFF プレビューは出力 bpp を渡す。
+ * @param {1|2|4|8} [coverageBpp] Coverage levels used for display. The BFF preview
+ *                                 passes the output bpp.
  */
 export function drawFontTo(canvas, font, text, zoom, coverageBpp = 8) {
   const w = Math.max(8, Math.min(4000, textWidth(font, text) + 8));
@@ -78,7 +81,8 @@ export function drawFontTo(canvas, font, text, zoom, coverageBpp = 8) {
 }
 
 /**
- * 8bpp 被覆値を指定 bpp で一度符号化し、BFF デコーダと同じ規則で 0..255 に戻す。
+ * Encodes an 8bpp coverage value at the given bpp once, then expands it back to
+ * 0..255 with the same rule the BFF decoder uses.
  * @param {number} value
  * @param {1|2|4|8} bpp
  */
@@ -92,7 +96,8 @@ export function quantizeCoverage(value, bpp) {
     : Math.floor((255 * quantized + (maxAlpha >> 1)) / maxAlpha);
 }
 
-/** 拡張子からの形式ヒント。VLW はマジックを持たず detect できないため必須 */
+/** Format hints from the file extension. Required because VLW has no magic and
+ *  cannot be detected. */
 const EXT_HINTS = /** @type {Record<string, string>} */ ({
   vlw: 'vlw',
   u8g2: 'u8g2',
@@ -104,13 +109,13 @@ const EXT_HINTS = /** @type {Record<string, string>} */ ({
 });
 
 /**
- * ファイルのバイト列を判定してデコードする。バイナリのマジックを先に見て、
- * テキスト形式（BDF / C ソース）は UTF-8 として読み直して判定する。
- * マジックの無い形式（VLW 等）は拡張子ヒントで補う。
- * C ソースは複数フォントを含みうるので常に配列で返す。
+ * Detects and decodes a file's bytes. Binary magic is checked first; text formats
+ * (BDF / C source) are re-read as UTF-8 and detected from that. Formats without a
+ * magic (VLW and the like) are covered by the extension hint.
+ * A C source may hold several fonts, so the result is always an array.
  * @param {Uint8Array} bytes
  * @param {string} fileName
- * @param {string} [format] - 省略時は自動判定（判定できなければ throw）
+ * @param {string} [format] - Auto-detected when omitted (throws if undetectable)
  * @returns {{detected: {format: string, confidence: number}[],
  *            format: string, fonts: {label: string, font: Font}[]}}
  */
@@ -128,11 +133,12 @@ export function decodeInput(bytes, fileName, format) {
         detected = dText;
       }
     } catch {
-      // UTF-8 として読めない = バイナリ。detect(bytes) の結果を使う
+      // Not readable as UTF-8 = binary. Use the detect(bytes) result
     }
   }
   const extHint = EXT_HINTS[(fileName.match(/\.([^.]+)$/)?.[1] ?? '').toLowerCase()];
-  // マジック一致（高確度）は拡張子より信じる。低確度の推定だけなら拡張子を優先
+  // A magic match (high confidence) is trusted over the extension; with only a
+  // low-confidence guess, the extension wins
   const guessed =
     detected[0] && detected[0].confidence >= 0.9 ? detected[0].format : (extHint ?? detected[0]?.format);
   const fmt = format || guessed;

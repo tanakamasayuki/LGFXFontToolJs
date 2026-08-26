@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * ランディングページ（サイトトップ）。概要と 4 ツールへの導線だけの静的ページで、
- * ここでは i18n と言語セレクタしか動かさない。
+ * Landing page (site root). A static page with nothing but an overview and links
+ * to the four tools, so only i18n and the language selector run here.
  */
 import {
   initI18n,

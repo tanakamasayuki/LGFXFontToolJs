@@ -1,8 +1,8 @@
 // @ts-check
 /**
- * Converter（仕様 §14、UC5）。フォントファイル / C ソースを放り込む →
- * detect → 中立モデル → 任意形式へ変換してダウンロード。
- * 「入らない」は canEncode の issues をそのまま可視化する（仕様 §7.1）。
+ * Converter (spec §14, UC5). Drop in a font file or a C source →
+ * detect → neutral model → convert to any format and download.
+ * "Does not fit" is surfaced straight from canEncode's issues (spec §7.1).
  */
 import {
   listFormats,
@@ -53,7 +53,8 @@ let fileName = '';
 let fonts = [];
 let fontIndex = 0;
 
-// 手動指定できる形式（ヘッダ無し raw の glcd / fixedbmp はパラメータが要るため除外）
+// Formats that can be selected by hand (headerless raw glcd / fixedbmp are excluded
+// because they need extra parameters)
 for (const f of listFormats().filter((f) => f.decode && f.id !== 'glcd' && f.id !== 'fixedbmp')) {
   const opt = document.createElement('option');
   opt.value = f.id;
@@ -121,7 +122,7 @@ function renderAll() {
   const bpp = [...font.glyphs.values()][0]?.bitmap.bpp ?? 1;
   resBppEl.textContent = String(bpp);
 
-  // デコード時に気づいた欠陥（meta.issues）は警告として見せる
+  // Defects noticed while decoding (meta.issues) are shown as warnings
   decodeIssuesEl.textContent = '';
   for (const issue of font.meta.issues.slice(0, 20)) {
     const li = document.createElement('li');
@@ -134,7 +135,7 @@ function renderAll() {
   renderTarget();
 }
 
-/** 変換先の形式 id（csource は基礎形式に読み替える） */
+/** Target format id (a csource target maps back to its underlying format) */
 const targetFormat = () => targetEl.value.replace(/^csource-/, '');
 
 function renderTarget() {
@@ -198,7 +199,7 @@ dlEl.addEventListener('click', () => {
   }
   const bytes = encode(font, { format, dropInvalid: dropInvalidEl.checked });
   const ext = { u8g2: 'u8g2', gfx: 'gfx1', bdf: 'bdf', vlw: 'vlw', bff: 'bin', fontx2: 'fnt' }[format] ?? 'bin';
-  // Uint8Array は BlobPart として有効だが、lib.dom の型定義が ArrayBuffer 固定のため明示キャスト
+  // Uint8Array is a valid BlobPart, but lib.dom types it as ArrayBuffer only, hence the cast
   download(/** @type {any} */ (bytes), `${base}.${ext}`, 'application/octet-stream');
 });
 

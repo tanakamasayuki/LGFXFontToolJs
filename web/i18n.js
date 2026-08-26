@@ -1,19 +1,20 @@
 // @ts-check
 /**
- * Web アプリの i18n（仕様 §14）。
+ * i18n for the web apps (spec §14).
  *
- * - 言語は navigator.languages から自動判定し、対応がなければ英語
- * - 優先順位: ?lang= パラメータ > localStorage > ブラウザ言語 > 'en'
- * - 言語の追加 = SUPPORTED_LOCALES に 1 エントリ + locales/<id>.json を置くだけ
- * - 文言は辞書キー経由でのみ参照する。ライブラリ本体（src/）は文言を持たない
+ * - The language is detected from navigator.languages, falling back to English
+ * - Priority: ?lang= parameter > localStorage > browser language > 'en'
+ * - Adding a language = one SUPPORTED_LOCALES entry + a locales/<id>.json file
+ * - Wording is only ever referenced through dictionary keys. The library itself
+ *   (src/) carries no user-facing wording
  */
 
 /**
  * @typedef {object} LocaleDef
- * @property {string} id     - 辞書ファイル名（locales/<id>.json）
- * @property {string} label  - 言語セレクタに出す自称表記
- * @property {string[]} tags - BCP 47 タグ（小文字）でのマッチ対象。
- *                             先頭一致ではなく完全一致で先に評価される
+ * @property {string} id     - Dictionary file name (locales/<id>.json)
+ * @property {string} label  - Endonym shown in the language selector
+ * @property {string[]} tags - BCP 47 tags (lower case) to match against.
+ *                             Exact matches are tried before prefix matches
  */
 
 /** @type {LocaleDef[]} */
@@ -34,7 +35,7 @@ let fallbackDict = {};
 let current = FALLBACK;
 
 /**
- * BCP 47 タグ 1 つを対応ロケール id に解決する（できなければ null）。
+ * Resolves a single BCP 47 tag to a supported locale id (null if it cannot).
  * @param {string} tag
  * @returns {string | null}
  */
@@ -51,7 +52,7 @@ function resolveTag(tag) {
 }
 
 /**
- * 表示言語を決める。?lang= > localStorage > navigator.languages > 'en'。
+ * Decides the display language. ?lang= > localStorage > navigator.languages > 'en'.
  * @returns {string}
  */
 export function detectLocale() {
@@ -64,7 +65,7 @@ export function detectLocale() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && SUPPORTED_LOCALES.some((l) => l.id === stored)) return stored;
   } catch {
-    // localStorage 不可（プライベートモード等）は無視
+    // Ignore an unavailable localStorage (private mode and the like)
   }
   for (const tag of navigator.languages ?? [navigator.language]) {
     if (!tag) continue;
@@ -82,7 +83,7 @@ async function loadDict(id) {
 }
 
 /**
- * 言語を切り替える（初期化にも使う）。
+ * Switches the language (also used for initialization).
  * @param {string} id
  * @param {{persist?: boolean}} [opts]
  */
@@ -96,19 +97,19 @@ export async function setLocale(id, opts = {}) {
     try {
       localStorage.setItem(STORAGE_KEY, id);
     } catch {
-      // 保存できなくても動作に支障はない
+      // Failing to persist does not affect anything else
     }
   }
 }
 
-/** 現在のロケール id */
+/** The current locale id */
 export function currentLocale() {
   return current;
 }
 
 /**
- * 辞書引き。{name} 形式のプレースホルダを params で埋める。
- * 見つからないキーは英語 → キー名の順でフォールバックする。
+ * Dictionary lookup. Fills {name}-style placeholders from params.
+ * A missing key falls back to English, then to the key name itself.
  * @param {string} key
  * @param {Record<string, string | number>} [params]
  * @returns {string}
@@ -124,7 +125,8 @@ export function t(key, params) {
 }
 
 /**
- * data-i18n / data-i18n-placeholder / data-i18n-title の付いた要素へ辞書を適用する。
+ * Applies the dictionary to elements carrying data-i18n, data-i18n-placeholder
+ * or data-i18n-title.
  * @param {ParentNode} [root]
  */
 export function applyTranslations(root = document) {
@@ -143,7 +145,7 @@ export function applyTranslations(root = document) {
   }
 }
 
-/** 初期化。判定した言語をロードして返す。 */
+/** Initialization. Loads the detected language and returns it. */
 export async function initI18n() {
   await setLocale(detectLocale(), { persist: false });
   return current;

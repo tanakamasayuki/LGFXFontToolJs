@@ -1,8 +1,9 @@
 // @ts-check
 /**
- * Inspector（仕様 §14、UC2 / UC6）。内蔵フォントまたはファイルを対象に、
- * 棚卸し（inspect）・名前付き集合ごとの被覆率・文言チェック（coverage）・
- * 全形式の正確なサイズ比較（estimateSizes）を表示する。
+ * Inspector (spec §14, UC2 / UC6). For a built-in font or a file, it reports the
+ * inventory (inspect), the coverage of each named character set, a check of a
+ * given text (coverage) and an exact size comparison across every format
+ * (estimateSizes).
  */
 import {
   fontCatalog,
@@ -105,7 +106,7 @@ function renderBuiltinList() {
       statusEl.textContent = t('in.loading');
       try {
         const font = await loadFont(e.name);
-        if (currentName !== e.name) return; // 選択が変わっていたら破棄
+        if (currentName !== e.name) return; // Discard if the selection changed meanwhile
         currentFont = font;
         statusEl.textContent = '';
         renderAll();
@@ -151,7 +152,7 @@ function renderAll() {
   resBppEl.textContent = String(info.bpp);
   resRangesEl.textContent = String(info.ranges.length);
 
-  // 極値は API 上の識別子なので翻訳しない（datum と同じ扱い）
+  // The extremes are API identifiers, so they are not translated (as with datum)
   extremesEl.textContent = Object.entries(info.extremes)
     .map(([k, v]) => `${k.padEnd(11)} ${v}`)
     .join('\n');
@@ -166,7 +167,7 @@ function renderAll() {
   rangesEl.textContent = lines.join('\n');
   if (charmapDetailsEl.open) renderCurrentCharmap();
 
-  // 被覆率バー（0% の集合も出す — 「入っていない」ことも情報）
+  // Coverage bars (sets at 0% are shown too — "not included" is information as well)
   coverageBarsEl.textContent = '';
   for (const [id, ratio] of Object.entries(info.coverage)) {
     const row = document.createElement('div');
@@ -189,7 +190,7 @@ function renderAll() {
 
   renderTextCheck();
 
-  // 全形式サイズ比較（実エンコードなので大きいフォントでは少し掛かる）
+  // Size comparison across every format (a real encode, so large fonts take a moment)
   sizesBodyEl.textContent = '';
   const computing = document.createElement('tr');
   const td = document.createElement('td');

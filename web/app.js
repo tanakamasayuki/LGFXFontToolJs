@@ -1,8 +1,8 @@
 // @ts-check
 /**
- * Viewer 最小版（仕様 §14、Phase 1）。
- * 内蔵フォント 186 本の一覧・ピクセル一致プレビュー・メトリクス表示。
- * 文言はすべて i18n 辞書経由（web/locales/）。
+ * Minimal Viewer (spec §14, Phase 1).
+ * Lists the 186 built-in fonts, previews them pixel-for-pixel and reports metrics.
+ * All wording goes through the i18n dictionaries (web/locales/).
  */
 import {
   fontCatalog,
@@ -61,7 +61,7 @@ let currentFont = null;
 for (const name of Object.keys(DATUM)) {
   const opt = document.createElement('option');
   opt.value = name;
-  opt.textContent = name; // datum 名は API 上の識別子なので翻訳しない
+  opt.textContent = name; // Datum names are API identifiers, so they are not translated
   datumEl.appendChild(opt);
 }
 datumEl.value = 'top-left';
@@ -73,11 +73,11 @@ for (const loc of SUPPORTED_LOCALES) {
   langEl.appendChild(opt);
 }
 
-/** 言語依存の静的文言をまとめて更新する */
+/** Refreshes every piece of static, language-dependent wording at once */
 function applyLanguage() {
   document.title = t('app.docTitle');
   applyTranslations();
-  // data-i18n-placeholder はパラメータを持てないので検索欄は上書きする
+  // data-i18n-placeholder cannot take parameters, so the search box is set here
   searchEl.placeholder = t('search.placeholder', { count: fontCatalog.length });
   langEl.value = currentLocale();
 }
@@ -114,7 +114,7 @@ async function renderPreview() {
   const entry = fontCatalog.find((e) => e.name === currentName);
   if (!entry) return;
   const font = await loadFont(entry.name);
-  if (entry.name !== currentName) return; // 選択が変わっていたら破棄
+  if (entry.name !== currentName) return; // Discard if the selection changed meanwhile
   const fontChanged = currentFont !== font;
   currentFont = font;
   charmapCopyEl.disabled = false;
@@ -133,7 +133,7 @@ async function renderPreview() {
   const h = Math.max(8, Math.min(1000, fh + margin * 2));
 
   const bmp = createBitmap(w, h, 1);
-  // datum に応じて、常に収まる位置に基準点を置く
+  // Place the reference point where the text always fits, according to the datum
   const d = /** @type {number} */ (DATUM[/** @type {keyof typeof DATUM} */ (datumEl.value)]);
   const x = d & 1 ? w >> 1 : d & 2 ? w - margin : margin;
   const y =

@@ -1,15 +1,15 @@
 // @ts-check
 /**
- * 再配布可能な Web フォントのキュレーション（LGFXScreenBuilder fontgen 由来）。
+ * A curated set of redistributable web fonts (from LGFXScreenBuilder fontgen).
  *
- * 生成フォントはスケッチの flash に字形を焼き込む＝書体の再配布になるため、
- * 一覧は SIL OFL 1.1 と Apache-2.0 のファミリに限定する（どちらも帰属表示
- * 付きの再配布を許す）。ユーザーが自分で持ち込むファイルは本人の責任で、
- * UI 側で注意を出す。
+ * A generated font burns glyphs into the sketch's flash, which is redistribution
+ * of the typeface, so this list is limited to SIL OFL 1.1 and Apache-2.0 families
+ * (both allow redistribution with attribution). A file the user brings in is
+ * their own responsibility, and the UI warns about it.
  *
- * フォント取得は Google Fonts CSS API 経由（gstatic の直 URL はバージョン
- * ハッシュが変わるため）。ネットワークアクセスはアプリ側の責務であり、
- * ライブラリ本体（src/）には置かない（仕様 §2.3）。
+ * Fonts are fetched through the Google Fonts CSS API (direct gstatic URLs carry a
+ * version hash that changes). Network access is the app's responsibility and does
+ * not belong in the library itself (spec §2.3).
  */
 
 const OFL = { id: 'OFL-1.1', name: 'SIL Open Font License 1.1', url: 'https://openfontlicense.org/' };
@@ -26,7 +26,7 @@ const APACHE = {
  * @property {{id: string, name: string, url: string}} license
  * @property {string} by
  * @property {boolean} [mono]
- * @property {boolean} [pixel] - 小さいサイズで崩れないビットマップ調
+ * @property {boolean} [pixel] - Bitmap-style face that stays clean at small sizes
  */
 
 /** @type {CuratedFont[]} */
@@ -41,7 +41,7 @@ export const FONTS = [
   { family: 'Oswald', script: 'latin', license: OFL, by: 'Vernon Adams' },
   { family: 'Montserrat', script: 'latin', license: OFL, by: 'Julieta Ulanovsky' },
 
-  // --- ディスプレイ / 時計 ---
+  // --- Display / clock ---
   { family: 'Orbitron', script: 'display', license: OFL, by: 'Matt McInerney' },
   { family: 'Share Tech Mono', script: 'display', mono: true, license: OFL, by: 'Carrois Apostrophe' },
   { family: 'VT323', script: 'display', mono: true, pixel: true, license: OFL, by: 'Peter Hull' },
@@ -50,7 +50,7 @@ export const FONTS = [
   { family: 'Tiny5', script: 'display', pixel: true, license: OFL, by: 'Sabor Design' },
   { family: 'Pixelify Sans', script: 'display', pixel: true, license: OFL, by: 'Elena Kozadaeva' },
 
-  // --- 日本語 ---
+  // --- Japanese ---
   { family: 'Noto Sans JP', script: 'japanese', license: OFL, by: 'Google' },
   { family: 'Noto Serif JP', script: 'japanese', license: OFL, by: 'Google' },
   { family: 'M PLUS 1', script: 'japanese', license: OFL, by: 'Coji Morishita' },
@@ -63,10 +63,10 @@ export const FONTS = [
   { family: 'BIZ UDPGothic', script: 'japanese', license: OFL, by: 'Morisawa' },
   { family: 'DotGothic16', script: 'japanese', pixel: true, license: OFL, by: 'Fontworks' },
 
-  // --- 記号（本文用というより補完元） ---
+  // --- Symbols (a fill-in source rather than a body face) ---
   { family: 'Noto Sans Symbols 2', script: 'symbol', license: OFL, by: 'Google' },
 
-  // --- その他 CJK ---
+  // --- Other CJK ---
   { family: 'Noto Sans SC', script: 'cjk', license: OFL, by: 'Google' },
   { family: 'Noto Sans TC', script: 'cjk', license: OFL, by: 'Google' },
   { family: 'Noto Sans KR', script: 'cjk', license: OFL, by: 'Google' },
@@ -76,9 +76,9 @@ export const FONTS = [
 export const findFont = (family) => FONTS.find((f) => f.family === family) ?? null;
 
 /**
- * 欠落文字の補完（fontgen の fb 機能。本ツールでは今後実装）で
- * ファミリを試す順序。Symbols 2 が先頭なのは、本文書体が持たない
- * 範囲（← ▲ ℃ ≠ ② ☃ Ω など）のために存在するファミリだから。
+ * The order families are tried when filling in missing characters (fontgen's fb
+ * feature, still to be implemented here). Symbols 2 comes first because it exists
+ * precisely for the ranges a body typeface does not carry (← ▲ ℃ ≠ ② ☃ Ω and so on).
  */
 export const FALLBACK_CHAIN = [
   'Noto Sans Symbols 2',
@@ -117,7 +117,7 @@ function parseUnicodeRange(spec) {
   return out;
 }
 
-/** Google Fonts のスタイルシートを @font-face ごとの { url, ranges } に分ける
+/** Splits a Google Fonts stylesheet into one { url, ranges } per @font-face
  * @param {string} css */
 function parseCss(css) {
   /** @type {{url: string, ranges: [number, number][] | null}[]} */
@@ -129,7 +129,7 @@ function parseCss(css) {
     const ur = /unicode-range:\s*([^;]+);/.exec(block);
     faces.push({
       url: src[1].replace(/^['"]|['"]$/g, ''),
-      ranges: ur ? parseUnicodeRange(ur[1]) : null, // null = 全域
+      ranges: ur ? parseUnicodeRange(ur[1]) : null, // null = the whole range
     });
   }
   return faces;
@@ -142,16 +142,17 @@ const intersects = (ranges, cps) =>
 let loadCount = 0;
 
 /**
- * Google Fonts のファミリを document に読み込む。要求コードポイントに掛かる
- * サブセットだけを取得する（CJK ファミリは 100 前後のサブセットに分割されて
- * おり、時計用の 20 文字のために全部を引いてはいけない）。
+ * Loads a Google Fonts family into the document, fetching only the subsets that
+ * cover the requested code points (a CJK family is split into around a hundred
+ * subsets, and pulling all of them for the 20 characters of a clock face would be
+ * wrong).
  *
- * FontFace は unicode-range を保持するので、canvas がコードポイントごとに
- * 正しいサブセットを解決する。
+ * FontFace keeps the unicode-range, so the canvas resolves the right subset for
+ * each code point.
  *
- * `into` は前回の結果 { family, loaded } を渡すと続きから読み込む。
- * 文字集合を広げて再生成するとき、これが無いと古い部分読み込みのままになり
- * 「その書体に無い文字」と区別が付かなくなる。
+ * Passing the previous result { family, loaded } as `into` continues that load.
+ * Without it, regenerating with a wider character set would keep the old partial
+ * load, making missing subsets indistinguishable from "not in this typeface".
  *
  * @param {string} family
  * @param {number[]} codepoints
@@ -166,7 +167,7 @@ export async function loadGoogleFont(family, codepoints, { weight = 400, italic 
   const wanted = all.filter((f) => intersects(f.ranges, codepoints));
   if (!wanted.length) throw new Error(`"${family}" covers none of the selected characters`);
 
-  // ページ自身の webfont と衝突しないよう、読み込みごとに私有ファミリ名を使う
+  // Use a private family name per load so it cannot clash with the page's own webfonts
   const local = into?.family ?? `LGFXFT_GF_${++loadCount}`;
   const loaded = into?.loaded ?? new Set();
   const fresh = wanted.filter((f) => !loaded.has(f.url));

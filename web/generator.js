@@ -1,13 +1,14 @@
 // @ts-check
 /**
- * Generator（仕様 §14、UC1）。TTF / OTF / WOFF → u8g2 / GFXfont / BDF / VLW / BFF。
- * fontgen（LGFXScreenBuilder）の後継。カード式の 4 ステップ:
- * 書体 → サイズと名前（ライブプレビュー付き）→ 文字 → 生成。
+ * Generator (spec §14, UC1). TTF / OTF / WOFF → u8g2 / GFXfont / BDF / VLW / BFF.
+ * The successor to fontgen (LGFXScreenBuilder). Four steps, one card each:
+ * typeface → size and name (with a live preview) → characters → generate.
  *
- * 補完（欠落文字の穴埋め）はライブラリの merge / generateFont を使い、
- * どのファミリで埋めるかの選定・入手（FALLBACK_CHAIN・Google Fonts 取得）
- * だけをこのアプリが持つ（仕様 §2.3 のレイヤ分担）。勝手には埋めない —
- * 欠落を名指しして提案し、利用者が 1 クリックで適用する。
+ * Filling in missing characters uses the library's merge / generateFont; only
+ * choosing and fetching the family to fill from (FALLBACK_CHAIN, the Google Fonts
+ * download) belongs to this app (the layering of spec §2.3). Nothing is filled in
+ * behind the user's back — the missing characters are named, a family is offered,
+ * and the user applies it with one click.
  */
 import {
   generateFont,
@@ -94,37 +95,37 @@ const codeNoteEl = $('code-note');
 const codeEl = $('code');
 const howtoCodeEl = $('howto-code');
 
-// --- 状態 ---------------------------------------------------------------------
+// --- State --------------------------------------------------------------------
 
 /** @type {'google' | 'file'} */
 let sourceKind = 'google';
 let gFamily = 'Noto Sans JP';
 /** @type {ArrayBuffer | null} */
 let fontData = null;
-/** @type {string[]} 選択中の集合 id */
+/** @type {string[]} Ids of the selected character sets */
 let sets = ['ascii', 'hiragana', 'katakana', 'jaPunct', 'hanJa1', 'symUnits'];
 let activeTemplate = '';
 let sampleText = 'こんにちは 25.6℃ 気温';
 let symbolTouched = false;
 
-/** Google Fonts の部分読み込みの続き（文字集合を広げた再生成用）
+/** Continuation of a partial Google Fonts load (for regenerating with a wider set)
  * @type {{key: string, family: string, loaded: Set<string>} | null} */
 let gfState = null;
-/** 補完元ファミリの読み込み状態（主ソースとは別に持つ）
+/** Load state of the fill-in family (kept separately from the main source)
  * @type {{key: string, family: string, loaded: Set<string>} | null} */
 let fbState = null;
 
-/** @type {import('../src/model/font.js').Font | null} 主生成の結果（補完前） */
+/** @type {import('../src/model/font.js').Font | null} Result of the main generation (before filling in) */
 let baseFont = null;
-/** @type {number[]} 主生成で書体に無かった文字 */
+/** @type {number[]} Characters the typeface did not have in the main generation */
 let baseMissing = [];
-/** @type {import('../src/gen/rasterize.js').FontSizing | null} 主生成のサイジング */
+/** @type {import('../src/gen/rasterize.js').FontSizing | null} Sizing of the main generation */
 let baseSizing = null;
-/** @type {import('../src/model/font.js').Font | null} 表示・出力対象（補完適用後を含む） */
+/** @type {import('../src/model/font.js').Font | null} What is displayed and exported (including any fill-in) */
 let generated = null;
 /** @type {{family: string, filled: number, still: number[]} | null} */
 let fbApplied = null;
-/** @type {string | null} renderResult が組んだテキスト出力（download / copy が使い回す） */
+/** @type {string | null} Text output built by renderResult (reused by download / copy) */
 let currentTextOutput = null;
 
 /** @type {Record<string, {ext: string, mime: string, textExt?: string, bpps: number[]}>} */
@@ -136,13 +137,13 @@ const OUTPUT_FORMATS = {
   bff: { ext: 'bff', mime: 'application/octet-stream', textExt: 'h', bpps: [1, 2, 4] },
 };
 
-// --- 共通ヘルパ -----------------------------------------------------------------
+// --- Shared helpers -------------------------------------------------------------
 
 const pxNum = () => Number(pxEl.value) || 24;
 const thresholdNum = () => Math.min(255, Math.max(1, Number(thresholdEl.value) || 128));
 const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.checked });
 const outputBpp = () => Number(bppEl.value) || 1;
-/** BFF 2/4bpp と VLW 8bpp は、内部では共通の 8bpp alpha Bitmap を使う。 */
+/** BFF 2/4bpp and VLW 8bpp all use the same 8bpp alpha Bitmap internally. */
 const modelBpp = () => /** @type {1|8} */ (outputBpp() === 1 ? 1 : 8);
 
 /** @param {import('../src/model/font.js').Font} font */
@@ -175,8 +176,9 @@ function syncFormatControls() {
 }
 
 /**
- * 生成済み fallback を合成し、全グリフの実インクから行ボックスを更新する。
- * 汎用 merge() の「base メトリクスを維持する」契約は変えない。
+ * Merges in the generated fallback and recomputes the line box from the actual ink
+ * of every glyph. This does not change the general merge() contract of keeping the
+ * base metrics.
  * @param {import('../src/model/font.js').Font} base
  * @param {import('../src/model/font.js').Font} overlay
  */
@@ -207,8 +209,9 @@ function charsPreview(cps, max) {
 }
 
 /**
- * 現在のソース（Google ファミリ or ローカルファイル）を generateFont に渡せる形へ。
- * Google は要求文字に掛かるサブセットだけを取得し、続きから読み足す。
+ * Turns the current source (a Google family or a local file) into something
+ * generateFont accepts. For Google, only the subsets covering the requested
+ * characters are fetched, continuing from what is already loaded.
  * @param {number[]} cps
  * @returns {Promise<{source?: ArrayBuffer, family?: string}>}
  */
@@ -228,7 +231,7 @@ async function resolveSource(cps) {
   return { source: fontData.slice(0) };
 }
 
-// --- 言語 ----------------------------------------------------------------------
+// --- Language -------------------------------------------------------------------
 
 for (const loc of SUPPORTED_LOCALES) {
   const opt = document.createElement('option');
@@ -249,7 +252,7 @@ function applyLanguage() {
   if (generated) renderResult();
 }
 
-// --- 1. 書体 --------------------------------------------------------------------
+// --- 1. Typeface ----------------------------------------------------------------
 
 /** @param {'google' | 'file'} kind */
 function setSourceKind(kind) {
@@ -294,7 +297,7 @@ function renderGoogleList() {
   }
 }
 
-/** 選択中のソースに合わせて帰属表示と識別子を埋める */
+/** Fills in the attribution and the identifier to match the selected source */
 function syncAttribution() {
   if (sourceKind === 'google') {
     const f = findFont(gFamily);
@@ -330,7 +333,7 @@ for (const el of [weightEl, italicEl]) {
   });
 }
 
-// --- 2. サイズと名前 + ライブプレビュー -------------------------------------------
+// --- 2. Size and name + live preview --------------------------------------------
 
 let liveSeq = 0;
 
@@ -392,7 +395,7 @@ symbolEl.addEventListener('input', () => {
   renderHowto();
 });
 
-// --- 3. 文字 --------------------------------------------------------------------
+// --- 3. Characters --------------------------------------------------------------
 
 function renderTemplates() {
   templatesEl.textContent = '';
@@ -417,7 +420,7 @@ function renderTemplates() {
   }
 }
 
-/** テンプレート選択の解除（手動で集合を触ったとき） */
+/** Clears the template selection (when a set is toggled by hand) */
 function clearTemplate() {
   if (!activeTemplate) return;
   activeTemplate = '';
@@ -502,7 +505,7 @@ function renderCharSummary() {
   charmapCopyStatusEl.textContent = '';
   const count = currentCodepoints().length;
   charCountEl.textContent = t('gen.selected', { count });
-  // 大雑把な u8g2 サイズ目安（レコードヘッダ + RLE。密な CJK では上振れする）
+  // Rough u8g2 size estimate (record header + RLE; dense CJK runs over this)
   const px = pxNum();
   const kb = (count * (6 + (px * px) / 10)) / 1024;
   charEstimateEl.textContent =
@@ -528,7 +531,7 @@ charmapCopyEl.addEventListener('click', async () => {
   charmapCopyStatusEl.textContent = t('chars.copied');
 });
 
-// --- 4. 生成 --------------------------------------------------------------------
+// --- 4. Generate ----------------------------------------------------------------
 
 generateEl.addEventListener('click', async () => {
   if (sourceKind === 'file' && !fontData) {
@@ -568,7 +571,7 @@ generateEl.addEventListener('click', async () => {
   }
 });
 
-// --- 補完（fallback の提案と適用） ------------------------------------------------
+// --- Filling in (offering and applying a fallback) ------------------------------
 
 function renderFallbackOffer() {
   const missing = fbApplied ? fbApplied.still : baseMissing;
@@ -593,7 +596,7 @@ function renderFallbackOffer() {
     chars.textContent = charsPreview(missing, 80);
     fbTextEl.appendChild(chars);
   }
-  // 補完元の候補（主ソースと同じファミリは除く）
+  // Candidate fill-in families (the main source's own family is excluded)
   const cur = fbPickEl.value;
   fbPickEl.textContent = '';
   for (const fam of FALLBACK_CHAIN) {
@@ -624,7 +627,7 @@ fbApplyEl.addEventListener('click', async () => {
         into: fbState?.key === key ? fbState : null,
       });
     } catch {
-      // 補完元がその weight を持たないことがある。400 で取り直す
+      // The fill-in family may not have that weight. Retry at 400
       loaded = await loadGoogleFont(fam, baseMissing, { weight: 400, italic: false, into: null });
     }
     fbState = { key, family: loaded.family, loaded: loaded.loaded };
@@ -658,7 +661,7 @@ fbClearEl.addEventListener('click', () => {
   renderResult();
 });
 
-// --- 結果表示 -------------------------------------------------------------------
+// --- Result display -------------------------------------------------------------
 
 function renderResult() {
   if (!generated) return;
@@ -690,11 +693,11 @@ function renderResult() {
       const bytes = encode(font, encodeOptions());
       resBytesEl.textContent = `${bytes.length.toLocaleString()} B (${format})`;
     } catch {
-      // サイズ表示だけの失敗は issues 側で伝わる
+      // A failure that only affects the size readout is already reported in issues
     }
   }
 
-  // 制約の報告（仕様 §7.1 — 「入らない」は利用者に見せる）
+  // Reporting the constraints (spec §7.1 — "does not fit" is shown to the user)
   issuesEl.textContent = '';
   if (check.issues.length === 0) {
     const li = document.createElement('li');
@@ -715,7 +718,7 @@ function renderResult() {
 
   renderFallbackOffer();
 
-  // プレビュー（生成モデルの bpp が選択形式と一致する場合だけ表示する）
+  // Preview (shown only when the generated model's bpp matches the chosen format)
   resultPreviewEl.hidden = bppMismatch;
   resultPreviewNoteEl.hidden = bppMismatch;
   if (!bppMismatch) {
@@ -738,7 +741,7 @@ function renderResult() {
   dlHEl.textContent = t('gen.downloadFormat', { ext: output.textExt ?? output.ext });
   dlBinEl.textContent = t('gen.downloadFormat', { ext: output.ext });
 
-  // .h / BDF の頭出しプレビュー
+  // Head-of-file preview of the .h / BDF output
   codeEl.textContent = '';
   codeNoteEl.textContent = '';
   if (canBuild && hasTextOutput) {
@@ -751,13 +754,13 @@ function renderResult() {
         codeNoteEl.textContent = t('gen.codeNote', { shown, total: lines.length });
       }
     } catch {
-      // encode が通らない組み合わせは issues に出ている
+      // A combination encode rejects is already listed in issues
     }
   }
   renderHowto();
 }
 
-/** `.h` または BDF のようなテキスト出力を組む。 */
+/** Builds a text output such as a `.h` or a BDF. */
 function buildTextOutput() {
   if (!generated) throw new Error('no font');
   if (formatEl.value === 'bdf') {
@@ -768,7 +771,7 @@ function buildTextOutput() {
   return buildHeader();
 }
 
-/** 帰属表示込みで .h を組む。補完を適用した場合は両書体を記録する */
+/** Builds the .h including attribution. When a fill-in was applied, both typefaces are recorded */
 function buildHeader() {
   if (!generated) throw new Error('no font');
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
@@ -857,7 +860,7 @@ dlBinEl.addEventListener('click', () => {
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
   const bytes = encode(generated, encodeOptions());
   const output = OUTPUT_FORMATS[formatEl.value];
-  // Uint8Array は BlobPart として有効だが、lib.dom の型定義が ArrayBuffer 固定のため明示キャスト
+  // Uint8Array is a valid BlobPart, but lib.dom types it as ArrayBuffer only, hence the cast
   download(/** @type {any} */ (bytes), `${ident}.${output.ext}`, output.mime);
 });
 
@@ -883,7 +886,7 @@ langEl.addEventListener('input', async () => {
   applyLanguage();
 });
 
-// --- 初期化 ---------------------------------------------------------------------
+// --- Initialization -------------------------------------------------------------
 
 await initI18n();
 liveTextEl.value = sampleText;

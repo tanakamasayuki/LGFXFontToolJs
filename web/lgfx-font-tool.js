@@ -1,4 +1,4 @@
 // @ts-check
-// web/ から src/ への唯一の外向き参照（仕様 §4.4）。
-// build-site.js が site/ を組むとき、書き換えるのはこのファイルだけ。
+// The only outward reference from web/ into src/ (spec §4.4).
+// This is the single file build-site.js rewrites when it assembles site/.
 export * from '../src/index.js';
