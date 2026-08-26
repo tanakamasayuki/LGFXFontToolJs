@@ -85,6 +85,8 @@ const fbStatusEl = $('fb-status');
 const previewTextEl = /** @type {HTMLInputElement} */ ($('preview-text'));
 const zoomEl = /** @type {HTMLSelectElement} */ ($('zoom'));
 const previewEl = /** @type {HTMLCanvasElement} */ ($('preview'));
+const resultPreviewEl = $('result-preview');
+const resultPreviewNoteEl = $('result-preview-note');
 const dlHEl = /** @type {HTMLButtonElement} */ ($('dl-h'));
 const copyEl = /** @type {HTMLButtonElement} */ ($('copy'));
 const dlBinEl = /** @type {HTMLButtonElement} */ ($('dl-bin'));
@@ -664,7 +666,8 @@ function renderResult() {
   const output = OUTPUT_FORMATS[format];
   const baseCheck = canEncode(font, format);
   const check = { ok: baseCheck.ok, issues: [...baseCheck.issues] };
-  if (fontBpp(font) !== modelBpp()) {
+  const bppMismatch = fontBpp(font) !== modelBpp();
+  if (bppMismatch) {
     check.ok = false;
     check.issues.unshift({
       level: 'error',
@@ -711,14 +714,18 @@ function renderResult() {
 
   renderFallbackOffer();
 
-  // プレビュー（ライブラリの描画エンジン = デバイスと同じ規則）
-  drawFontTo(
-    previewEl,
-    font,
-    previewTextEl.value || sampleText,
-    Number(zoomEl.value),
-    /** @type {1|2|4|8} */ (outputBpp()),
-  );
+  // プレビュー（生成モデルの bpp が選択形式と一致する場合だけ表示する）
+  resultPreviewEl.hidden = bppMismatch;
+  resultPreviewNoteEl.hidden = bppMismatch;
+  if (!bppMismatch) {
+    drawFontTo(
+      previewEl,
+      font,
+      previewTextEl.value || sampleText,
+      Number(zoomEl.value),
+      /** @type {1|2|4|8} */ (outputBpp()),
+    );
+  }
 
   const hasTextOutput = output.textExt !== undefined;
   dlHEl.hidden = !hasTextOutput;
