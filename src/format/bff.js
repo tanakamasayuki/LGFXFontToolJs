@@ -1,29 +1,29 @@
 // @ts-check
 /**
- * BFF（LovyanGFX BFFfont。実体は LVGL lv_font_conv のバイナリフォント形式）の
- * デコーダとエンコーダ（仕様 §2.1「検討」枠 → Phase 4 で実装）。
+ * BFF decoder and encoder for LovyanGFX BFFfont, whose binary format originates
+ * in LVGL lv_font_conv (implemented in Phase 4 from the spec §2.1 candidate list).
  *
- * 参照実装: LovyanGFX v1.2.26 lgfx_fonts.cpp の BFFfont（loadFont /
+ * Reference: LovyanGFX v1.2.26 BFFfont in lgfx_fonts.cpp (loadFont /
  * mapCodepointToGlyph / loadGlyphInfo / decodeGlyphBitmap）。
  *
- * レイアウト: [u32le サイズ + 4 文字タグ] のレコード列。
- *   head: バージョン(4) 追加表数(2) font_size(2) ascent(2) descent(2,符号付き)
+ * Layout: records of [u32le size + four-character tag].
+ *   head: version(4), extra table count(2), font_size(2), ascent(2), signed descent(2)
  *         typo_ascent(2) typo_descent(2) typo_line_gap(2) min_y(2) max_y(2)
  *         default_advance_width(2) kerning_scale(2) index_to_loc_format(1)
  *         glyph_id_format(1) advance_width_format(1) bits_per_pixel(1)
  *         bbox_xy_bits(1) bbox_wh_bits(1) advance_width_bits(1)
  *         compression_alg(1) subpixel(1)
- *   cmap: サブテーブル表（format 0/1/2/3）で コードポイント → glyph id
- *   loca: glyph id → glyf 内オフセット
- *   glyf: グリフごとに MSB first のビット列
- *         [advance][bbox_x][bbox_y][w][h][ピクセル...]
- *         bbox_y はベースラインからビットマップ下端まで（上が正。BDF 流）
- *   kern: カーニング表。LovyanGFX は読み飛ばすため本ライブラリも解釈せず、
- *         レコードを素通しで保持する（仕様 §2.3: 保持するが適用しない）
+ *   cmap: format 0/1/2/3 subtables mapping code points to glyph ids
+ *   loca: glyph id to offset within glyf
+ *   glyf: per-glyph MSB-first bitstream
+ *         [advance][bbox_x][bbox_y][w][h][pixels...]
+ *         bbox_y is baseline to bitmap bottom, positive upward (BDF-style)
+ *   kern: kerning table. LovyanGFX skips it, so this library preserves the
+ *         record opaquely without applying it (spec §2.3).
  *
- * ピクセル値は 0..(2^bpp - 1) の被覆値。中立モデルへは 8bpp に正規化する
- * （a8 = (255*v + max/2) / max。LovyanGFX のブレンド式と同じ丸め）。
- * bpp <= 4 では正規化は可逆で、往復により元のビット列が完全に戻る。
+ * Pixels are coverage values 0..(2^bpp - 1), normalized to 8bpp in the neutral
+ * model using a8 = (255*v + max/2) / max, matching LovyanGFX blend rounding.
+ * For bpp <= 4 this normalization is reversible and round-trips the original bits.
  */
 import { TruncatedDataError, FormatError, EncodeConstraintError } from '../util/errors.js';
 import { createBitmap } from '../model/bitmap.js';
@@ -42,7 +42,7 @@ const s16 = (p, at) => {
 /** @param {Uint8Array} p @param {number} at */
 const u32 = (p, at) => (p[at] | (p[at + 1] << 8) | (p[at + 2] << 16) | (p[at + 3] << 24)) >>> 0;
 
-/** MSB first のビットリーダ（LGFX bit_stream_t と同じ規則） */
+/** MSB-first bit reader matching LGFX bit_stream_t. */
 class BitStream {
   /** @param {Uint8Array} data @param {number} [bitPos] */
   constructor(data, bitPos = 0) {
@@ -64,7 +64,7 @@ class BitStream {
     return result >>> 0;
   }
 
-  /** 2 の補数の符号付き @param {number} count */
+  /** Reads a two's-complement signed value. @param {number} count */
   readSbits(count) {
     if (count === 0) return 0;
     const v = this.readBits(count);
@@ -73,7 +73,7 @@ class BitStream {
   }
 }
 
-/** MSB first のビットライタ */
+/** MSB-first bit writer. */
 class BitSink {
   constructor() {
     /** @type {number[]} */
@@ -107,7 +107,7 @@ class BitSink {
 }
 
 /**
- * LGFX decode_rle_bitmap の移植（lv_font_conv の I3BN 圧縮）。
+ * Port of LGFX decode_rle_bitmap for lv_font_conv I3BN compression.
  * @param {BitStream} bs
  * @param {number} bpp
  * @param {number} pixelCount
@@ -167,11 +167,11 @@ export function decodeRleBitmap(bs, bpp, pixelCount) {
     }
     dst[out++] = ret;
   }
-  return dst; // 足りない分は 0 のまま（LGFX と同じ）
+  return dst; // Missing output remains zero, matching LGFX.
 }
 
 /**
- * BFF バイナリを中立モデルへデコードする。
+ * Decodes a BFF binary into the neutral model.
  * @param {Uint8Array} data
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
@@ -180,7 +180,7 @@ export function decodeBff(data, opts = {}) {
   /** @type {import('../model/font.js').FontIssue[]} */
   const issues = [];
 
-  // --- レコード走査 ---
+  // --- Record scan ---
   /** @type {Record<string, {offset: number, size: number}>} */
   const records = {};
   /** @type {Uint8Array | null} */
@@ -250,8 +250,8 @@ export function decodeBff(data, opts = {}) {
       formatType: cmap[at + 14],
     });
   }
-  // lv_font_conv はオフセットをレコード先頭起点で書くことがある。LGFX と同じ
-  // 多数決でペイロード起点へ正規化する
+  // lv_font_conv may write offsets relative to the record start. Like LGFX,
+  // use majority voting to normalize them to payload-relative offsets.
   {
     let payloadValid = 0;
     let recordValid = 0;
@@ -269,13 +269,13 @@ export function decodeBff(data, opts = {}) {
     }
   }
 
-  // コードポイント → glyph id の全列挙
+  // Enumerate every codepoint-to-glyph-id mapping.
   /** @type {Map<number, number>} cp → gid */
   const cpToGid = new Map();
   for (const st of subtables) {
     switch (st.formatType) {
       case 0:
-        // 密な u8 差分配列。LGFX 同様、gid 0 は「無し」
+        // Dense u8 delta array; gid 0 means absent, as in LGFX.
         for (let i = 0; i < st.rangeLength; i++) {
           if (st.dataOffset === 0 || st.dataOffset + i >= cmap.length) break;
           const gid = st.glyphIdOffset + cmap[st.dataOffset + i];
@@ -319,8 +319,8 @@ export function decodeBff(data, opts = {}) {
     locaTable.push(indexToLocFormat === 0 ? u16(loca, 4 + i * 2) : u32(loca, 4 + i * 4));
   }
   const glyfPayloadSize = glyfRec.size - 8;
-  // loca が glyf レコード先頭起点のことがある。LGFX と同じくグリフヘッダを
-  // 実際に読んで妥当性スコアで判定する
+  // loca may be relative to the glyf record start. Like LGFX, read actual glyph
+  // headers and choose the origin with the better validity score.
   {
     const headerBits = advanceWidthBits + bboxXyBits * 2 + bboxWhBits * 2;
     const headerBytes = Math.max(1, Math.ceil(headerBits / 8));
@@ -375,7 +375,7 @@ export function decodeBff(data, opts = {}) {
   const headerBits = advanceWidthBits + bboxXyBits * 2 + bboxWhBits * 2;
 
   /**
-   * glyph id ひとつをモデルグリフに起こす。
+   * Decodes one glyph id into a model glyph.
    * @param {number} gid
    * @param {number} cp
    * @returns {Glyph | null}
@@ -411,7 +411,7 @@ export function decodeBff(data, opts = {}) {
       const pbs = new BitStream(bytes, headerBits);
       pix = decodeRleBitmap(pbs, bpp, pixelCount);
       if (compression === 1) {
-        // XOR フィルタ（行間差分）を戻す
+        // Reverse the inter-row XOR delta filter.
         for (let y = 1; y < hgt; y++) {
           for (let x = 0; x < w; x++) pix[y * w + x] ^= pix[(y - 1) * w + x];
         }
@@ -421,7 +421,7 @@ export function decodeBff(data, opts = {}) {
       return null;
     }
 
-    // サブピクセル描画（RGB 三つ組）は輝度でグレイに畳む（LGFX と同じ式）
+    // Collapse RGB subpixel triplets to luminance using the LGFX formula.
     if (subpixel && w >= 3) {
       const outW = Math.max(1, Math.floor(w / 3));
       const gray = new Uint8Array(outW * hgt);
@@ -461,14 +461,14 @@ export function decodeBff(data, opts = {}) {
     if (g) glyphs.set(cp, g);
     else issues.push({ level: 'warning', code: 'BFF_GLYPH_UNREADABLE', codepoint: cp });
   }
-  // gid 0 は「未収録時の代替グリフ」。LGFX は missing → gid0 を描くので、
-  // モデルでは コードポイント 0 に置いて同じフォールバック連鎖に乗せる
+  // gid 0 is the missing-character fallback. LGFX draws it for missing input,
+  // so store it at code point 0 to join the same model fallback chain.
   if (!glyphs.has(0)) {
     const g0 = decodeGid(0, 0);
     if (g0) glyphs.set(0, g0);
   }
 
-  // LGFX getDefaultMetric と同じ導出
+  // Derive metrics exactly like LGFX getDefaultMetric.
   const boxH = ascent + Math.abs(descent) > 0 ? ascent + Math.abs(descent) : fontSize > 0 ? fontSize : 16;
   let yAdv = typoAscent + Math.abs(typoDescent) + typoLineGap;
   if (yAdv <= 0) yAdv = boxH;
@@ -482,7 +482,7 @@ export function decodeBff(data, opts = {}) {
     glyphs,
     meta: {
       sourceFormat: 'bff',
-      drawProfile: 'vlw', // draw_alpha_bitmap_common は VLW と同じ量子化規則
+      drawProfile: 'vlw', // draw_alpha_bitmap_common uses the same quantization as VLW.
       fallback: { advance: defaultAdvance, width: defaultAdvance, xOffset: 0 },
       issues,
       format: {
@@ -509,7 +509,7 @@ export function decodeBff(data, opts = {}) {
 }
 
 /**
- * BFF へエンコードできるか（仕様 §7.1）。
+ * Checks BFF encodability (spec §7.1).
  * @param {Font} font
  * @returns {{ok: boolean, issues: import('./registry.js').EncodeIssue[]}}
  */
@@ -520,7 +520,7 @@ export function canEncodeBff(font) {
     /** @param {string} code @param {object} params */
     const err = (code, params) => issues.push({ level: 'error', code, codepoint: g.codepoint, params });
     if (g.codepoint > 0xffff && g.codepoint !== 0) {
-      // cmap の range_start は u32 だが LGFX の描画 API は uint16 のため実用上 BMP
+      // cmap range_start is u32, but the LGFX drawing API is uint16, effectively limiting it to BMP.
       err('CODEPOINT_OVER_BMP', { value: g.codepoint });
     }
     if (g.bitmap.width > 1023 || g.bitmap.height > 1023) {
@@ -539,13 +539,13 @@ export function canEncodeBff(font) {
   return { ok: !issues.some((i) => i.level === 'error'), issues };
 }
 
-/** ビット数（符号なし） @param {number} max */
+/** Unsigned bit count. @param {number} max */
 const bitsFor = (max) => {
   let n = 1;
   while (max >= 1 << n) n++;
   return n;
 };
-/** ビット数（2 の補数の符号付き） @param {number} min @param {number} max */
+/** Two's-complement signed bit count. @param {number} min @param {number} max */
 const sbitsFor = (min, max) => {
   let n = 1;
   while (min < -(1 << (n - 1)) || max > (1 << (n - 1)) - 1) n++;
@@ -553,8 +553,8 @@ const sbitsFor = (min, max) => {
 };
 
 /**
- * 中立モデル → BFF バイナリ。圧縮は行わない（compression 0。LovyanGFX は
- * 0/1/2 すべて読める）。デコード時に保持した kern レコードは素通しで書き戻す。
+ * Encodes the neutral model as BFF without compression (algorithm 0; LovyanGFX
+ * reads 0/1/2). An opaque kern record preserved during decoding is written back unchanged.
  * @param {Font} font
  * @param {{dropInvalid?: boolean, bpp?: 1 | 2 | 4}} [opts]
  * @returns {Uint8Array}
@@ -572,7 +572,7 @@ export function encodeBff(font, opts = {}) {
   }
 
   const meta = /** @type {{bff?: any}} */ (font.meta.format ?? {}).bff;
-  // 全被覆値が 0/255 なら 1bpp、それ以外は 4bpp（メタがあれば元の bpp）
+  // Choose 1bpp for all-0/255 coverage, otherwise 4bpp; source metadata takes precedence.
   let bpp = opts.bpp ?? meta?.bpp;
   if (!bpp) {
     bpp = 1;
@@ -589,17 +589,17 @@ export function encodeBff(font, opts = {}) {
   }
   const maxAlpha = (1 << bpp) - 1;
 
-  // gid 0 = 代替グリフ。モデルの cp 0（あれば）を充て、無ければ
-  // fallback の送り幅を持つ空グリフにする（LGFX は missing → gid 0 を描く）
+  // gid 0 is the fallback glyph. Use model code point 0 if present; otherwise
+  // create an empty glyph with fallback advance, matching LGFX missing -> gid 0.
   const fallbackAdv = Math.min(1023, meta?.defaultAdvance ?? font.meta.fallback?.advance ?? 0);
   const zero = font.glyphs.get(0);
   const rest = [...font.glyphs.values()]
     .filter((g) => g.codepoint !== 0 && !badCps.has(g.codepoint))
     .sort((a, b) => a.codepoint - b.codepoint);
-  /** @type {(Glyph | null)[]} gid 順 */
+  /** @type {(Glyph | null)[]} glyph-id order */
   const byGid = [zero ?? null, ...rest];
 
-  // フィールド幅
+  // Field widths.
   let maxAdv = Math.max(1, fallbackAdv);
   let minXy = 0;
   let maxXy = 0;
@@ -661,7 +661,7 @@ export function encodeBff(font, opts = {}) {
   }
   const indexToLocFormat = glyfLen <= 0xffff ? 0 : 1;
 
-  // --- cmap（format 1 のサブテーブル 1 枚。範囲は u16 に収まるよう分割） ---
+  // --- cmap: one format-1 subtable, split so ranges fit u16 ---
   /** @type {{rangeStart: number, cps: number[], gids: number[]}[]} */
   const subtables = [];
   {
@@ -678,7 +678,7 @@ export function encodeBff(font, opts = {}) {
     });
   }
 
-  // --- 直列化 ---
+  // --- Serialization ---
   /** @type {number[]} */
   const out = [];
   const pushU16 = (/** @type {number} */ v) => out.push(v & 0xff, (v >> 8) & 0xff);
@@ -713,19 +713,19 @@ export function encodeBff(font, opts = {}) {
     pushU16(meta?.kerningScale ?? 16);
     out.push(indexToLocFormat);
     out.push(meta?.glyphIdFormat ?? 0);
-    out.push(0); // advance_width_format 0（整数）
+    out.push(0); // advance_width_format 0 (integer).
     out.push(bpp);
     out.push(bboxXyBits);
     out.push(bboxWhBits);
     out.push(advanceWidthBits);
     out.push(0); // compression 0
     out.push(0); // subpixel 0
-    out.push(0); // パディング（LGFX は 44 バイト以上を要求）
+    out.push(0); // Padding; LGFX requires at least 44 bytes.
   });
 
   record('cmap', () => {
     pushU32(subtables.length);
-    // ヘッダ表のあとにデータが続く。オフセットはペイロード起点
+    // Data follows the header table; offsets are payload-relative.
     let dataOffset = 4 + subtables.length * 16;
     for (const st of subtables) {
       pushU32(dataOffset);
@@ -733,7 +733,7 @@ export function encodeBff(font, opts = {}) {
       pushU16(st.cps[st.cps.length - 1] + 1); // range_length
       pushU16(0); // glyph_id_offset
       pushU16(st.cps.length); // entries_count
-      out.push(1, 0); // format 1 (sparse) + パディング
+      out.push(1, 0); // format 1 (sparse) plus padding.
       dataOffset += st.cps.length * 4;
     }
     for (const st of subtables) {

@@ -1,10 +1,10 @@
 // @ts-check
 /**
- * GLCDfont（Font0 / Font8x8C64）のデコーダ。
+ * GLCDfont decoder for Font0 / Font8x8C64.
  *
- * データは列優先の素のビットマップ表: グリフごとに datawidth バイト、
- * 各バイトが 1 列で bit0 が最上段。描画幅 width のうち末尾
- * (width - datawidth) 列は空白。
+ * Data is a raw column-major bitmap table with datawidth bytes per glyph.
+ * Each byte is one column with bit 0 at the top; the final
+ * (width - datawidth) columns of the drawing cell are blank.
  */
 import { createBitmap, setPixel } from '../model/bitmap.js';
 import { createFont } from '../model/font.js';
@@ -14,17 +14,17 @@ import { legacyGlyphIndex } from './legacy.js';
 
 /**
  * @typedef {object} GlcdParams
- * @property {number} width      - 送り幅（描画セル幅）
+ * @property {number} width      - advance / drawing-cell width
  * @property {number} height
  * @property {number} baseline
- * @property {number} start      - 先頭コードポイント
- * @property {number} end        - 末尾コードポイント
- * @property {number} datawidth  - データに存在する列数
- * @property {boolean} [cp437]   - 既定 false（LovyanGFX の既定と同じ）
+ * @property {number} start      - first code point
+ * @property {number} end        - last code point
+ * @property {number} datawidth  - stored column count
+ * @property {boolean} [cp437]   - default false, matching LovyanGFX
  */
 
 /**
- * @param {Uint8Array} data - グリフ表の生バイト列
+ * @param {Uint8Array} data - raw glyph-table bytes
  * @param {GlcdParams} params
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}

@@ -1,29 +1,29 @@
 // @ts-check
 /**
- * FONTX2 のデコーダとエンコーダ（仕様 §2.1、Phase 4）。
+ * FONTX2 decoder and encoder (spec §2.1, Phase 4).
  *
- * 日本語組込みの古参形式（MS-DOS 由来。ChaN / ELM 周辺のツール群と繋がる）。
- * 固定セルのビットマップ表で、1 ファイルは ANK（1 バイト系 256 グリフ）か
- * 漢字（Shift-JIS 2 バイト系、コードブロック表付き）のどちらか。
- * 半角 ANK と全角漢字は別ファイルで対になっている文化なので、両方を
- * デコードして merge すると 1 つの中立モデルになる。
+ * A long-standing Japanese embedded format originating on MS-DOS and compatible
+ * with tools around ChaN / ELM. It stores fixed-cell bitmap tables. One file is
+ * either ANK (256 single-byte glyphs) or kanji (two-byte Shift-JIS with a code-block
+ * table). ANK and full-width kanji traditionally come as separate paired files;
+ * decoding and merging both produces one neutral model.
  *
- *   0    6  シグネチャ "FONTX2"
- *   6    8  フォント名（空白詰め）
- *   14   1  幅 XSize
- *   15   1  高さ YSize
- *   16   1  コード種別 0=ANK 1=Shift-JIS
- *   ANK:  17 から 256 グリフ（各 ceil(XSize/8)*YSize バイト、行優先 MSB first）
- *   漢字: 17 に ブロック数 NB、18 から NB×4 バイト（開始/終了 SJIS u16 LE）、
- *         その後にブロック順・コード順でグリフ
+ *   0    6  signature "FONTX2"
+ *   6    8  space-padded font name
+ *   14   1  width XSize
+ *   15   1  height YSize
+ *   16   1  code type: 0=ANK, 1=Shift-JIS
+ *   ANK:  256 glyphs from offset 17, each ceil(XSize/8)*YSize bytes, row-major MSB-first
+ *   kanji: block count NB at 17, then NB×4 bytes from 18 (start/end SJIS u16 LE),
+ *          followed by glyphs in block and code order
  *
- * コードポイント変換は Encoding Standard の shift_jis（TextDecoder。
- * ブラウザ必須実装・Node 20+ 同梱）を使い、逆引き表は初回に全コードを
- * 復号して構築する。依存ゼロのまま両方向を賄う。
+ * Code-point conversion uses Encoding Standard shift_jis through TextDecoder,
+ * required in browsers and bundled with Node 20+. The reverse map is built on
+ * first use by decoding all codes, keeping both directions dependency-free.
  *
- * FONTX2 はベースライン情報を持たない。既定ではセル下端をベースラインとし
- * （descent 0）、opts.descent で上書きできる。LovyanGFX に対応クラスは無い
- * ため描画プロファイルは汎用（'gfx'）。
+ * FONTX2 has no baseline metadata. The cell bottom is the default baseline
+ * (descent 0), overridable via opts.descent. LovyanGFX has no corresponding
+ * class, so the generic 'gfx' drawing profile is used.
  */
 import { FormatError, TruncatedDataError, EncodeConstraintError } from '../util/errors.js';
 import { createBitmap, getPixel, setPixel } from '../model/bitmap.js';
@@ -37,7 +37,7 @@ const SIGNATURE = 'FONTX2';
 /** @type {TextDecoder | null} */
 let sjisDecoder = null;
 
-/** SJIS コード（1 or 2 バイト）→ Unicode コードポイント。未割当は null
+/** Converts a one- or two-byte SJIS code to Unicode; returns null if unassigned.
  * @param {number} code */
 export function sjisToUnicode(code) {
   sjisDecoder ??= new TextDecoder('shift_jis');
@@ -51,7 +51,7 @@ export function sjisToUnicode(code) {
 /** @type {Map<number, number> | null} */
 let reverseMap = null;
 
-/** Unicode コードポイント → SJIS コード。変換不能は null
+/** Converts a Unicode code point to SJIS; returns null if unrepresentable.
  * @param {number} cp */
 export function unicodeToSjis(cp) {
   if (!reverseMap) {
@@ -74,7 +74,7 @@ export function unicodeToSjis(cp) {
 }
 
 /**
- * FONTX2 バイナリを中立モデルへデコードする。
+ * Decodes a FONTX2 binary into the neutral model.
  * @param {Uint8Array} data
  * @param {{familyName?: string, styleName?: string, descent?: number}} [opts]
  * @returns {Font}
@@ -103,7 +103,7 @@ export function decodeFontx2(data, opts = {}) {
   /** @param {number} cp @param {number} offset */
   const addGlyph = (cp, offset) => {
     const bitmap = createBitmap(width, height, 1);
-    // FONTX2 の行レイアウトは中立モデルの Bitmap と同一（MSB first・バイト詰め）
+    // FONTX2 rows match neutral Bitmap layout: MSB-first and byte-padded.
     const src = data.subarray(offset, offset + glyphSize);
     if (src.length < glyphSize) {
       issues.push({ level: 'warning', code: 'FONTX2_BITMAP_TRUNCATED', codepoint: cp });
@@ -113,8 +113,8 @@ export function decodeFontx2(data, opts = {}) {
   };
 
   if (codeType === 0) {
-    // ANK: 0x00..0xFF。Unicode へは shift_jis の 1 バイト解釈で写す
-    // （ASCII は恒等、0xA1..0xDF は半角カナ）。写せないコードは読み飛ばす
+    // ANK 0x00..0xFF maps through single-byte shift_jis: ASCII is identity and
+    // 0xA1..0xDF is half-width kana. Skip unmappable codes.
     let skipped = 0;
     for (let code = 0; code < 256; code++) {
       const offset = 17 + code * glyphSize;
@@ -175,12 +175,12 @@ export function decodeFontx2(data, opts = {}) {
 }
 
 /**
- * グリフを固定セルへ配置し直す（セル外にインクがあれば null）。
+ * Repositions a glyph into a fixed cell, returning null when ink lies outside.
  * @param {Glyph} g
  * @param {number} cellW
  * @param {number} cellH
  * @param {number} ascent
- * @returns {Uint8Array | null} セルの行データ（stride * cellH）
+ * @returns {Uint8Array | null} cell row data (stride * cellH)
  */
 function rasterizeCell(g, cellW, cellH, ascent) {
   const stride = (cellW + 7) >> 3;
@@ -201,7 +201,7 @@ function rasterizeCell(g, cellW, cellH, ascent) {
 }
 
 /**
- * FONTX2 へエンコードできるか（仕様 §7.1）。
+ * Checks FONTX2 encodability (spec §7.1).
  * @param {Font} font
  * @param {{type?: 'ank' | 'kanji'}} [opts]
  * @returns {{ok: boolean, issues: import('./registry.js').EncodeIssue[], type: 'ank' | 'kanji'}}
@@ -224,7 +224,7 @@ export function canEncodeFontx2(font, opts = {}) {
     }
     if (sjis > 0xff) allAnk = false;
     if (g.xAdvance !== cellW) {
-      // FONTX2 は固定ピッチのみ
+      // FONTX2 is fixed-pitch only.
       err('NOT_FIXED_PITCH', { advance: g.xAdvance, cell: cellW });
     } else if (rasterizeCell(g, cellW, cellH, font.ascent) === null) {
       err('GLYPH_OUT_OF_CELL', { cellW, cellH });
@@ -239,10 +239,9 @@ export function canEncodeFontx2(font, opts = {}) {
 }
 
 /**
- * 中立モデル → FONTX2 バイナリ。
- * ANK（1 バイト系）か漢字（Shift-JIS 2 バイト系）かは収録内容から自動判定
- * （opts.type で強制可）。漢字型でブロックが 255 を超える場合は、隙間の
- * 小さい順に空グリフで埋めて統合する。
+ * Encodes the neutral model as FONTX2. Chooses ANK (single-byte) or kanji
+ * (two-byte Shift-JIS) from repertoire unless opts.type forces it. If a kanji
+ * file exceeds 255 blocks, the smallest gaps are filled with empty glyphs to merge them.
  * @param {Font} font
  * @param {{dropInvalid?: boolean, type?: 'ank' | 'kanji', name?: string}} [opts]
  * @returns {Uint8Array}
@@ -264,14 +263,14 @@ export function encodeFontx2(font, opts = {}) {
   const stride = (cellW + 7) >> 3;
   const glyphSize = stride * cellH;
 
-  /** @type {Map<number, Glyph>} sjis コード → グリフ */
+  /** @type {Map<number, Glyph>} SJIS code to glyph */
   const byCode = new Map();
   for (const g of font.glyphs.values()) {
     if (badCps.has(g.codepoint)) continue;
     const sjis = g.codepoint < 0x20 ? g.codepoint : unicodeToSjis(g.codepoint);
     if (sjis === null) continue;
     if (type === 'ank' && sjis > 0xff) continue;
-    if (type === 'kanji' && sjis <= 0xff) continue; // 1 バイト系は ANK ファイルの領分
+    if (type === 'kanji' && sjis <= 0xff) continue; // Single-byte codes belong in the ANK file.
     byCode.set(sjis, g);
   }
 
@@ -294,7 +293,7 @@ export function encodeFontx2(font, opts = {}) {
     return Uint8Array.from(out);
   }
 
-  // 漢字: コード順にブロック化し、255 個を超えるなら隙間の小さい順に統合
+  // Kanji: form code-order blocks; above 255, merge across the smallest gaps first.
   const codes = [...byCode.keys()].sort((a, b) => a - b);
   if (codes.length === 0) {
     throw new EncodeConstraintError('no double-byte glyphs to encode', [

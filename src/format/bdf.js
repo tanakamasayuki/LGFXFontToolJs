@@ -1,18 +1,18 @@
 // @ts-check
 /**
- * BDF (Glyph Bitmap Distribution Format 2.1) のデコーダとエンコーダ（仕様 §6 / §7）。
+ * BDF (Glyph Bitmap Distribution Format 2.1) decoder and encoder (spec §6 / §7).
  *
- * 相互運用の要となるテキスト形式。fontforge / otf2bdf / bdfconv（u8g2 純正
- * ツール）と繋がる。1bpp のみ。
+ * A key text interchange format compatible with FontForge, otf2bdf, and the
+ * official u8g2 bdfconv tool. Supports 1bpp only.
  *
- * 座標の対応: BBX の (xoff, yoff) は「ペン位置からビットマップ左下」への
- * オフセット（y は上が正）。中立モデルの yOffset（ベースライン→上端、下向き
- * 軸）へは yOffset = -(yoff + h) で写す。BITMAP の各行は MSB first で
- * バイト境界へパディング — 中立モデルの Bitmap と同じ表現なのでそのまま写せる。
+ * Coordinate mapping: BBX (xoff, yoff) is the pen-to-bitmap-bottom-left offset
+ * with positive Y upward. The neutral yOffset uses baseline-to-top with positive
+ * Y downward, so yOffset = -(yoff + h). BITMAP rows are MSB-first and byte-padded,
+ * identical to the neutral Bitmap representation.
  *
- * LovyanGFX の BDFfont クラスは BDF テキストではなく前処理済みの固定セル
- * 表を読むため、この形式に LovyanGFX 互換の描画プロファイルは存在しない。
- * デコード結果の drawProfile は 'gfx'（汎用）とする。
+ * LovyanGFX BDFfont reads a preprocessed fixed-cell table rather than BDF text,
+ * so this format has no corresponding LovyanGFX drawing profile. Decoded fonts
+ * use the generic 'gfx' drawProfile.
  */
 import { FormatError, EncodeConstraintError } from '../util/errors.js';
 import { createBitmap } from '../model/bitmap.js';
@@ -22,8 +22,8 @@ import { createFont } from '../model/font.js';
 /** @typedef {import('../model/font.js').Glyph} Glyph */
 
 /**
- * BDF テキストを中立モデルへデコードする。
- * 多少壊れていても読めるだけ読み、問題は meta.issues に積む（仕様 §6.1）。
+ * Decodes BDF text into the neutral model. Recovers as much as possible from
+ * malformed input and records problems in meta.issues (spec §6.1).
  * @param {string} text
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
@@ -55,7 +55,7 @@ export function decodeBdf(text, opts = {}) {
     return parts;
   };
 
-  // --- グローバル部 ---
+  // --- Global section ---
   for (; i < n; i++) {
     const line = lines[i];
     if (line.startsWith('CHARS ') || line.startsWith('STARTCHAR')) break;
@@ -74,7 +74,7 @@ export function decodeBdf(text, opts = {}) {
     }
   }
 
-  // --- グリフ部 ---
+  // --- Glyph section ---
   for (; i < n; i++) {
     if (!lines[i].startsWith('STARTCHAR')) continue;
     let encoding = -1;
@@ -96,7 +96,7 @@ export function decodeBdf(text, opts = {}) {
       else if (line.startsWith('BITMAP')) inBitmap = true;
     }
     if (encoding < 0) {
-      // ENCODING -1（名前でしか引けないグリフ）は読み飛ばす
+      // Skip ENCODING -1 glyphs, which can only be addressed by name.
       issues.push({ level: 'warning', code: 'BDF_UNENCODED_GLYPH' });
       continue;
     }
@@ -107,8 +107,8 @@ export function decodeBdf(text, opts = {}) {
       for (let b = 0; b < bitmap.stride; b++) {
         bitmap.data[y * bitmap.stride + b] = parseInt(hex.slice(b * 2, b * 2 + 2) || '0', 16);
       }
-      // 行のパディングビットが立っていても幅の外なので無視される（stride 表現ゆえ
-      // データには残る）。規格上は 0 のはずなので、立っていたら落として警告
+      // Row padding bits lie outside the width and are ignored, though stride
+      // storage retains them. The spec requires zero, so clear and warn if set.
       const excess = bitmap.stride * 8 - w;
       if (excess > 0) {
         const lastIdx = y * bitmap.stride + bitmap.stride - 1;
@@ -131,7 +131,7 @@ export function decodeBdf(text, opts = {}) {
     });
   }
 
-  // メトリクス: FONT_ASCENT / FONT_DESCENT が正。無ければ FONTBOUNDINGBOX から導く
+  // Prefer FONT_ASCENT / FONT_DESCENT; otherwise derive from FONTBOUNDINGBOX.
   let ascent = fontAscent;
   let descent = fontDescent;
   if (!Number.isFinite(ascent) || !Number.isFinite(descent)) {
@@ -166,7 +166,7 @@ export function decodeBdf(text, opts = {}) {
 }
 
 /**
- * BDF へエンコードできるか（仕様 §7.1）。1bpp であればほぼ常に可能。
+ * Checks BDF encodability (spec §7.1); almost any 1bpp font fits.
  * @param {Font} font
  * @returns {{ok: boolean, issues: import('./registry.js').EncodeIssue[]}}
  */
@@ -188,7 +188,7 @@ export function canEncodeBdf(font) {
 }
 
 /**
- * 中立モデル → BDF テキスト。
+ * Encodes the neutral model as BDF text.
  * @param {Font} font
  * @param {{fontName?: string, dropInvalid?: boolean}} [opts]
  * @returns {string}
@@ -237,7 +237,7 @@ export function encodeBdf(font, opts = {}) {
   for (const g of glyphs) {
     const w = g.bitmap.width;
     const h = g.bitmap.height;
-    const yoff = -(g.yOffset + h) || 0; // -0 を出さない
+    const yoff = -(g.yOffset + h) || 0; // Avoid emitting -0.
     L.push(`STARTCHAR U+${g.codepoint.toString(16).toUpperCase().padStart(4, '0')}`);
     L.push(`ENCODING ${g.codepoint}`);
     L.push(`SWIDTH ${Math.round((g.xAdvance * 1000) / Math.max(1, pixelSize))} 0`);

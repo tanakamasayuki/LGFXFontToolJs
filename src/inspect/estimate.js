@@ -1,8 +1,7 @@
 // @ts-check
 /**
- * 形式ごとのサイズ算出（仕様 §11）。概算ではなく「エンコードした場合の
- * 正確なバイト数」を返す。FONT_FORMATS.ja.md の比較表を任意のフォントで
- * 再現できる（UC2 の選定材料）。
+ * Per-format size calculation (spec §11). Returns exact encoded byte counts,
+ * not estimates, reproducing the FONT_FORMATS.ja.md comparison for any font (UC2).
  */
 import { canEncode, encode, listFormats } from '../format/registry.js';
 import { EncodeConstraintError, FormatError } from '../util/errors.js';
@@ -13,9 +12,9 @@ import { EncodeConstraintError, FormatError } from '../util/errors.js';
  * @param {Font} font
  * @param {string} format
  * @returns {{bytes: number | null, issues: import('../format/registry.js').EncodeIssue[]}}
- *   bytes: エンコード結果の正確なバイト数。フォント全体の制約で入らない場合は null。
- *   グリフ単位の違反がある場合は「違反グリフを落とした場合の」バイト数を返す
- *   （issues にその内訳が載る）。
+ *   bytes: exact encoded size, or null when font-level constraints fail.
+ *   For glyph-level violations, returns the size after dropping invalid glyphs;
+ *   issues contains the details.
  */
 export function estimateSize(font, format) {
   const check = canEncode(font, format);
@@ -31,7 +30,7 @@ export function estimateSize(font, format) {
 }
 
 /**
- * エンコーダを持つ全形式のサイズ比較。
+ * Compares sizes across all formats that have encoders.
  * @param {Font} font
  * @returns {Record<string, {bytes: number | null, issues: import('../format/registry.js').EncodeIssue[]}>}
  */

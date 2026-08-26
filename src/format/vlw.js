@@ -1,22 +1,22 @@
 // @ts-check
 /**
- * VLW（Processing / TFT_eSPI Smooth Font / LovyanGFX VLWfont）のデコーダと
- * エンコーダ（仕様 §6 / §7）。8bpp（アンチエイリアス）の実行時ロード形式。
+ * VLW decoder and encoder for Processing, TFT_eSPI Smooth Font, and LovyanGFX
+ * VLWfont (spec §6 / §7). It is an 8bpp anti-aliased runtime-load format.
  *
- * レイアウト（すべてビッグエンディアン u32）:
- *   ヘッダ 24B: glyphCount, version, size("points"), 未使用, ascent, descent
- *   グリフ表 28B × N: unicode, height, width, setWidth(送り), topExtent(dY),
- *                     leftExtent(dX), 予約
- *   ビットマップ: 8bpp の被覆値を表の順に連結
+ * Layout (all values are big-endian u32):
+ *   24-byte header: glyphCount, version, size("points"), unused, ascent, descent
+ *   28-byte glyph records: unicode, height, width, setWidth (advance),
+ *                          topExtent (dY), leftExtent (dX), reserved
+ *   bitmap: 8bpp coverage concatenated in table order
  *
- * LovyanGFX の読み込み時の癖（VLWfont::loadFont / drawChar）を再現する:
- * - ascent / descent はヘッダ値を起点に、U+00FF 超（および U+0021..009F、
- *   U+007F と U+3000 を除く）のグリフを走査して maxAscent / maxDescent を
- *   求め直し、行高はその和になる
- * - spaceWidth = 走査前の max(size, ascent+descent) * 2 / 7
- * - U+0020 はファイル内のグリフの有無に関わらず、描画では常に「何も描かず
- *   spaceWidth だけ送る」。計測はグリフ表があれば表の値を使う（LGFX 自身の
- *   非対称。描画プロファイル 'vlw' が再現する）
+ * Reproduces LovyanGFX VLWfont::loadFont / drawChar quirks:
+ * - Starting from header ascent/descent, scans glyphs above U+00FF (also
+ *   U+0021..009F, excluding U+007F and U+3000) to recompute maxAscent/maxDescent;
+ *   their sum becomes line height.
+ * - spaceWidth = max(size, ascent+descent) * 2 / 7 before that scan.
+ * - U+0020 always draws nothing and advances by spaceWidth regardless of a file
+ *   glyph. Measurement uses the table value when present, an LGFX asymmetry
+ *   reproduced by the 'vlw' drawing profile.
  */
 import { ByteReader, ByteWriter } from '../util/bytes.js';
 import { TruncatedDataError, EncodeConstraintError } from '../util/errors.js';
@@ -43,7 +43,7 @@ const i8of = (v) => {
 };
 
 /**
- * VLW バイナリを中立モデルへデコードする。
+ * Decodes a VLW binary into the neutral model.
  * @param {Uint8Array} data
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
@@ -53,7 +53,7 @@ export function decodeVlw(data, opts = {}) {
   const gCount = r.u32be();
   const version = r.u32be();
   const sizeField = r.u32be();
-  r.u32be(); // 未使用
+  r.u32be(); // Unused.
   const headerAscent = Math.abs(i32(r.u32be()));
   const headerDescent = Math.abs(i32(r.u32be()));
 
@@ -74,12 +74,12 @@ export function decodeVlw(data, opts = {}) {
     const adv = r.u32be();
     const dY = i16of(r.u32be());
     const dX = i8of(r.u32be());
-    r.u32be(); // 予約
+    r.u32be(); // Reserved.
     recs.push({ cp, w, h, adv, dY, dX, offset: bitmapPtr });
     bitmapPtr += w * h;
   }
 
-  // LGFX loadFont のメトリクス再計算（順序・除外条件込みで忠実に）
+  // Reproduce LGFX loadFont metric recalculation order and exclusions.
   let maxAscent = headerAscent;
   let maxDescent = headerDescent;
   const spaceWidth = Math.floor((Math.max(sizeField, headerAscent + headerDescent) * 2) / 7);
@@ -114,8 +114,8 @@ export function decodeVlw(data, opts = {}) {
     });
   }
 
-  // U+0020 が無いフォントでは LGFX は spaceWidth で空白を描く。
-  // モデルにも同じ意味の空グリフを合成する（描画・計測とも spaceWidth）
+  // If U+0020 is absent, LGFX still treats space as spaceWidth. Synthesize an
+  // equivalent empty glyph so drawing and measurement both use spaceWidth.
   if (!spaceGlyphInFile) {
     glyphs.set(0x20, {
       codepoint: 0x20,
@@ -136,7 +136,7 @@ export function decodeVlw(data, opts = {}) {
     meta: {
       sourceFormat: 'vlw',
       drawProfile: 'vlw',
-      // 未収録文字は spaceWidth 幅の代替ボックス（drawCharDummy）になる
+      // Missing characters use a spaceWidth fallback box via drawCharDummy.
       fallback: { advance: spaceWidth, width: spaceWidth, xOffset: 0 },
       issues,
       format: {
@@ -147,7 +147,7 @@ export function decodeVlw(data, opts = {}) {
 }
 
 /**
- * VLW へエンコードできるか（仕様 §7.1）。
+ * Checks VLW encodability (spec §7.1).
  * @param {Font} font
  * @returns {{ok: boolean, issues: import('./registry.js').EncodeIssue[]}}
  */
@@ -158,8 +158,8 @@ export function canEncodeVlw(font) {
     /** @param {string} code @param {object} params */
     const err = (code, params) => issues.push({ level: 'error', code, codepoint: g.codepoint, params });
     if (g.codepoint > 0xffff) err('CODEPOINT_OVER_BMP', { value: g.codepoint });
-    // 幅・高さ・送りは描画こそ u32 だが、LGFX が RAM に持つ索引が u8 のため
-    // 255 を超えると計測が壊れる
+    // File dimensions and advance are u32, but LGFX keeps RAM indices as u8;
+    // values above 255 break measurement.
     if (g.bitmap.width > 255 || g.bitmap.height > 255) {
       err('GLYPH_TOO_LARGE', { width: g.bitmap.width, height: g.bitmap.height, max: 255 });
     }
@@ -168,7 +168,7 @@ export function canEncodeVlw(font) {
   }
   if (font.glyphs.size === 0) issues.push({ level: 'error', code: 'EMPTY_FONT' });
 
-  // デコード時の再走査でアセント/ディセントが膨らむ場合は保存されない差になる
+  // Any ascent/descent expansion from decode-time rescanning cannot be preserved.
   const meta = /** @type {{vlw?: {headerAscent: number, headerDescent: number}}} */ (
     font.meta.format ?? {}
   ).vlw;
@@ -198,7 +198,7 @@ export function canEncodeVlw(font) {
 }
 
 /**
- * 中立モデル → VLW バイナリ。1bpp モデルは 0 / 255 に引き伸ばして符号化する。
+ * Encodes the neutral model as VLW, expanding 1bpp values to 0 / 255.
  * @param {Font} font
  * @param {{dropInvalid?: boolean}} [opts]
  * @returns {Uint8Array}
@@ -221,7 +221,7 @@ export function encodeVlw(font, opts = {}) {
   let glyphs = [...font.glyphs.values()]
     .filter((g) => !badCps.has(g.codepoint))
     .sort((a, b) => a.codepoint - b.codepoint);
-  // デコード時に合成した空白（ファイル由来でない）は書き戻さない
+  // Do not re-encode a synthesized space that was not present in the source file.
   if (meta && !meta.spaceGlyphInFile) {
     glyphs = glyphs.filter((g) => g.codepoint !== 0x20);
   }

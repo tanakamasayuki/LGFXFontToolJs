@@ -1,19 +1,19 @@
 // @ts-check
 /**
- * 名前付き文字集合（仕様 §5.2 / UC1）。
+ * Named character sets (spec §5.2 / UC1).
  *
- * LGFXScreenBuilder fontgen の文字集合モデルを移管したもの。集合の実体は
- * Unicode 自身のデータから生成した charsets-data.js（生成元:
- * LGFXScreenBuilder tools/gen-charsets.mjs）で、すべて出所を監査できる。
+ * Port of the LGFXScreenBuilder fontgen character-set model. Set data lives in
+ * charsets-data.js, generated from Unicode source data by LGFXScreenBuilder
+ * tools/gen-charsets.mjs so every source remains auditable.
  *
- * - Han の tier は累積和。上の tier に上げて文字が減ることはない
- * - Han は言語ごとに独立して選び、結果は和集合
- * - 選択はフラットな集合 id の列。解決は常に和集合
+ * - Han tiers are cumulative; moving upward never removes characters.
+ * - Han sets are selected independently per language and unioned.
+ * - Selection is a flat list of set ids and always resolves as a union.
  */
 import { SET_RANGES, SET_COUNTS } from './charsets-data.js';
 
 /**
- * "20-7E,A0" → [0x20..0x7E, 0xA0]。空白・空要素・不正要素は無視する。
+ * Parses "20-7E,A0" as [0x20..0x7E, 0xA0], ignoring whitespace, empty, and invalid items.
  * @param {string} spec
  * @returns {number[]}
  */
@@ -31,9 +31,8 @@ export function parseRanges(spec) {
   return out;
 }
 
-// --- 軸 ---------------------------------------------------------------------
-// kind が UI を決める: 'multi' はチェックボックス、'tier' は言語ごとに
-// 排他的な段階（ladder）。
+// --- Axes --------------------------------------------------------------------
+// kind controls UI: 'multi' uses checkboxes; 'tier' is an exclusive ladder per language.
 
 export const AXES = [
   {
@@ -69,7 +68,7 @@ export const AXES = [
   },
 ];
 
-/** @type {Map<string, string[]>} 集合 id → 属する tier ladder */
+/** @type {Map<string, string[]>} set id to its tier ladder */
 const TIER_GROUP = new Map();
 for (const axis of AXES) {
   if (axis.kind !== 'tier' || !axis.languages) continue;
@@ -81,7 +80,7 @@ for (const axis of AXES) {
 /** @param {string} id */
 export const tierSiblings = (id) => TIER_GROUP.get(id) ?? null;
 
-/** 選択可能な全集合 id（軸の順） */
+/** All selectable set ids in axis order. */
 export const ALL_SET_IDS = AXES.flatMap((a) =>
   a.kind === 'multi' ? (a.sets ?? []) : (a.languages ?? []).flatMap((l) => l.tiers),
 );
@@ -93,8 +92,8 @@ export const countOf = (id) => /** @type {Record<string, number>} */ (SET_COUNTS
 const cache = new Map();
 
 /**
- * 名前付き集合のコードポイント列（昇順・重複なし）。CJK 集合は 2 万件規模なので
- * 遅延展開・キャッシュする。
+ * Returns sorted unique code points for a named set. CJK sets reach roughly
+ * 20,000 entries, so expansion is lazy and cached.
  * @param {string} id
  * @returns {number[]}
  */
@@ -108,9 +107,9 @@ export function codepointsOfSet(id) {
   return cps;
 }
 
-// --- テンプレート ------------------------------------------------------------
-// よくある用途をワンクリックで。選択を埋めるだけで、その後の編集は自由。
-// sample はプレビューに使う文字列（テンプレートごとの差を見せるため）。
+// --- Templates ---------------------------------------------------------------
+// One-click common use cases. Templates only populate selection; later edits are free.
+// sample is preview text chosen to reveal differences between templates.
 
 export const TEMPLATES = [
   { id: 'clock', sets: ['digits'], text: ':./- ', sample: '12:34' },
@@ -148,11 +147,11 @@ export const TEMPLATES = [
 /** @param {string} id */
 export const templateById = (id) => TEMPLATES.find((t) => t.id === id) ?? null;
 
-// --- 解決 --------------------------------------------------------------------
+// --- Resolution ---------------------------------------------------------------
 
 /**
- * 選択（集合 id + 任意文字列 + 任意範囲）を 1 つのコードポイント列に解決する。
- * 昇順・重複なし。描画できない制御文字（U+0000..1F, U+007F）は落とす。
+ * Resolves set ids, custom text, and custom ranges into one sorted unique list,
+ * dropping non-renderable controls U+0000..001F and U+007F.
  * @param {{sets?: string[], customText?: string, customRanges?: string}} [selection]
  * @returns {number[]}
  */
@@ -166,7 +165,7 @@ export function resolveCharset({ sets = [], customText = '', customRanges = '' }
 }
 
 /**
- * 選択の切り替え。tier ladder の排他を保つ。新しい配列を返す。
+ * Toggles a selection while preserving tier-ladder exclusivity; returns a new array.
  * @param {string[]} sets
  * @param {string} id
  * @param {boolean} on
@@ -179,8 +178,8 @@ export function toggleSet(sets, id, on) {
 }
 
 /**
- * BMP 内と BMP 外に分ける。u8g2 / LovyanGFX の uint16 制限の報告に使う
- * （常用漢字にも 1 文字ある: 𠮟 U+20B9F）。
+ * Splits BMP and non-BMP code points for u8g2 / LovyanGFX uint16 reporting.
+ * Even the Jōyō kanji set contains one non-BMP character: U+20B9F.
  * @param {number[]} cps
  */
 export const splitBmp = (cps) => ({

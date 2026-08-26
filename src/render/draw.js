@@ -1,15 +1,15 @@
 // @ts-check
 /**
- * テキスト描画。LovyanGFX v1.2.26 の draw_string / 各フォント drawChar の忠実な移植。
+ * Text rendering faithful to LovyanGFX v1.2.26 draw_string and each font's drawChar.
  *
- * 出力は被覆値のみ（前景 = 1）。背景は描かない。これは LovyanGFX で
- * setTextColor(color) を 1 引数で呼んだ透過モード（fore == back）と同じであり、
- * ゼロ初期化した対象への描画結果は fill モードと画素単位で一致する。
+ * Output contains coverage only (foreground = 1) and does not draw a background.
+ * This matches LovyanGFX transparent mode from one-argument setTextColor(color)
+ * (fore == back); on a zeroed target it is pixel-identical to fill mode.
  *
- * 倍率適用時のピクセル境界の量子化は元形式ごとに癖が異なるため、
- * font.meta.drawProfile（'gfx' | 'u8g2' | 'rle' | 'bmp' | 'glcd' | 'vlw'）で再現する。
- * 整数倍率ではどのプロファイルも同じ結果になる。プロファイル未指定は 'gfx'。
- * 8bpp の描画先には被覆値（1bpp グリフは 255）を書く。
+ * Pixel-boundary quantization under scaling varies by source format and is
+ * reproduced through font.meta.drawProfile ('gfx' | 'u8g2' | 'rle' | 'bmp' |
+ * 'glcd' | 'vlw'). All profiles agree at integer scales; the default is 'gfx'.
+ * 8bpp targets receive coverage values, with 1bpp foreground expanded to 255.
  */
 import { fillRect, drawRect, getPixel } from '../model/bitmap.js';
 import { resolveDatum } from './datum.js';
@@ -21,7 +21,7 @@ import { codepointsOf, metricFor, textWidth, toFixed16 } from './measure.js';
 /** @typedef {import('./measure.js').TextStyle} TextStyle */
 
 /**
- * ビットマップの 1 行から極大ラン（同値の連続区間）を列挙する。
+ * Enumerates maximal runs of equal values in one bitmap row.
  * @param {Bitmap} bmp
  * @param {number} row
  * @returns {{start: number, end: number, value: number}[]}
@@ -44,7 +44,7 @@ function rowRuns(bmp, row) {
 }
 
 /**
- * 1 列の極大ラン（GLCD 用の縦方向）。
+ * Enumerates maximal runs in one column for vertical GLCD traversal.
  * @param {Bitmap} bmp
  * @param {number} col
  */
@@ -66,14 +66,14 @@ function colRuns(bmp, col) {
 }
 
 /**
- * GFXfont::drawChar の前景描画部の移植。
- * 行境界は行ボックス格子（boxRow 起点）、列境界はグリフ格子。
- * 潰れたランは端でなければ 1px に持ち上げる。
+ * Port of the foreground portion of GFXfont::drawChar.
+ * Row boundaries use the line-box grid from boxRow; columns use the glyph grid.
+ * Collapsed runs are promoted to 1px unless they lie at an edge.
  * @param {Bitmap} dst
  * @param {Glyph} glyph
- * @param {number} gx - グリフ左端（スケール済み）
- * @param {number} yTop - 行ボックス上端
- * @param {number} boxRow - 行ボックス内でのビットマップ開始行（未スケール）
+ * @param {number} gx - scaled glyph left edge
+ * @param {number} yTop - line-box top
+ * @param {number} boxRow - unscaled bitmap start row within the line box
  * @param {number} sx
  * @param {number} sy
  */
@@ -100,8 +100,8 @@ function drawGlyphGfx(dst, glyph, gx, yTop, boxRow, sx, sy) {
 }
 
 /**
- * U8g2font::drawChar / RLEfont::drawChar の前景描画部の移植。
- * 潰れたラン・行は描かない（1px 持ち上げなし）。
+ * Port of the foreground portion of U8g2font::drawChar / RLEfont::drawChar.
+ * Collapsed runs and rows are omitted rather than promoted to 1px.
  * @param {Bitmap} dst
  * @param {Glyph} glyph
  * @param {number} gx
@@ -129,8 +129,9 @@ function drawGlyphU8g2(dst, glyph, gx, yTop, boxRow, sx, sy) {
 }
 
 /**
- * draw_char_bmp（BMPfont / FixedBMPfont / BDFfont 共用）の前景描画部の移植。
- * 潰れた前景ランは常に 1px へ持ち上げ、潰れた行は下端以外 1px へ持ち上げる。
+ * Port of draw_char_bmp foreground rendering shared by BMPfont, FixedBMPfont,
+ * and BDFfont. Collapsed foreground runs are always promoted to 1px; collapsed
+ * rows are promoted except at the bottom edge.
  * @param {Bitmap} dst
  * @param {Glyph} glyph
  * @param {number} gx
@@ -160,9 +161,9 @@ function drawGlyphBmp(dst, glyph, gx, yTop, sx, sy) {
 }
 
 /**
- * VLWfont::drawChar の前景描画部の移植。8bpp の被覆値をピクセル単位で置く。
- * 1bpp の描画先には「被覆値が 1 以上なら点灯」（LGFX が黒地に白でブレンド
- * した結果を 2 値化したものと一致する）。潰れたピクセルは描かない。
+ * Port of VLWfont::drawChar foreground rendering, placing 8bpp coverage per pixel.
+ * A 1bpp target lights any coverage >= 1, matching binarized LGFX white-on-black
+ * blending. Collapsed pixels are omitted.
  * @param {Bitmap} dst
  * @param {Glyph} glyph
  * @param {number} gx
@@ -191,7 +192,7 @@ function drawGlyphVlw(dst, glyph, gx, yTop, boxRow, sx, sy) {
 }
 
 /**
- * GLCDfont::drawChar の前景描画部の移植。列方向に走査する。
+ * Port of GLCDfont::drawChar foreground rendering, traversing by column.
  * @param {Bitmap} dst
  * @param {Glyph} glyph
  * @param {number} gx
@@ -219,12 +220,12 @@ function drawGlyphGlcd(dst, glyph, gx, yTop, sx, sy) {
 }
 
 /**
- * 収録外文字の代替表示（IFont::drawCharDummy の移植）。
+ * Missing-character fallback display, ported from IFont::drawCharDummy.
  * @param {Bitmap} dst
  * @param {number} x
  * @param {number} yTop
- * @param {number} w - スケール済み幅
- * @param {number} h - スケール済み高さ
+ * @param {number} w - scaled width
+ * @param {number} h - scaled height
  */
 function drawDummy(dst, x, yTop, w, h) {
   if (w > 2 && h > 2) {
@@ -233,15 +234,15 @@ function drawDummy(dst, x, yTop, w, h) {
 }
 
 /**
- * グリフ 1 個を行ボックス上端 yTop に描き、スケール済み送り幅を返す。
+ * Draws one glyph relative to line-box top yTop and returns its scaled advance.
  * @param {Bitmap} dst
  * @param {Font} font
  * @param {Glyph} glyph
- * @param {number} x - ペン位置（スケール済み）
- * @param {number} yTop - 行ボックス上端
+ * @param {number} x - scaled pen position
+ * @param {number} yTop - line-box top
  * @param {number} sx
  * @param {number} sy
- * @returns {number} スケール済み送り幅
+ * @returns {number} scaled advance
  */
 function drawGlyphAt(dst, font, glyph, x, yTop, sx, sy) {
   const xoffset = (glyph.xOffset * sx) >> 16;
@@ -272,8 +273,9 @@ function drawGlyphAt(dst, font, glyph, x, yTop, sx, sy) {
 }
 
 /**
- * VLW の空白の癖（LGFX VLWfont::drawChar）: U+0020 はグリフの有無に関わらず
- * 何も描かず spaceWidth だけ送る。該当時は送り幅（未スケール）を返す。
+ * Handles the VLW space quirk from LGFX VLWfont::drawChar: U+0020 draws
+ * nothing and advances by spaceWidth regardless of glyph presence. Returns the
+ * unscaled advance when applicable.
  * @param {Font} font
  * @param {number} cp
  * @returns {number | null}
@@ -285,7 +287,7 @@ function vlwSpaceAdvance(font, cp) {
 }
 
 /**
- * 1 行のテキストを描く（LGFXBase::draw_string 相当）。
+ * Draws one line of text, equivalent to LGFXBase::draw_string.
  * @param {Bitmap} dst
  * @param {Font} font
  * @param {string} text
@@ -293,7 +295,7 @@ function vlwSpaceAdvance(font, cp) {
  * @param {number} y
  * @param {TextStyle} [style]
  * @returns {{advance: number, width: number, height: number}}
- *   advance: 描いた送り幅の合計、width/height: datum 解決に使った文字列の外形
+ *   advance: total drawn advance; width/height: text extent used to resolve datum
  */
 export function drawString(dst, font, text, x, y, style = {}) {
   const sx = toFixed16(style.sizeX ?? 1);
@@ -309,7 +311,8 @@ export function drawString(dst, font, text, x, y, style = {}) {
   if (cps.length > 0) {
     const m = metricFor(font, cps[0]);
     if (m.xOffset < 0) {
-      // LGFX 原文: sumX = - (metrics.x_offset * sx) >> 16;（単項マイナスが積に先に掛かる）
+      // Original LGFX: sumX = - (metrics.x_offset * sx) >> 16;
+      // unary minus applies to the product before the shift.
       sumX = -(m.xOffset * sx) >> 16;
     }
   }
@@ -350,7 +353,7 @@ export function drawString(dst, font, text, x, y, style = {}) {
 }
 
 /**
- * グリフ 1 個を描く。y は行ボックス上端。スケール済み送り幅を返す。
+ * Draws one glyph with y at the line-box top and returns its scaled advance.
  * @param {Bitmap} dst
  * @param {Font} font
  * @param {number} codepoint

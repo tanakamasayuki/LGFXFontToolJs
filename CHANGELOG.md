@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) Internal `src/` comments and JSDoc are now consistently English; localized character samples and generated-header strings remain data. CI now rejects non-English implementation comments.
+- (JA) `src/` 内部のコメントとJSDocを英語へ統一した。各言語の文字サンプルと生成ヘッダ用翻訳文字列はデータとして維持し、英語以外の実装コメントが再混入するとCIで検出する。
 - (EN) `encodeCSource()` and the Web Generator can now emit VLW/BFF binaries unchanged as embedded C arrays in `.h` files, ready for LovyanGFX `loadFont()`; raw `.vlw` / `.bff` downloads remain available. Operational comments follow the Generator language (`language` option; English by default).
 - (JA) `encodeCSource()` と Web Generator が、VLW/BFF バイナリを変更せず C 配列へ埋め込んだ `.h` を出力できるようになった。LovyanGFX の `loadFont()` で読み込め、従来の `.vlw` / `.bff` ダウンロードも利用できる。操作説明コメントはGeneratorの表示言語に従う（`language`オプション、既定は英語）。
 - (EN) `generateFont({ bpp: 8 })` now preserves browser Canvas alpha coverage in the neutral model. The Web Generator emits true 8bpp anti-aliased VLW and selectable 1/2/4bpp BFF, previews coverage levels, and requires regeneration when switching between binary and AA generation.

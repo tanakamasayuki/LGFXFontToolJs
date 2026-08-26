@@ -1,15 +1,15 @@
 // @ts-check
 /**
- * 内蔵フォントコレクションのローダ（仕様 §8.1 / §16）。
+ * Bundled font collection loader (spec §8.1 / §16).
  *
- * データの解決順:
- *   1. configureFontData({ baseUrl }) で指定された場所（指定時はここだけ）
- *   2. import.meta.url 基準のローカル（./data/）
- *      — リポジトリのクローンと GitHub Pages は全 186 本、npm / CDN 配布物は
- *        軽量な 70 本（LGFX 内部形式 + 欧文 GFX）を同梱している
- *   3. GitHub Pages のリモートデータ（CJK 系 42MB は npm に同梱しない。§18）
+ * Data resolution order:
+ *   1. configureFontData({ baseUrl }); when set, use only this location
+ *   2. local ./data/ relative to import.meta.url
+ *      — repository clones and GitHub Pages include all 186 fonts; npm / CDN
+ *        packages include 70 lightweight LGFX-internal and Latin GFX fonts
+ *   3. remote GitHub Pages data; 42MB of CJK fonts is excluded from npm (spec §18)
  *
- * I/O を行うのは src/ 内でこのモジュールだけ（レイヤ規律の明示的な例外。§4.1）。
+ * This is the only src/ module that performs I/O, an explicit layer exception (spec §4.1).
  */
 import { fontCatalog } from './catalog.js';
 import { decode } from '../format/registry.js';
@@ -26,8 +26,8 @@ const config = { baseUrl: null };
 const cache = new Map();
 
 /**
- * フォントデータの取得先を差し替える（オフライン環境・自前ミラー・
- * file:// のフルデータ等）。以後の loadFont に効く（キャッシュは破棄する）。
+ * Overrides font-data location for offline use, mirrors, or full file:// data.
+ * Applies to later loadFont calls and clears the cache.
  * @param {{baseUrl?: string | URL | null}} opts
  */
 export function configureFontData(opts) {
@@ -36,7 +36,7 @@ export function configureFontData(opts) {
 }
 
 /**
- * 解決候補の URL 列（テスト可能なよう純粋関数として公開）。
+ * Returns candidate URLs; exported as a pure function for testing.
  * @param {string} file
  * @param {{baseUrl: string | URL | null}} [cfg]
  * @returns {URL[]}
@@ -51,7 +51,7 @@ export function fontDataCandidates(file, cfg = config) {
 
 /**
  * @param {URL} url
- * @returns {Promise<Uint8Array | null>} 見つからなければ null（他候補へ）
+ * @returns {Promise<Uint8Array | null>} null when absent so another candidate can be tried
  */
 async function tryLoad(url) {
   if (url.protocol === 'file:') {
@@ -72,8 +72,8 @@ async function tryLoad(url) {
 }
 
 /**
- * 内蔵フォントを名前でロードする。初回のみデータを読み、以後はキャッシュを返す。
- * @param {string} name - カタログ名（例: 'lgfxJapanGothic_24', 'FreeSans9pt7b', 'Font2'）
+ * Loads a bundled font by name, reading data once and returning the cache thereafter.
+ * @param {string} name - catalog name, e.g. 'lgfxJapanGothic_24', 'FreeSans9pt7b', 'Font2'
  * @returns {Promise<Font>}
  */
 export function loadFont(name) {

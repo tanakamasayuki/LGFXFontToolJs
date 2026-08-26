@@ -1,13 +1,13 @@
 // @ts-check
 /**
- * フォントの検査（仕様 §11、UC2 / UC6）。
+ * Font inspection (spec §11, UC2 / UC6).
  */
 import { codepointsOfSet, ALL_SET_IDS } from '../charsets/charsets.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
 
 /**
- * chars をコードポイント列にする（文字列 / コードポイント列 / 名前付き集合名）。
+ * Resolves chars from a string, code points, or a named set.
  * @param {Iterable<number> | string} chars
  * @returns {number[]}
  */
@@ -21,9 +21,9 @@ function toCodepoints(chars) {
 }
 
 /**
- * 文言カバレッジの検査（UC6）。CI に組み込んで tofu を出荷前に検出する用途。
+ * Checks text coverage (UC6), suitable for CI detection of tofu before release.
  * @param {Font} font
- * @param {Iterable<number> | string} chars - 文字列・コードポイント列・名前付き集合名
+ * @param {Iterable<number> | string} chars - string, code points, or named set
  * @returns {{total: number, present: number, missing: number[]}}
  */
 export function coverage(font, chars) {
@@ -33,7 +33,7 @@ export function coverage(font, chars) {
 }
 
 /**
- * 収録コードポイントを連続区間へ要約する。
+ * Summarizes included code points as contiguous ranges.
  * @param {Font} font
  * @returns {{start: number, end: number}[]}
  */
@@ -50,7 +50,7 @@ export function codepointRanges(font) {
 }
 
 /**
- * フォントの棚卸し（UC2）。収録・メトリクス・極値・名前付き集合ごとの被覆率。
+ * Inventories a font (UC2): repertoire, metrics, extrema, and named-set coverage.
  * @param {Font} font
  * @returns {{
  *   glyphCount: number,

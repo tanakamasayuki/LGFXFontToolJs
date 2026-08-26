@@ -1,11 +1,11 @@
 // @ts-check
 /**
- * BMPfont（Font2）のデコーダ。'LBMP' コンテナ（legacy.js 参照）を読む。
+ * BMPfont (Font2) decoder for the 'LBMP' container defined in legacy.js.
  *
- * グリフデータは行優先 MSB first。送り幅 width のうち右端 1 列はデータに
- * 含まれない余白（LGFX draw_char_bmp の margin=1）で、行ストライドは
- * (width + 6) >> 3 バイト。中立モデルのビットマップは余白を除いた
- * (width - 1) × height とする。
+ * Glyph data is row-major and MSB-first. The final column of advance width is
+ * an unstored margin (LGFX draw_char_bmp margin=1), with row stride
+ * (width + 6) >> 3 bytes. Neutral bitmaps omit that margin and use
+ * (width - 1) × height.
  */
 import { createBitmap, setPixel } from '../model/bitmap.js';
 import { createFont } from '../model/font.js';
@@ -16,7 +16,7 @@ import { unpackLegacyContainer } from './legacy.js';
 const FIRST_CODE = 0x20;
 
 /**
- * @param {Uint8Array} data - 'LBMP' コンテナ
+ * @param {Uint8Array} data - 'LBMP' container
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
  */

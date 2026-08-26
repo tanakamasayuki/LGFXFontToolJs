@@ -1,9 +1,9 @@
 // @ts-check
 /**
- * RLEfont（Font4 / Font6 / Font7 / Font8）のデコーダ。'LRLE' コンテナを読む。
+ * RLEfont decoder for Font4 / Font6 / Font7 / Font8 using the 'LRLE' container.
  *
- * グリフデータはバイト単位のランレングス: 各バイトの bit7 が色（1 = 前景）、
- * 下位 7 bit + 1 がラン長。ピクセルは行優先で width × height を埋める。
+ * Glyph data uses byte runs: bit 7 is color (1 = foreground), and the low
+ * 7 bits + 1 are run length. Pixels fill width × height in row-major order.
  */
 import { createBitmap, setPixel } from '../model/bitmap.js';
 import { createFont } from '../model/font.js';
@@ -14,7 +14,7 @@ import { unpackLegacyContainer } from './legacy.js';
 const FIRST_CODE = 0x20;
 
 /**
- * @param {Uint8Array} data - 'LRLE' コンテナ
+ * @param {Uint8Array} data - 'LRLE' container
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
  */

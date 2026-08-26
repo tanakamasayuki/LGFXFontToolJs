@@ -1,15 +1,15 @@
 // @ts-check
 /**
- * 文字集合の絞り込み（仕様 §5.2、UC4）。非破壊。
+ * Non-destructive character-set operations (spec §5.2, UC4).
  */
 import { createFont } from './font.js';
 
 /** @typedef {import('./font.js').Font} Font */
 
 /**
- * chars で指定した文字だけを残した新しい Font を返す。
+ * Returns a new Font containing only characters specified by chars.
  * @param {Font} font
- * @param {Iterable<number> | string} chars - コードポイント列または文字列
+ * @param {Iterable<number> | string} chars - code points or a string
  * @returns {Font}
  */
 export function subset(font, chars) {
@@ -42,9 +42,9 @@ export function subset(font, chars) {
 }
 
 /**
- * base に overlay のグリフを重ねた新しい Font を返す（仕様 §5.2、UC4 の補完）。
- * メトリクスは base のものを保ち、グリフは再スケールせず取り込む。
- * 行ボックスが合わない場合は meta.issues に warning を積む。
+ * Returns a new Font with overlay glyphs placed over base (spec §5.2, UC4 fallback fill).
+ * Base metrics are preserved and glyphs are copied without rescaling.
+ * Line-box mismatches append warnings to meta.issues.
  * @param {Font} base
  * @param {Font} overlay
  * @returns {Font}

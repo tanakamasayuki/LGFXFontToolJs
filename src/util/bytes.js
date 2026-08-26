@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * バイト列の読み書きヘルパ。境界を超えた読み出しは TruncatedDataError を投げる。
+ * Byte reader/writer helpers. Reads beyond the boundary throw TruncatedDataError.
  */
 import { TruncatedDataError } from './errors.js';
 

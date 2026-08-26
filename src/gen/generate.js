@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * TTF / OTF / WOFF からの新規フォント生成（仕様 §10、UC1）。
- * ラスタライズ結果を中立モデルへ組み立てる。ブラウザ専用（rasterize.js 参照）。
+ * New font generation from TTF / OTF / WOFF (spec §10, UC1).
+ * Assembles rasterized output into the neutral model; browser-only (see rasterize.js).
  */
 import { loadTtf, unloadTtf, rasterizeSet } from './rasterize.js';
 import { createBitmap, setPixel } from '../model/bitmap.js';
@@ -24,8 +24,8 @@ export function toModelGlyph(g) {
       if (value) setPixel(bitmap, x, y, value);
     }
   }
-  // g.y は「ベースライン → ビットマップ下端」（上が正）。モデルの yOffset は
-  // 「ベースライン → ビットマップ上端」（下向き正の軸、上が負）
+  // g.y is baseline to bitmap bottom with positive upward. Model yOffset is
+  // baseline to bitmap top on a downward-positive axis, so upward is negative.
   const yOffset = g.y + g.h === 0 ? 0 : -(g.y + g.h);
   return {
     codepoint: g.code,
@@ -37,12 +37,12 @@ export function toModelGlyph(g) {
 }
 
 /**
- * ソース 1 つ（source または family）を指定文字集合でラスタライズする 1 パス。
+ * One rasterization pass for a source or family over a character set.
  * @param {{source?: ArrayBuffer | string, family?: string}} src
  * @param {number[]} codepoints
  * @param {{px: number, style?: {weight?: number, italic?: boolean}, bpp?: 1|8, threshold?: number, sizing?: FontSizingInput,
  *          familyName?: string, onProgress?: (p: {done: number, total: number}) => void}} opts
- *   - generateFont の opts（px / style / threshold / familyName / onProgress を共有）
+ *   - generateFont opts, sharing px / style / threshold / familyName / onProgress
  * @returns {Promise<{font: Font, missing: number[], sizing: FontSizing}>}
  */
 async function generateOne(src, codepoints, opts) {
@@ -103,7 +103,7 @@ async function generateOne(src, codepoints, opts) {
 }
 
 /**
- * モデルグリフ全体の実インクから行ボックスを求める。
+ * Derives the line box from actual ink across all model glyphs.
  * @param {Map<number, import('../model/font.js').Glyph>} glyphs
  * @returns {{ascent: number, descent: number, height: number}}
  */
@@ -139,35 +139,33 @@ function mergeGenerated(base, overlay) {
 }
 
 /**
- * フォントファイル（または読み込み済みの CSS ファミリ）から新しい
- * ビットマップフォントを生成する。
+ * Generates a bitmap font from a font file or a loaded CSS family.
  *
- * フォントの入手・読み込みはアプリの責務（仕様 §2.3。Google Fonts 等は
- * アプリ側で FontFace としてページに登録し、`family` で渡す）。
- * `source` を渡した場合の読み込みはこの関数が面倒を見る。
+ * The application owns font acquisition and registration (spec §2.3). For
+ * services such as Google Fonts, register a FontFace and pass `family`.
+ * When `source` is supplied, this function performs loading.
  *
- * 補完（fallbacks）: 主ソースに無かった文字を、指定した別ソースで主フォントの
- * cssPx と同じ CSS em スケール、同じ style / threshold でラスタライズする。
- * ベースライン整列で重ねた後、全グリフの実インクから行ボックスを再計算する。
- * どのソースを補完に使うかの選定・入手はアプリの責務で、ここは渡されたものを
- * 順に試すだけ。
+ * Fallbacks rasterize missing characters from additional sources using the
+ * primary font's cssPx and the same style / threshold. After baseline-aligned
+ * merging, the line box is recomputed from all actual ink. The application
+ * chooses and obtains fallback sources; this function tries them in order.
  *
  * @param {object} opts
- * @param {ArrayBuffer | string} [opts.source] - TTF/OTF/WOFF のバイナリ、または URL
- * @param {string} [opts.family] - ページに登録済みの CSS ファミリ名（source の代わり）
- * @param {number} opts.px - 文字高さ（行ボックスではなく文字インクの高さ）
- * @param {number[] | string} opts.codepoints - 収録する文字（コードポイント列 or 文字列）
+ * @param {ArrayBuffer | string} [opts.source] - TTF/OTF/WOFF bytes or URL
+ * @param {string} [opts.family] - registered CSS family name, instead of source
+ * @param {number} opts.px - glyph ink height, not line-box height
+ * @param {number[] | string} opts.codepoints - code points or text to include
  * @param {{weight?: number, italic?: boolean}} [opts.style]
- * @param {1|8} [opts.bpp] - グリフの被覆値深度。既定 1
- * @param {number} [opts.threshold] - 1bpp 化の alpha 閾値（1..255。既定 128）
- * @param {FontSizingInput} [opts.sizing] - cssPx を固定するサイジング（別呼び出しでの補完用）
+ * @param {1|8} [opts.bpp] - glyph coverage depth, default 1
+ * @param {number} [opts.threshold] - alpha threshold for 1bpp, 1..255, default 128
+ * @param {FontSizingInput} [opts.sizing] - sizing that fixes cssPx across calls
  * @param {string} [opts.familyName]
  * @param {Array<{source?: ArrayBuffer | string, family?: string}>} [opts.fallbacks]
- *   - 主ソースに無かった文字をこの順で補完するソース列
+ *   - sources tried in order for characters missing from the primary source
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
  * @returns {Promise<{font: Font, missing: number[], filled: {index: number, codepoints: number[]}[], sizing: FontSizing}>}
- *   font: 生成された中立モデル / missing: どのソースにも無かった文字 /
- *   filled: fallbacks の何番目が何文字を埋めたか
+ *   font: generated neutral model / missing: absent from every source /
+ *   filled: count filled by each fallback index
  */
 export async function generateFont(opts) {
   /** @type {number[]} */
@@ -186,7 +184,7 @@ export async function generateFont(opts) {
   const filled = [];
   const fallbacks = opts.fallbacks ?? [];
   for (let i = 0; i < fallbacks.length && missing.length > 0; i++) {
-    // fallback は主フォントと同じ CSS em スケールで描く。書体ごとの再計測はしない。
+    // Draw fallbacks at the primary CSS em scale; do not remeasure each typeface.
     const r = await generateOne(fallbacks[i], missing, { ...opts, sizing });
     if (r.font.glyphs.size > 0) {
       font = mergeGenerated(font, r.font);

@@ -1,20 +1,20 @@
 // @ts-check
 /**
- * GFXfont (Adafruit GFX) のデコーダと、本ライブラリのバイナリコンテナ。
+ * GFXfont (Adafruit GFX) decoder and this library's binary container.
  *
- * GFXfont はメモリ上の構造体でありファイル形式を持たないため、内蔵コレクションの
- * 保存用に 'GFX1' コンテナを定義する（docs/formats/gfx.ja.md 予定地）:
+ * GFXfont is an in-memory struct without a file format, so the bundled
+ * collection uses the 'GFX1' storage container:
  *
  *   magic   "GFX1"
  *   u16le   first
  *   u16le   last
  *   u8      yAdvance
- *   u16le   rangeCount            (LovyanGFX 拡張 EncodeRange。0 = first..last の単一範囲)
+ *   u16le   rangeCount            (LovyanGFX EncodeRange extension; 0 = one first..last range)
  *   range × rangeCount:  u16le start, u16le end, u16le base
  *   u32le   glyphCount
  *   glyph × glyphCount:  u32le bitmapOffset, u8 width, u8 height, u8 xAdvance, i8 xOffset, i8 yOffset
  *   u32le   bitmapLength
- *   bytes   bitmap                (行連結の MSB first ビットストリーム。行境界のパディングなし)
+ *   bytes   bitmap                (row-concatenated MSB-first stream without row padding)
  */
 import { ByteReader, ByteWriter } from '../util/bytes.js';
 import { FormatError, EncodeConstraintError } from '../util/errors.js';
@@ -45,7 +45,7 @@ import { createFont } from '../model/font.js';
 const MAGIC = [0x47, 0x46, 0x58, 0x31]; // "GFX1"
 
 /**
- * 構造化された GFXfont データを 'GFX1' コンテナへ書き出す（抽出スクリプトが使う）。
+ * Packs structured GFXfont data into a 'GFX1' container for extraction scripts.
  * @param {GfxData} gfx
  * @returns {Uint8Array}
  */
@@ -69,7 +69,7 @@ export function packGfxContainer(gfx) {
 }
 
 /**
- * 'GFX1' コンテナを構造化データへ読み戻す。
+ * Unpacks a 'GFX1' container into structured data.
  * @param {Uint8Array} data
  * @returns {GfxData}
  */
@@ -105,7 +105,7 @@ export function unpackGfxContainer(data) {
 }
 
 /**
- * GFX のビットストリーム（行連結 MSB first）からビットマップを起こす。
+ * Builds a bitmap from a row-concatenated MSB-first GFX bitstream.
  * @param {Uint8Array} bits
  * @param {number} offset
  * @param {number} w
@@ -124,7 +124,7 @@ function extractBitmap(bits, offset, w, h) {
 }
 
 /**
- * 'GFX1' コンテナを中立モデルへデコードする。
+ * Decodes a 'GFX1' container into the neutral model.
  * @param {Uint8Array} data
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
@@ -159,9 +159,9 @@ export function decodeGfx(data, opts = {}) {
     });
   }
 
-  // LGFX GFXfont::getDefaultMetric の再現。
-  // numChars = last - first（+1 しない）/ ranges 有りは range_num + Σ(end - start)。
-  // LovyanGFX の実装をそのまま踏襲する（末尾グリフが走査から漏れる off-by-one も含めて）。
+  // Reproduce LGFX GFXfont::getDefaultMetric:
+  // numChars = last - first (without +1), or range_num + Σ(end - start) with ranges.
+  // This intentionally preserves LovyanGFX's off-by-one omission of the final glyph.
   let numChars = gfx.last - gfx.first;
   if (gfx.ranges.length !== 0) {
     numChars = gfx.ranges.length;
@@ -178,9 +178,9 @@ export function decodeGfx(data, opts = {}) {
     if (bb > glyphBb) glyphBb = bb;
   }
 
-  // LGFX の updateFontMetric(0) / drawChar(0) の挙動:
-  // 空白グリフがあればその計測値で代替ボックスを描く。無ければ幅 yAdvance/2 と
-  // 数えるが何も描かず送りも 0（drawChar が 0 を返す）。
+  // LGFX updateFontMetric(0) / drawChar(0): when a space glyph exists, its
+  // metrics size the fallback box. Otherwise measurement uses yAdvance/2, but
+  // drawing emits nothing and advances 0 because drawChar returns 0.
   const space = glyphs.get(0x20);
   const fallback = space
     ? { advance: space.xAdvance, width: space.bitmap.width, xOffset: space.xOffset }
@@ -212,15 +212,14 @@ export function decodeGfx(data, opts = {}) {
 }
 
 //----------------------------------------------------------------------------
-// エンコーダ（仕様 §7）。中立モデル → 'GFX1' コンテナ。
+// Encoder (spec §7): neutral model to 'GFX1' container.
 //
-// GFXfont が保存するのはグリフ配列・ビットマップ・yAdvance だけで、
-// アセント/ディセントは持たない（LovyanGFX が getDefaultMetric で
-// グリフ走査から導出する）。したがってモデルの ascent / descent が
-// グリフから導出される値と異なる場合、その差は保存されない（warning）。
+// GFXfont stores only glyphs, bitmap, and yAdvance. It has no ascent/descent;
+// LovyanGFX derives them by scanning glyphs in getDefaultMetric. A model whose
+// ascent/descent differs from those derived values loses that difference (warning).
 
 /**
- * 昇順のコードポイント列を連続区間へまとめる。
+ * Groups ascending code points into contiguous ranges.
  * @param {number[]} cps
  * @returns {{start: number, end: number, base: number}[]}
  */
@@ -283,15 +282,15 @@ function planGfx(font) {
 
   const ranges = rangesOf(recs.map((g) => g.codepoint));
   if (ranges.length > 64) {
-    // 範囲は描画する文字ごとに線形走査される。飛び飛びの CJK 集合では性能に効く
+    // Each character linearly scans ranges, so sparse CJK sets benefit from merging.
     issues.push({ level: 'warning', code: 'RANGE_COUNT_LARGE', params: { count: ranges.length } });
   }
 
-  // LovyanGFX の getDefaultMetric（末尾グリフが漏れる off-by-one 込み）で
-  // 導出されるメトリクスがモデルと一致するか
+  // Check model metrics against LovyanGFX getDefaultMetric, including its
+  // final-glyph off-by-one behavior.
   let numChars;
   if (ranges.length === 1) {
-    numChars = ranges[0].end - ranges[0].start; // 単一範囲は range 無しで出すため last - first
+    numChars = ranges[0].end - ranges[0].start; // A single range is emitted without ranges: last - first.
   } else {
     numChars = ranges.length;
     for (const r of ranges) numChars += r.end - r.start;
@@ -317,7 +316,7 @@ function planGfx(font) {
 }
 
 /**
- * GFXfont（GFX1 コンテナ）へエンコードできるか（仕様 §7.1）。
+ * Checks GFXfont / GFX1 encodability (spec §7.1).
  * @param {Font} font
  * @returns {{ok: boolean, issues: import('./registry.js').EncodeIssue[]}}
  */
@@ -327,9 +326,9 @@ export function canEncodeGfx(font) {
 }
 
 /**
- * 中立モデル → 'GFX1' コンテナ。
- * 制約違反があれば EncodeConstraintError（切り詰めない。仕様 §7.2）。
- * dropInvalid: true なら違反グリフを落として続行する（フォント全体の制約は除く）。
+ * Encodes the neutral model as a 'GFX1' container. Constraint violations throw
+ * EncodeConstraintError without truncation (spec §7.2). dropInvalid removes
+ * invalid glyphs but cannot bypass font-level constraints.
  * @param {Font} font
  * @param {{dropInvalid?: boolean}} [opts]
  * @returns {Uint8Array}
@@ -361,7 +360,7 @@ export function encodeGfx(font, opts = {}) {
       xOffset: g.xOffset,
       yOffset: g.yOffset,
     });
-    // 行連結の MSB first ビットストリーム（グリフごとにバイト境界へ揃える）
+    // Row-concatenated MSB-first bitstream, byte-aligned between glyphs.
     for (let y = 0; y < g.bitmap.height; y++) {
       for (let x = 0; x < g.bitmap.width; x++) {
         bitBuf = (bitBuf << 1) | getPixel(g.bitmap, x, y);

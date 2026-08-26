@@ -595,8 +595,8 @@ async function main() {
   // --- catalog.js ---
   const catalogJs = `// @ts-check
 /**
- * 生成物。scripts/extract-fonts.js が再生成する。手で編集しないこと。
- * 抽出元: LovyanGFX ${LGFX_VERSION} (${LGFX_TARBALL_URL})
+ * Generated file. Regenerate with scripts/extract-fonts.js; do not edit manually.
+ * Source: LovyanGFX ${LGFX_VERSION} (${LGFX_TARBALL_URL})
  */
 
 export const collectionInfo = Object.freeze({

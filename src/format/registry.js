@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * 形式レジストリ。decode の入口と形式判定（仕様 §6.1）。
+ * Format registry, decode entry point, and format detection (spec §6.1).
  */
 import { decodeU8g2, readU8g2Header, encodeU8g2, canEncodeU8g2 } from './u8g2.js';
 import { decodeGfx, encodeGfx, canEncodeGfx } from './gfxfont.js';
@@ -18,7 +18,7 @@ import { DetectFailedError, FormatError } from '../util/errors.js';
 /** @typedef {import('../model/font.js').Font} Font */
 
 /**
- * エンコード制約の報告（仕様 §7.1）。
+ * Encoding-constraint report (spec §7.1).
  * @typedef {object} EncodeIssue
  * @property {'error'|'warning'} level
  * @property {string} code
@@ -65,10 +65,10 @@ function hasMagic(data, magic) {
 }
 
 /**
- * 形式の推定。magic を持つコンテナは高確度、u8g2 は構造の妥当性からの推定。
- * GLCD / FixedBMP の生バイト列はヘッダを持たないため推定できない（明示指定が必要）。
+ * Detects formats. Containers with magic are high confidence; u8g2 is inferred
+ * from structural validity. Headerless raw GLCD / FixedBMP data cannot be detected.
  * @param {Uint8Array | string} input
- * @returns {{format: string, confidence: number}[]} confidence 降順
+ * @returns {{format: string, confidence: number}[]} descending confidence
  */
 export function detect(input) {
   /** @type {{format: string, confidence: number}[]} */
@@ -103,7 +103,7 @@ export function detect(input) {
         results.push({ format: 'u8g2', confidence: 0.5 });
       }
     } catch {
-      // 判定失敗は候補に挙げないだけ
+      // A failed probe simply does not become a candidate.
     }
   }
   results.sort((a, b) => b.confidence - a.confidence);
@@ -112,7 +112,7 @@ export function detect(input) {
 
 /**
  * @typedef {object} DecodeOptions
- * @property {string} [format] - 省略時は detect() の最上位（確信が持てなければエラー）
+ * @property {string} [format] - defaults to detect() top result; ambiguous input fails
  * @property {string} [familyName]
  * @property {string} [styleName]
  * @property {import('./glcd.js').GlcdParams} [glcd]
@@ -120,7 +120,7 @@ export function detect(input) {
  */
 
 /**
- * バイト列（またはテキスト）を中立モデルへデコードする。
+ * Decodes bytes or text into the neutral model.
  * @param {Uint8Array | string} input
  * @param {DecodeOptions} [opts]
  * @returns {Font}
@@ -191,7 +191,7 @@ export function decode(input, opts = {}) {
 }
 
 /**
- * 中立モデルを指定形式へエンコードできるか（仕様 §7.1）。
+ * Checks whether the neutral model can be encoded in a format (spec §7.1).
  * @param {Font} font
  * @param {string} format
  * @returns {{ok: boolean, issues: EncodeIssue[]}}
@@ -224,8 +224,8 @@ export function canEncode(font, format) {
 }
 
 /**
- * 中立モデルを指定形式のバイト列へエンコードする（仕様 §7.2）。
- * 制約違反があれば EncodeConstraintError を投げる。切り詰めない。
+ * Encodes the neutral model as format bytes (spec §7.2). Constraint violations
+ * throw EncodeConstraintError; values are never truncated.
  * @param {Font} font
  * @param {{format: string, dropInvalid?: boolean, bpp?: 1|2|4}} opts
  * @returns {Uint8Array}
@@ -237,8 +237,8 @@ export function encode(font, opts) {
     case 'gfx':
       return encodeGfx(font, opts);
     case 'bdf':
-      // BDF はテキスト形式。ファイルとして扱えるよう UTF-8 バイト列で返す
-      // （テキストが欲しい場合は encodeBdf() を直接使う）
+      // BDF is text; return UTF-8 bytes for uniform file handling.
+      // Call encodeBdf() directly when a string is desired.
       return new TextEncoder().encode(encodeBdf(font, opts));
     case 'vlw':
       return encodeVlw(font, opts);

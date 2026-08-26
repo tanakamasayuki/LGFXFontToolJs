@@ -1,12 +1,12 @@
 // @ts-check
 /**
- * 中立モデル Font / Glyph（仕様 §5.1）。
+ * Neutral Font / Glyph model (spec §5.1).
  *
- * 座標規約:
- * - Y 軸は下向きが正。
- * - グリフの原点はベースライン上のペン位置。xOffset / yOffset はそこから
- *   ビットマップ左上への符号付きオフセット。上に伸びるグリフの yOffset は負。
- * - 描画後、ペンは xAdvance だけ右へ進む。
+ * Coordinate convention:
+ * - Positive Y points downward.
+ * - A glyph originates at the pen position on the baseline. xOffset / yOffset
+ *   are signed offsets to the bitmap's top-left; upward glyphs have negative yOffset.
+ * - After drawing, the pen advances right by xAdvance.
  */
 
 /** @typedef {import('./bitmap.js').Bitmap} Bitmap */
@@ -14,17 +14,17 @@
 /**
  * @typedef {object} Glyph
  * @property {number} codepoint  - 0 〜 0x10FFFF
- * @property {number} xOffset    - ペン位置からビットマップ左端まで（int16）
- * @property {number} yOffset    - ベースラインからビットマップ上端まで（int16、上が負）
- * @property {number} xAdvance   - 送り幅（int16）
+ * @property {number} xOffset    - pen to bitmap left edge (int16)
+ * @property {number} yOffset    - baseline to bitmap top edge; upward is negative (int16)
+ * @property {number} xAdvance   - horizontal advance (int16)
  * @property {Bitmap} bitmap
  */
 
 /**
  * @typedef {object} KerningPair
- * @property {number} left   - 左グリフのコードポイント
- * @property {number} right  - 右グリフのコードポイント
- * @property {number} dx     - 送りの補正量
+ * @property {number} left   - left glyph code point
+ * @property {number} right  - right glyph code point
+ * @property {number} dx     - advance adjustment
  */
 
 /**
@@ -36,21 +36,21 @@
  */
 
 /**
- * 未収録文字を描くときの LovyanGFX 互換フォールバック情報。
- * デコーダが元形式の規則から求める（仕様 §9.2、LGFX の updateFontMetric 失敗時挙動）。
+ * LovyanGFX-compatible fallback data for missing characters. Decoders derive
+ * it from source-format rules (spec §9.2 and LGFX updateFontMetric failure behavior).
  * @typedef {object} FallbackMetric
- * @property {number} advance - 送り幅（textWidth 計算用）
- * @property {number} width   - textWidth 計算に使う幅
+ * @property {number} advance - advance used by textWidth
+ * @property {number} width   - width used by textWidth
  * @property {number} xOffset
- * @property {number} [drawAdvance] - 描画時の送り幅（省略時 advance。GFX の空白なしは 0）
- * @property {boolean} [drawBox]    - 代替ボックスを描くか（省略時 true）
+ * @property {number} [drawAdvance] - drawing advance; defaults to advance (0 for GFX without space)
+ * @property {boolean} [drawBox]    - whether to draw the fallback box (default true)
  *
  * @typedef {object} FontMeta
  * @property {string} [sourceFormat]  - 'u8g2' | 'gfx' | 'glcd' | 'fixedbmp' | 'bmp' | 'rle' | ...
- * @property {string} [drawProfile]   - 描画プロファイル（仕様 §9.3。倍率適用時の量子化規則）
+ * @property {string} [drawProfile]   - drawing profile (spec §9.3 scaling quantization rules)
  * @property {FallbackMetric} [fallback]
  * @property {FontIssue[]} issues
- * @property {object} [format]        - 元形式固有の再エンコード用パラメータ
+ * @property {object} [format]        - source-format parameters retained for re-encoding
  * @property {string} [license]
  * @property {string} [copyright]
  */
@@ -59,9 +59,9 @@
  * @typedef {object} Font
  * @property {string} familyName
  * @property {string} styleName
- * @property {number} ascent      - ベースラインから行ボックス上端まで（正、int16）
- * @property {number} descent     - ベースラインから行ボックス下端まで（正、int16）
- * @property {number} lineHeight  - 行送り（int16）
+ * @property {number} ascent      - baseline to line-box top, positive (int16)
+ * @property {number} descent     - baseline to line-box bottom, positive (int16)
+ * @property {number} lineHeight  - line advance (int16)
  * @property {Map<number, Glyph>} glyphs
  * @property {number} [defaultCodepoint]
  * @property {KerningPair[]} [kerning]

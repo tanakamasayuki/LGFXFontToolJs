@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * Bitmap — 1bpp / 8bpp の被覆値ビットマップ（仕様 §5.1）。
- * 1bpp は MSB first、行はバイト境界へパディングする。
+ * Bitmap — 1bpp / 8bpp coverage bitmap (spec §5.1).
+ * 1bpp is MSB-first and each row is padded to a byte boundary.
  */
 
 /**
@@ -9,12 +9,12 @@
  * @property {number} width
  * @property {number} height
  * @property {1|8} bpp
- * @property {number} stride  - 行バイト数 = ceil(width * bpp / 8)
+ * @property {number} stride  - bytes per row = ceil(width * bpp / 8)
  * @property {Uint8Array} data
  */
 
 /**
- * ゼロ初期化されたビットマップを作る。
+ * Creates a zero-initialized bitmap.
  * @param {number} width
  * @param {number} height
  * @param {1|8} [bpp]
@@ -38,7 +38,7 @@ export function createBitmap(width, height, bpp = 1) {
  * @param {Bitmap} bmp
  * @param {number} x
  * @param {number} y
- * @returns {number} 1bpp なら 0/1、8bpp なら 0〜255。範囲外は 0
+ * @returns {number} 0/1 for 1bpp, 0..255 for 8bpp, or 0 when out of bounds
  */
 export function getPixel(bmp, x, y) {
   if (x < 0 || y < 0 || x >= bmp.width || y >= bmp.height) return 0;
@@ -67,8 +67,8 @@ export function setPixel(bmp, x, y, v) {
 }
 
 /**
- * 矩形を塗る。ビットマップ境界でクリップする（LGFX の writeFillRect がパネル境界で
- * クリップされるのと同じ扱い）。
+ * Fills a rectangle clipped to the bitmap bounds, matching LGFX
+ * writeFillRect clipping at panel boundaries.
  * @param {Bitmap} bmp
  * @param {number} x
  * @param {number} y
@@ -89,7 +89,7 @@ export function fillRect(bmp, x, y, w, h, v) {
 }
 
 /**
- * 1px 幅の矩形枠を描く（LGFX の drawRect 相当。未収録グリフの代替表示に使う）。
+ * Draws a 1px rectangle outline, equivalent to LGFX drawRect and used for missing glyphs.
  * @param {Bitmap} bmp
  * @param {number} x
  * @param {number} y
@@ -106,7 +106,7 @@ export function drawRect(bmp, x, y, w, h, v) {
 }
 
 /**
- * 2 つのビットマップの内容が一致するか。
+ * Tests whether two bitmaps have identical contents.
  * @param {Bitmap} a
  * @param {Bitmap} b
  */
@@ -120,7 +120,7 @@ export function bitmapEquals(a, b) {
 }
 
 /**
- * デバッグ用: ビットマップをテキストアートにする（1 = '#', 0 = '.'）。
+ * Converts a bitmap to text art for debugging (1 = '#', 0 = '.').
  * @param {Bitmap} bmp
  * @returns {string}
  */

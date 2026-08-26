@@ -1,9 +1,9 @@
 // @ts-check
 /**
- * FixedBMPfont（AsciiFont8x16 / AsciiFont24x48）のデコーダ。
+ * FixedBMPfont decoder for AsciiFont8x16 / AsciiFont24x48.
  *
- * データは行優先の素のビットマップ表: グリフごとに ((width+7)>>3) * height バイト、
- * 行は MSB first でバイト境界へパディング。
+ * Data is a raw row-major bitmap table with ((width+7)>>3) * height bytes per
+ * glyph; rows are MSB-first and padded to byte boundaries.
  */
 import { createBitmap, setPixel } from '../model/bitmap.js';
 import { createFont } from '../model/font.js';

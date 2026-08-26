@@ -1,37 +1,37 @@
 // @ts-check
 /**
- * TTF / OTF / WOFF のグリフラスタライザ（仕様 §10）。
+ * TTF / OTF / WOFF glyph rasterizer (spec §10).
  *
- * LGFXScreenBuilder fontgen の rasterize.js（実績実装）の移植。
- * TTF パーサを同梱せず、ブラウザ自身のテキストエンジン（FontFace + 2D canvas）で
- * ラスタライズする。ブラウザが受け付けるものすべて（TTF / OTF / WOFF / WOFF2 /
- * バリアブルフォント）が入力になり、画面プレビューと生成グリフが同一の
- * ラスタライザから出る。**ブラウザ専用**（src/ 内で DOM に触れてよいのは
- * このファイルと fonts/loader.js だけ。仕様 §4.1）。
+ * Port of the proven LGFXScreenBuilder fontgen rasterize.js. Instead of bundling
+ * a TTF parser, it rasterizes with the browser text engine (FontFace + 2D canvas).
+ * It accepts everything the browser accepts—TTF, OTF, WOFF, WOFF2, and variable
+ * fonts—and uses the same rasterizer for live preview and generated glyphs.
+ * Browser-only: this file and fonts/loader.js are the only src/ modules allowed
+ * to touch the DOM (spec §4.1).
  *
- * 出力はグリフごとの { code, w, h, x, y, dx, bits }:
- * bits は行優先の 0/1 配列、x は左ベアリング、y はベースラインから
- * ビットマップ「下端」までの符号付き距離（上が正。BDF 流）、dx は送り幅。
+ * Per-glyph output is { code, w, h, x, y, dx, bits }: bits is row-major coverage,
+ * x is left bearing, y is signed baseline-to-bitmap-bottom distance with positive
+ * upward (BDF-style), and dx is advance.
  *
- * グリフの有無は「フォントを重ねて描いた結果」と「フォントを外して同じ
- * 汎用フォールバックだけで描いた結果」の比較で判定する。二つが一致すれば
- * フォールバックが描いた＝そのフォントにグリフは無い。serif と monospace の
- * 両方で比較し、どちらかが違えば「有り」。それでも無いように見える文字は
- * サイズを変えてもう一度だけ聞き直す（偶然のピクセル一致はサイズの性質で
- * あって書体の性質ではないため）。
+ * Glyph presence is detected by comparing rendering with the target family over
+ * a generic fallback against rendering with that fallback alone. Identical output
+ * means the fallback drew it and the target lacks the glyph. Both serif and
+ * monospace fallbacks are tested; either difference proves presence. Apparent
+ * misses are retried once at another size because accidental pixel identity is
+ * size-dependent rather than a typeface property.
  */
 import { CapabilityError } from '../util/errors.js';
 
 const FALLBACKS = ['serif', 'monospace'];
 
-// Unicode の空白文字。何も描かないので形の比較では判定できず、送り幅だけが頼り。
+// Unicode spaces draw no shape, so only advance can distinguish them.
 const SPACES = new Set([
   0x20, 0xa0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008,
   0x2009, 0x200a, 0x202f, 0x205f, 0x3000,
 ]);
-void SPACES; // 判定は rasterizeOne のインク比較に委ねる（記録として残す）
+void SPACES; // Presence currently relies on rasterizeOne ink comparison; keep this list as reference.
 
-/** ブラウザ環境でなければ CapabilityError を投げる */
+/** Throws CapabilityError outside a browser environment. */
 export function ensureRasterizer() {
   if (typeof FontFace === 'undefined' || typeof document === 'undefined') {
     throw new CapabilityError(
@@ -44,10 +44,9 @@ export function ensureRasterizer() {
 let loadCount = 0;
 
 /**
- * フォントを document に読み込み、canvas から使えるようにする。
- * 読み込みごとに一意のファミリ名を割り当てる（canvas は名前で解決するため、
- * 二度目の読み込みが一度目のグリフを黙って再利用しないように）。
- * @param {ArrayBuffer | string} src - フォントバイナリ、または取得先 URL
+ * Loads a font into document for canvas use. Each load receives a unique family
+ * name so a later load cannot silently reuse earlier glyphs resolved by name.
+ * @param {ArrayBuffer | string} src - font bytes or source URL
  * @param {string} [familyHint]
  * @returns {Promise<{family: string, face: FontFace}>}
  */
@@ -65,13 +64,13 @@ export function unloadTtf(face) {
   try {
     document.fonts.delete(face);
   } catch {
-    // 既に無ければそれでよい
+    // Already absent is fine.
   }
 }
 
 /**
- * どのグリフも `size` ではみ出さない大きさの描画面。ペンは負のベアリングと
- * オーバーハングを拾えるだけ内側に置く。
+ * Creates a surface large enough for any glyph at `size`, with the pen inset
+ * sufficiently to capture negative bearings and overhangs.
  * @param {number} size
  */
 function makeSurface(size) {
@@ -91,14 +90,14 @@ function makeSurface(size) {
 /** @typedef {ReturnType<typeof makeSurface>} Surface */
 /** @typedef {{weight?: number, italic?: boolean}} TtfStyle */
 /**
- * CSS 上の描画サイズと、その導出に使った情報。
- * `cssPx` を指定して再利用する場合、probe / probeHeight は由来の記録として保持する。
+ * CSS drawing size and its derivation. When a supplied cssPx is reused,
+ * probe / probeHeight remain as provenance.
  * @typedef {{cssPx: number, probe: string | null, probeHeight: number}} FontSizing
  * @typedef {{cssPx: number, probe?: string | null, probeHeight?: number}} FontSizingInput
  */
 
-// ファミリ名は引用符で囲む。汎用フォールバックは囲んでは「いけない」——
-// 囲むと実在しないフォント名として無視され、比較の基準にならなくなる。
+// Quote family names, but never generic fallbacks: quoting turns them into
+// nonexistent named families and destroys the comparison baseline.
 /** @param {number} size @param {string} family @param {TtfStyle} [style] @param {string | null} [fallback] */
 const cssFont = (size, family, { weight = 400, italic = false } = {}, fallback = null) =>
   `${italic ? 'italic ' : ''}${weight} ${size}px "${family}"${fallback ? `, ${fallback}` : ''}`;
@@ -107,10 +106,10 @@ const cssFont = (size, family, { weight = 400, italic = false } = {}, fallback =
 const cssGeneric = (size, generic, { weight = 400, italic = false } = {}) =>
   `${italic ? 'italic ' : ''}${weight} ${size}px ${generic}`;
 
-// サイズは「参照文字のインク高さ」に釘付けする。行ボックスは書体によって
-// 大きく違い、誰もが 32 と言うとき意図しているのは 32px の文字だから。
-// 参照文字は生成対象の集合から選ぶ（fontgen の知見: 固定の探針だと、
-// CJK フォントが 1 つも無い環境で tofu が「有る」ように見える）。
+// Pin size to reference-glyph ink height. Line boxes vary widely by typeface,
+// while a requested 32 normally means a 32px character. Choose the probe from
+// the generated set: a fixed probe can make tofu appear present where no CJK
+// font exists, a lesson inherited from fontgen.
 const PROBE_CANDIDATES = [0x6f22, 0x56fd, 0x65e5, 0xac00, 0x48, 0x45, 0x4e, 0x30];
 const REF_PX = 100;
 
@@ -129,8 +128,8 @@ function pickProbe(family, style, codepoints) {
     const h = probeInk(surf, cp, REF_PX, family, style);
     if (h) return { cp, refHeight: h };
   }
-  // 集合に定番の候補が無い（数字だけの時計など）: 先頭の数文字から最も
-  // 背の高いものを取る。その集合にとっては代表的な文字になる。
+  // If no standard probe exists, as with a digits-only clock, choose the tallest
+  // among the first few characters as representative of that set.
   /** @type {{cp: number, refHeight: number} | null} */
   let best = null;
   for (const cp of codepoints.slice(0, 24)) {
@@ -141,17 +140,17 @@ function pickProbe(family, style, codepoints) {
 }
 
 /**
- * 要求された「文字高さ」を、それを生む CSS px サイズへ解決する。
+ * Resolves requested glyph height to the CSS px size that produces it.
  * @param {string} family
- * @param {number} size - 文字高さ（px）
+ * @param {number} size - glyph height in pixels
  * @param {TtfStyle} [style]
  * @param {number[]} [codepoints]
  * @returns {{cssPx: number, probe: string | null, probeHeight: number}}
  */
 export function measureTtf(family, size, style = {}, codepoints = []) {
   const probe = pickProbe(family, style, codepoints);
-  // 要求文字を 1 つも描けないフォントには導出すべき縮尺が無い。
-  // em サイズとして扱い、呼び出し側が空の結果を報告する
+  // A font that draws none of the requested characters has no derivable scale.
+  // Treat size as em size and let the caller report an empty result.
   if (!probe) return { cssPx: size, probe: null, probeHeight: 0 };
 
   let cssPx = Math.max(1, (REF_PX * size) / probe.refHeight);
@@ -174,7 +173,7 @@ export function measureTtf(family, size, style = {}, codepoints = []) {
 
 /** @typedef {{px: Uint8ClampedArray, adv: number}} Rendered */
 
-/** 閾値後の形と送り幅が同じか @param {Rendered} a @param {Rendered} b @param {number} threshold */
+/** Tests thresholded shape and advance equality. @param {Rendered} a @param {Rendered} b @param {number} threshold */
 function sameInk(a, b, threshold) {
   if (Math.round(a.adv) !== Math.round(b.adv)) return false;
   for (let i = 3; i < a.px.length; i += 4) {
@@ -189,16 +188,16 @@ const hasInk = (r, threshold) => {
   return false;
 };
 
-// --- セカンドオピニオン ------------------------------------------------------
-// 「フォールバックが描いたか」の比較は、偶然ピクセルが一致すると誤る。
-// それはサイズの性質なので、無いように見えた文字は別サイズで聞き直す。
-// 本当に無いグリフはどのサイズでもフォールバックと一致し、偶然は再現しない。
+// --- Second opinion -----------------------------------------------------------
+// Fallback comparison fails on accidental pixel identity. Because that is a
+// size property, retry apparent misses at another size. True misses match the
+// fallback at every size; accidents do not repeat.
 
 const SECOND_OPINION = 1.37;
 
-// フォントが unicode-range で宣言していないコードポイントは描けない。
-// 過剰宣言はあり得るので「有る」の証明にはならないが、「無い」方向には正確で、
-// これが再試行を安価にする。
+// A font cannot draw code points outside its declared unicode-range. The range
+// may overdeclare, so it cannot prove presence, but it accurately proves absence
+// and makes retries cheap.
 let declaredCache = { at: -1, byFamily: new Map() };
 
 /** @param {string} family @param {number} code */
@@ -252,15 +251,15 @@ function drawsItselfElsewhere(code, size, family, style, threshold) {
  * @property {number} code
  * @property {number} w
  * @property {number} h
- * @property {number} x   - 左ベアリング
- * @property {number} y   - ベースライン → ビットマップ下端（上が正）
- * @property {number} dx  - 送り幅
+ * @property {number} x   - left bearing
+ * @property {number} y   - baseline to bitmap bottom, positive upward
+ * @property {number} dx  - advance
  * @property {1|8} bpp
- * @property {Uint8Array} bits - 行優先。1bpp は 0/1、8bpp は alpha 0..255
+ * @property {Uint8Array} bits - row-major; 0/1 for 1bpp, alpha 0..255 for 8bpp
  */
 
 /**
- * コードポイント 1 つをラスタライズする。フォントにグリフが無ければ null。
+ * Rasterizes one code point, returning null when the font lacks the glyph.
  * @param {Surface} surf
  * @param {number} code
  * @param {number} size
@@ -286,8 +285,8 @@ function rasterizeOne(surf, code, size, family, style, threshold, bpp = 1) {
 
   const a = draw(FALLBACKS[0], true);
 
-  // どちらかの組で違いが出れば「有り」。空白は何も描かないので判定できず、
-  // そのまま受け入れる（送り幅の上限は rasterizeSet 側で整える）
+  // A difference in either fallback pair proves presence. Spaces draw nothing,
+  // so accept them here and normalize advance later in rasterizeSet.
   if (hasInk(a, threshold)) {
     /** @param {string} fallback */
     const differs = (fallback) => {
@@ -304,8 +303,8 @@ function rasterizeOne(surf, code, size, family, style, threshold, bpp = 1) {
     }
   }
 
-  // AA 出力では Canvas の非ゼロ被覆をすべて保持する。1bpp の外接矩形だけは
-  // 従来どおり threshold 後のインクから求め、既存出力のメトリクスを変えない。
+  // AA output preserves all nonzero Canvas coverage. For 1bpp, continue deriving
+  // bounds from thresholded ink so existing output metrics remain unchanged.
   const trimThreshold = bpp === 8 ? 1 : threshold;
   let minX = w;
   let minY = h;
@@ -338,8 +337,8 @@ function rasterizeOne(surf, code, size, family, style, threshold, bpp = 1) {
     code,
     w: gw,
     h: gh,
-    x: minX - originX, // ペンからの左ベアリング
-    y: originY - (maxY + 1), // ベースライン → ビットマップ下端（上が正）
+    x: minX - originX, // Left bearing from the pen.
+    y: originY - (maxY + 1), // Baseline to bitmap bottom, positive upward.
     dx: Math.round(a.adv),
     bpp,
     bits,
@@ -347,15 +346,15 @@ function rasterizeOne(surf, code, size, family, style, threshold, bpp = 1) {
 }
 
 /**
- * 文字集合全体をラスタライズする。
+ * Rasterizes a complete character set.
  * @param {object} opts
- * @param {string} opts.family - loadTtf() が返した CSS ファミリ名
- * @param {number} opts.size - 目標の文字高さ（px）
- * @param {number[]} opts.codepoints - 昇順のコードポイント列
+ * @param {string} opts.family - CSS family returned by loadTtf()
+ * @param {number} opts.size - target glyph height in pixels
+ * @param {number[]} opts.codepoints - ascending code points
  * @param {TtfStyle} [opts.style]
- * @param {1|8} [opts.bpp] - 出力被覆値。既定 1
- * @param {number} [opts.threshold] - 1bpp 化の alpha 閾値（1..255。既定 128）
- * @param {FontSizingInput} [opts.sizing] - measureTtf を省略して再利用するサイジング
+ * @param {1|8} [opts.bpp] - output coverage depth, default 1
+ * @param {number} [opts.threshold] - 1bpp alpha threshold, 1..255, default 128
+ * @param {FontSizingInput} [opts.sizing] - reusable sizing that skips measureTtf
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
  * @returns {Promise<{glyphs: RasterGlyph[], missing: number[],
  *   sizing: {cssPx: number, probe: string | null, probeHeight: number},
@@ -389,7 +388,7 @@ export async function rasterizeSet({
   /** @type {number[]} */
   const missing = [];
 
-  // CJK 1 万字でもタブが固まらないよう、チャンクごとにイベントループへ戻す
+  // Yield between chunks so 10,000 CJK glyphs do not freeze the tab.
   const CHUNK = 200;
   for (let i = 0; i < codepoints.length; i++) {
     const g = rasterizeOne(surf, codepoints[i], sizing.cssPx, family, style, threshold, bpp);
@@ -401,8 +400,8 @@ export async function rasterizeSet({
     }
   }
 
-  // 空白は最も広い文字より広くならないよう整える（空白の有無は判定できず、
-  // フォールバック由来の極端な送り幅がそのまま入ることがあるため）
+  // Clamp spaces to the widest character because presence cannot be detected
+  // and an extreme fallback advance may otherwise leak through.
   const widest = glyphs.reduce((a, g) => (g.h && g.dx > a ? g.dx : a), 0);
   if (widest) {
     for (const g of glyphs) {
@@ -414,9 +413,9 @@ export async function rasterizeSet({
 }
 
 /**
- * グリフ集合の行ボックス（ベースラインの上下それぞれの最遠インク）。
- * 書体の宣言メトリクスではなく実際に生成されたグリフから導くので、
- * 収録内容に対してちょうどの高さになる。
+ * Computes the glyph-set line box from furthest ink above and below the baseline.
+ * It derives from generated glyphs rather than declared typeface metrics, fitting
+ * the actual repertoire exactly.
  * @param {RasterGlyph[]} glyphs
  */
 export function lineBoxOf(glyphs) {

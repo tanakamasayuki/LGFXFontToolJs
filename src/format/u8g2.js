@@ -1,11 +1,12 @@
 // @ts-check
 /**
- * u8g2 フォント形式のデコーダ。
+ * u8g2 font-format decoder.
  *
- * 参照実装: LovyanGFX v1.2.26 lgfx_fonts.cpp の U8g2font（u8g2 本家 bdfconv の出力形式）。
- * ヘッダ 23 バイト + ASCII 区間（1 バイト encoding + 1 バイト size の連結リスト）
- * + Unicode 区間（ジャンプ表 + 2 バイト encoding + 1 バイト size）。
- * グリフ本体は可変ビット幅フィールド（LSB first）+ 0/1 ランレングス。
+ * Reference: U8g2font in LovyanGFX v1.2.26 lgfx_fonts.cpp, consuming the
+ * official u8g2 bdfconv output. Layout is a 23-byte header, an ASCII section of
+ * one-byte encoding/size records, and a Unicode section with a jump table and
+ * two-byte encoding plus one-byte size. Glyph bodies use variable-width
+ * LSB-first fields followed by alternating 0/1 run lengths.
  */
 import { BitReaderLsb, BitWriterLsb } from '../util/bits.js';
 import { TruncatedDataError, FormatError, EncodeConstraintError } from '../util/errors.js';
@@ -58,9 +59,9 @@ export function readU8g2Header(data) {
 }
 
 /**
- * グリフ 1 個をビット列からデコードする。
+ * Decodes one glyph from its bitstream.
  * @param {Uint8Array} data
- * @param {number} offset - グリフのビットフィールド先頭（encoding/size の後）
+ * @param {number} offset - start of glyph fields after encoding/size
  * @param {ReturnType<typeof readU8g2Header>} h
  * @param {number} codepoint
  * @returns {Glyph}
@@ -88,7 +89,7 @@ function decodeGlyphBits(data, offset, h, codepoint) {
     } while (r.readUnsigned(1) === 1);
   }
 
-  const yOffset = gy + height === 0 ? 0 : -(gy + height); // -0 を作らない
+  const yOffset = gy + height === 0 ? 0 : -(gy + height); // Avoid -0.
   return {
     codepoint,
     xOffset: gx,
@@ -99,7 +100,7 @@ function decodeGlyphBits(data, offset, h, codepoint) {
 }
 
 /**
- * u8g2 フォントバイナリを中立モデルへデコードする。
+ * Decodes a u8g2 font binary into the neutral model.
  * @param {Uint8Array} data
  * @param {{familyName?: string, styleName?: string}} [opts]
  * @returns {Font}
@@ -111,7 +112,7 @@ export function decodeU8g2(data, opts = {}) {
   /** @type {Map<number, Glyph>} */
   const glyphs = new Map();
 
-  // ASCII 区間（encoding <= 255）: [enc(1)][size(1)][bits...] の連結。size 0 で終端。
+  // ASCII section (encoding <= 255): concatenated [enc(1)][size(1)][bits...], ending with size 0.
   let pos = HEADER_SIZE;
   while (pos + 1 < data.length && data[pos + 1] !== 0) {
     const enc = data[pos];
@@ -120,8 +121,8 @@ export function decodeU8g2(data, opts = {}) {
     pos += size;
   }
 
-  // Unicode 区間: ジャンプ表（[offsetBE(2)][endEncodingBE(2)] の列）の後に
-  // [encBE(2)][size(1)][bits...] の連結。encoding 0 で終端。
+  // Unicode section: jump table entries [offsetBE(2)][endEncodingBE(2)], then
+  // concatenated [encBE(2)][size(1)][bits...], ending with encoding 0.
   if (h.startPosUnicode !== 0) {
     const base = HEADER_SIZE + h.startPosUnicode;
     if (base + 2 <= data.length) {
@@ -143,8 +144,8 @@ export function decodeU8g2(data, opts = {}) {
     }
   }
 
-  // LGFX U8g2font::getDefaultMetric と同じ:
-  // height = max_char_height, baseline = height + y_offset（y_offset は負）
+  // Match LGFX U8g2font::getDefaultMetric:
+  // height = max_char_height, baseline = height + y_offset (negative y_offset).
   const height = h.maxCharHeight;
   const baseline = height + h.yOffset;
 
@@ -166,17 +167,15 @@ export function decodeU8g2(data, opts = {}) {
 }
 
 //----------------------------------------------------------------------------
-// エンコーダ（仕様 §7）。
+// Encoder (spec §7).
 //
-// LGFXScreenBuilder fontgen の u8g2enc.js（LovyanGFX のデコーダを正とする
-// 実績実装）を本ライブラリの中立モデルと EncodeIssue の流儀へ移植したもの。
+// Port of LGFXScreenBuilder fontgen u8g2enc.js, a proven implementation treating
+// the LovyanGFX decoder as authoritative, adapted to this neutral model and EncodeIssue.
 //
-// フィールド幅の上限は LovyanGFX のデコーダが決める:
-//   get_unsigned_bits は 8bit まで正確、get_signed_bits は int_fast8_t を
-//   経由するため 7bit（-64〜63）で頭打ち。
-// さらにヘッダの max_char_width / max_char_height は int8 で読まれるため
-// 127 が別の上限になり、グリフ 1 エントリは 1 バイトのジャンプ値で辿るため
-// 255 バイトを超えると参照できない。
+// LovyanGFX decoder behavior limits field widths: get_unsigned_bits is accurate
+// through 8 bits, while get_signed_bits passes through int_fast8_t and therefore
+// caps at 7 bits (-64..63). Header max_char_width/max_char_height are read as int8,
+// adding a 127 limit. A one-byte glyph jump cannot address entries over 255 bytes.
 
 const MAX_UNSIGNED_BITS = 8;
 const MAX_SIGNED_BITS = 7;
@@ -184,14 +183,14 @@ const MAX_SIGNED_BITS = 7;
 /** @param {number} cnt */
 const bias = (cnt) => 1 << (cnt - 1);
 
-/** 0..max を格納できる符号なしビット数 @param {number} max */
+/** Unsigned bit count sufficient for 0..max. @param {number} max */
 function unsignedBits(max) {
   let n = 1;
   while (max >= 1 << n) n++;
   return n;
 }
 
-/** [min..max] を格納できるバイアス付き符号ありビット数 @param {number} min @param {number} max */
+/** Biased signed bit count sufficient for [min..max]. @param {number} min @param {number} max */
 function signedBits(min, max) {
   let n = 1;
   while (min < -bias(n) || max > bias(n) - 1) n++;
@@ -199,7 +198,7 @@ function signedBits(min, max) {
 }
 
 /**
- * 行優先ピクセル列 → [ゼロ連長, イチ連長, ...]（必ずゼロ連長から始まる）。
+ * Converts row-major pixels to [zero run, one run, ...], always starting with zero.
  * @param {import('../model/bitmap.js').Bitmap} bmp
  */
 function runsOf(bmp) {
@@ -219,12 +218,12 @@ function runsOf(bmp) {
     }
   }
   runs.push(n);
-  if (runs.length & 1) runs.push(0); // (ゼロ, イチ) の完全な組で終える
+  if (runs.length & 1) runs.push(0); // End with a complete (zero, one) pair.
   return runs;
 }
 
 /**
- * 連長列を、選んだフィールド幅に収まる (ゼロ, イチ) の組に分割する。
+ * Splits runs into (zero, one) pairs that fit the selected field widths.
  * @param {number[]} runs @param {number} b0 @param {number} b1
  */
 function pairsFor(runs, b0, b1) {
@@ -250,7 +249,7 @@ function pairsFor(runs, b0, b1) {
 }
 
 /**
- * 組列のビット数（隣接する同一の組は繰り返しビットへ畳む）。
+ * Counts pair-stream bits, folding adjacent identical pairs into repeat bits.
  * @param {[number, number][]} pairs @param {number} b0 @param {number} b1
  */
 function pairBits(pairs, b0, b1) {
@@ -279,14 +278,14 @@ function writePairs(bw, pairs, b0, b1) {
   }
 }
 
-/** エントリ総バイト数 = ペイロード + ジャンプ値が跨ぐヘッダ（2 or 3 バイト）
+/** Total entry bytes = payload plus the 2- or 3-byte header crossed by jump values.
  * @param {number} code @param {number} payloadBits */
 const entryBytes = (code, payloadBits) => Math.ceil(payloadBits / 8) + (code <= 255 ? 2 : 3);
 
 /**
- * (bits_per_0, bits_per_1) の選択。
- * 目的関数は辞書式: まず 255 バイト超で落ちるグリフ数が最少、次に総ビット数が最小。
- * サイズだけを最適化すると、密度の高いグリフ（＝常用漢字）が落ちる側に倒れるため。
+ * Selects (bits_per_0, bits_per_1). The lexicographic objective first minimizes
+ * glyphs exceeding 255 bytes, then total bits. Optimizing size alone tends to
+ * discard dense, commonly used kanji.
  * @param {number[][]} runsPerGlyph
  * @param {{code: number, w: number, h: number}[]} recs
  * @param {number} fixedBitsPerGlyph
@@ -312,7 +311,7 @@ function chooseRunBits(runsPerGlyph, recs, fixedBitsPerGlyph) {
 }
 
 /**
- * 中立モデル → u8g2 のグリフレコードと、静的な制約違反の一覧。
+ * Converts the neutral model into u8g2 glyph records and static constraint issues.
  * @param {Font} font
  */
 function planU8g2(font) {
@@ -329,7 +328,7 @@ function planU8g2(font) {
     const w = g.bitmap.width;
     const h = g.bitmap.height;
     const x = g.xOffset;
-    const y = -(g.yOffset + h); // BDF 流: ベースラインからビットマップ下端まで
+    const y = -(g.yOffset + h); // BDF-style baseline-to-bitmap-bottom offset.
     const dx = g.xAdvance;
     let bad = false;
     /** @param {string} code @param {object} params */
@@ -337,8 +336,8 @@ function planU8g2(font) {
       issues.push({ level: 'error', code, codepoint: g.codepoint, params });
       bad = true;
     };
-    // encoding 0x00〜0x1F も形式上は合法（終端はジャンプ値 0 であり encoding 0 ではない）。
-    // 実際、LovyanGFX 内蔵の efont 系は encoding 0 のグリフを持っている。
+    // Encodings 0x00..0x1F are legal: jump value 0 terminates, not encoding 0.
+    // LovyanGFX's bundled efont family actually contains an encoding-0 glyph.
     if (g.bitmap.bpp !== 1) err('BPP_UNSUPPORTED', { bpp: g.bitmap.bpp });
     if (g.codepoint > 0xffff) err('CODEPOINT_OVER_BMP', { value: g.codepoint });
     if (w > (1 << MAX_UNSIGNED_BITS) - 1 || h > (1 << MAX_UNSIGNED_BITS) - 1) {
@@ -383,7 +382,7 @@ function planU8g2(font) {
   const runsPerGlyph = recs.map((g) => runsOf(g.bitmap));
   const { b0, b1 } = chooseRunBits(runsPerGlyph, recs, fixedBits);
 
-  // 255 バイト超のエントリはジャンプ値で参照できない
+  // Jump values cannot address entries above 255 bytes.
   const entrySizes = recs.map((g, i) => {
     const bits = g.w && g.h ? pairBits(pairsFor(runsPerGlyph[i], b0, b1), b0, b1) : 0;
     return entryBytes(g.code, fixedBits + bits);
@@ -411,7 +410,7 @@ function planU8g2(font) {
 }
 
 /**
- * u8g2 へエンコードできるか（仕様 §7.1）。
+ * Checks u8g2 encodability (spec §7.1).
  * @param {Font} font
  * @returns {{ok: boolean, issues: import('./registry.js').EncodeIssue[]}}
  */
@@ -421,9 +420,9 @@ export function canEncodeU8g2(font) {
 }
 
 /**
- * 中立モデル → u8g2 フォントバイナリ。
- * 制約違反があれば EncodeConstraintError（切り詰めない。仕様 §7.2）。
- * dropInvalid: true なら違反グリフを落として続行する（フォント全体の制約は除く）。
+ * Encodes the neutral model as a u8g2 font binary. Constraint violations throw
+ * EncodeConstraintError without truncation (spec §7.2). dropInvalid removes
+ * invalid glyphs but cannot bypass font-level constraints.
  * @param {Font} font
  * @param {{dropInvalid?: boolean}} [opts]
  * @returns {Uint8Array}
@@ -447,7 +446,7 @@ export function encodeU8g2(font, opts = {}) {
   /** @type {{code: number, payload: Uint8Array, entry: number}[]} */
   const encoded = [];
   plan.recs.forEach((g, i) => {
-    if (plan.entrySizes[i] > 255) return; // dropInvalid でのみ到達する
+    if (plan.entrySizes[i] > 255) return; // Reached only with dropInvalid.
     const bw = new BitWriterLsb();
     bw.writeUnsigned(g.w, bpw);
     bw.writeUnsigned(g.h, bph);
@@ -462,7 +461,7 @@ export function encodeU8g2(font, opts = {}) {
   const lo = encoded.filter((g) => g.code <= 255);
   const hi = encoded.filter((g) => g.code > 255);
 
-  // --- セクション A: encoding 0x20..0xFF（ジャンプ値 0 で終端） ---
+  // --- Section A: encodings 0x20..0xFF, terminated by jump value 0 ---
   /** @type {number[]} */
   const secA = [];
   let posUpperA = 0;
@@ -474,7 +473,7 @@ export function encodeU8g2(font, opts = {}) {
   }
   secA.push(0, 0);
 
-  // --- セクション U: ジャンプ表 + encoding > 0xFF（encoding 0 で終端） ---
+  // --- Section U: jump table + encodings > 0xFF, terminated by encoding 0 ---
   const BLOCK = 64;
   /** @type {{code: number, payload: Uint8Array, entry: number}[][]} */
   const blocks = [];
@@ -500,8 +499,8 @@ export function encodeU8g2(font, opts = {}) {
   const posUnicode = secA.length;
 
   const header = [
-    Math.min(255, encoded.length), // glyph_cnt（参考値。u8 で飽和）
-    0, // bbx_mode（LovyanGFX は未使用）
+    Math.min(255, encoded.length), // glyph_cnt is informational and saturates at u8.
+    0, // bbx_mode is unused by LovyanGFX.
     b0,
     b1,
     bpw,
@@ -510,7 +509,7 @@ export function encodeU8g2(font, opts = {}) {
     bpy,
     bpd,
     plan.maxW & 0xff,
-    plan.height & 0xff, // max_char_height == 行ボックス高さ
+    plan.height & 0xff, // max_char_height equals line-box height.
     0, // x_offset
     -descent & 0xff, // y_offset: baseline = height + y_offset
     ascent & 0xff,

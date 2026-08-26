@@ -1,27 +1,27 @@
 // @ts-check
 /**
- * テキスト計測。LovyanGFX v1.2.26 LGFXBase::text_width / fontHeight の忠実な移植。
- * 固定小数点（16.16）の丸めもオリジナルの式のまま再現する。
+ * Text measurement faithful to LovyanGFX v1.2.26 LGFXBase::text_width / fontHeight,
+ * including the original 16.16 fixed-point rounding expressions.
  */
 
 /** @typedef {import('../model/font.js').Font} Font */
 
 /**
  * @typedef {object} TextStyle
- * @property {number} [sizeX]  - 文字倍率（横）。既定 1
- * @property {number} [sizeY]  - 文字倍率（縦）。既定 1
- * @property {string | number} [datum] - 描画基準点。既定 'top-left'
+ * @property {number} [sizeX]  - horizontal text scale, default 1
+ * @property {number} [sizeY]  - vertical text scale, default 1
+ * @property {string | number} [datum] - drawing datum, default 'top-left'
  */
 
-/** C++ の `int32_t s = 65536 * size;`（float → int 切り捨て）と同じ。
+/** Matches C++ `int32_t s = 65536 * size;`, truncating float to int.
  * @param {number} size */
 export function toFixed16(size) {
   return Math.trunc(65536 * size);
 }
 
 /**
- * LovyanGFX と同じ規則で文字列をコードポイント列にする:
- * 制御文字（U+0000〜U+001F）と異体字セレクタ（U+FE00〜U+FE0F）は読み飛ばす。
+ * Converts text to code points using LovyanGFX rules, skipping controls
+ * U+0000..U+001F and variation selectors U+FE00..U+FE0F.
  * @param {string} text
  * @returns {number[]}
  */
@@ -37,8 +37,8 @@ export function codepointsOf(text) {
 }
 
 /**
- * 1 文字ぶんの計測値。LGFX の updateFontMetric 相当
- * （収録外は グリフ 0 → メタ情報のフォールバックの順で解決する）。
+ * Returns metrics for one character, equivalent to LGFX updateFontMetric.
+ * Missing characters resolve through glyph 0, then metadata fallback.
  * @param {Font} font
  * @param {number} cp
  * @returns {{width: number, advance: number, xOffset: number}}
@@ -52,7 +52,7 @@ export function metricFor(font, cp) {
 }
 
 /**
- * 行ボックスの高さ（LGFX の fontHeight() 相当）。
+ * Returns line-box height, equivalent to LGFX fontHeight().
  * @param {Font} font
  * @param {TextStyle} [style]
  * @returns {number}
@@ -63,7 +63,7 @@ export function fontHeight(font, style = {}) {
 }
 
 /**
- * 文字列の描画幅（LGFX の textWidth() 相当）。
+ * Returns rendered text width, equivalent to LGFX textWidth().
  * @param {Font} font
  * @param {string} text
  * @param {TextStyle} [style]
@@ -87,7 +87,7 @@ export function textWidth(font, text, style = {}) {
 }
 
 /**
- * 幅・高さ・アセント・ディセントをまとめて返す。
+ * Returns width, height, ascent, and descent together.
  * @param {Font} font
  * @param {string} text
  * @param {TextStyle} [style]

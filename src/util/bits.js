@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * u8g2 形式が使う LSB first のビットリーダ / ライタ。
- * u8g2 の decode（u8g2_font_decode_t）と同じ規則: 各バイトの下位ビットから読む。
+ * LSB-first bit reader/writer used by u8g2.
+ * Matches u8g2_font_decode_t by reading each byte from its least-significant bit.
  */
 
 export class BitReaderLsb {
@@ -16,7 +16,7 @@ export class BitReaderLsb {
   }
 
   /**
-   * 符号なしで cnt ビット読む（cnt は 1〜8）。
+   * Reads cnt unsigned bits (cnt is 1..8).
    * @param {number} cnt
    * @returns {number}
    */
@@ -34,7 +34,7 @@ export class BitReaderLsb {
   }
 
   /**
-   * u8g2 の get_signed_bits と同じ: unsigned - (1 << (cnt-1))
+   * Matches u8g2 get_signed_bits: unsigned - (1 << (cnt-1)).
    * @param {number} cnt
    * @returns {number}
    */
@@ -67,7 +67,7 @@ export class BitWriterLsb {
   }
 
   /**
-   * バイアス表現の符号付き（デコーダは unsigned - (1 << (cnt-1)) で読む）。
+   * Writes a biased signed value decoded as unsigned - (1 << (cnt-1)).
    * @param {number} value
    * @param {number} cnt
    */
@@ -75,7 +75,7 @@ export class BitWriterLsb {
     this.writeUnsigned(value + (1 << (cnt - 1)), cnt);
   }
 
-  /** 端数ビットを 0 詰めした現在の内容（非破壊）。 @returns {Uint8Array} */
+  /** Returns current contents non-destructively, padding partial bits with zero. @returns {Uint8Array} */
   toUint8Array() {
     const out = [...this.bytes];
     if (this.nbits) out.push(this.cur);

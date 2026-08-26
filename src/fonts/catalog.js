@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * 生成物。scripts/extract-fonts.js が再生成する。手で編集しないこと。
- * 抽出元: LovyanGFX 1.2.26 (https://github.com/lovyan03/LovyanGFX/archive/refs/tags/1.2.26.tar.gz)
+ * Generated file. Regenerate with scripts/extract-fonts.js; do not edit manually.
+ * Source: LovyanGFX 1.2.26 (https://github.com/lovyan03/LovyanGFX/archive/refs/tags/1.2.26.tar.gz)
  */
 
 export const collectionInfo = Object.freeze({

@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * 中立モデルの JSON シリアライズ（仕様 §5.3）。
- * 用途はテスト fixture・デバッグ・ツール間の受け渡し。効率は目的にしない。
+ * JSON serialization for the neutral model (spec §5.3).
+ * Intended for test fixtures, debugging, and tool interchange rather than efficiency.
  */
 import { createFont } from './font.js';
 import { FormatError } from '../util/errors.js';
@@ -28,7 +28,7 @@ function fromBase64(b64) {
 
 /**
  * @param {Font} font
- * @returns {object} JSON.stringify 可能なオブジェクト
+ * @returns {object} JSON.stringify-compatible object
  */
 export function serializeFont(font) {
   return {
@@ -56,7 +56,7 @@ export function serializeFont(font) {
 }
 
 /**
- * @param {any} obj - serializeFont の出力（またはその JSON.parse 結果）
+ * @param {any} obj - output from serializeFont, possibly after JSON.parse
  * @returns {Font}
  */
 export function deserializeFont(obj) {

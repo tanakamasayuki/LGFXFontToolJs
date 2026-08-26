@@ -1,9 +1,9 @@
 // @ts-check
 /**
- * lgfx-font-tool 公開 API（仕様 §4.2）。
+ * Public lgfx-font-tool API (spec §4.2).
  */
 
-// モデル
+// Model
 export { createFont, getGlyph } from './model/font.js';
 export {
   createBitmap,
@@ -16,7 +16,7 @@ export {
 export { subset, merge } from './model/subset.js';
 export { serializeFont, deserializeFont } from './model/serialize.js';
 
-// デコード / エンコード / 形式
+// Decode / encode / formats
 export { decode, detect, listFormats, canEncode, encode } from './format/registry.js';
 export { decodeU8g2, encodeU8g2, canEncodeU8g2 } from './format/u8g2.js';
 export {
@@ -49,16 +49,16 @@ export { decodeBmpFont } from './format/bmpfont.js';
 export { decodeRleFont } from './format/rlefont.js';
 export { packLegacyContainer, unpackLegacyContainer } from './format/legacy.js';
 
-// 描画・計測
+// Drawing / measurement
 export { drawString, drawChar } from './render/draw.js';
 export { textWidth, fontHeight, measureText, codepointsOf } from './render/measure.js';
 export { DATUM, resolveDatum } from './render/datum.js';
 
-// 検査
+// Inspection
 export { inspect, coverage, codepointRanges } from './inspect/inspect.js';
 export { estimateSize, estimateSizes } from './inspect/estimate.js';
 
-// 文字集合
+// Character sets
 export {
   parseRanges,
   codepointsOfSet,
@@ -73,15 +73,15 @@ export {
   ALL_SET_IDS,
 } from './charsets/charsets.js';
 
-// 生成（ブラウザ専用。Node で呼ぶと CapabilityError）
+// Generation (browser-only; calling from Node throws CapabilityError)
 export { generateFont } from './gen/generate.js';
 export { loadTtf, unloadTtf, rasterizeSet, measureTtf, ensureRasterizer } from './gen/rasterize.js';
 
-// 内蔵フォントコレクション
+// Bundled font collection
 export { fontCatalog, collectionInfo } from './fonts/catalog.js';
 export { loadFont, configureFontData, fontDataCandidates } from './fonts/loader.js';
 
-// エラー
+// Errors
 export {
   FontToolError,
   FormatError,
@@ -93,5 +93,5 @@ export {
   CollectionError,
 } from './util/errors.js';
 
-// npm version 実行時に scripts/sync-version.js が書き換える
+// Updated by scripts/sync-version.js during npm version.
 export const VERSION = '1.0.0';

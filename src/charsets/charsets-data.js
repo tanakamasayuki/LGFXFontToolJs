@@ -4,7 +4,7 @@
 // kGB0 / kBigFive / kKoreanEducationHanja, plus KSC5601.TXT) so every set is
 // auditable, and from the literal symbol lists in that generator.
 //
-// Han tiers are CUMULATIVE unions: the underlying standards do not nest (常用漢字
+// Han tiers are CUMULATIVE unions: the underlying standards do not nest (Jōyō kanji
 // has 34 characters outside JIS level 1), so each tier is defined as everything
 // below it plus one more standard. Moving up a tier can therefore never drop a
 // character.

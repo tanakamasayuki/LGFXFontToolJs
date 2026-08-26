@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * datum（描画基準点）。LovyanGFX の textdatum_t と同じビット構成:
- * 横 0:left 1:center 2:right / 縦 0:top 4:middle 8:bottom 16:baseline
+ * Drawing datum with the same bit layout as LovyanGFX textdatum_t:
+ * horizontal 0:left 1:center 2:right / vertical 0:top 4:middle 8:bottom 16:baseline
  */
 
 /** @typedef {keyof typeof DATUM} DatumName */
