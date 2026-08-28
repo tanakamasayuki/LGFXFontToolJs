@@ -49,7 +49,22 @@ export const AXES = [
     id: 'han',
     kind: 'tier',
     languages: [
-      { id: 'ja', tiers: ['hanJa1', 'hanJa2', 'hanJa3', 'hanJa4'] },
+      {
+        id: 'ja',
+        // 学年別漢字配当表（累積）→ 常用 → 人名用 → JIS 1 → JIS 2
+        tiers: [
+          'hanJaG1',
+          'hanJaG2',
+          'hanJaG3',
+          'hanJaG4',
+          'hanJaG5',
+          'hanJaG6',
+          'hanJa1',
+          'hanJa2',
+          'hanJa3',
+          'hanJa4',
+        ],
+      },
       { id: 'cn', tiers: ['hanCn1', 'hanCn2'] },
       { id: 'tw', tiers: ['hanTw1', 'hanTw2'] },
       { id: 'ko', tiers: ['hanKo1', 'hanKo2'] },
