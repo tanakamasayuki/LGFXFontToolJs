@@ -66,8 +66,7 @@ async function installRasterizer() {
       return this;
     }
   };
-  // @ts-expect-error shimming a browser global
-  globalThis.document = {
+  globalThis.document = /** @type {any} */ ({
     fonts: {
       add: (/** @type {any} */ f) => registered.add(f),
       delete: (/** @type {any} */ f) => registered.delete(f),
@@ -77,7 +76,7 @@ async function installRasterizer() {
       [Symbol.iterator]: () => registered[Symbol.iterator](),
     },
     createElement: () => createCanvas(1, 1),
-  };
+  });
   // @ts-expect-error shimming a browser global
   globalThis.OffscreenCanvas = class {
     /** @param {number} w @param {number} h */
@@ -163,7 +162,8 @@ async function googleTtf(family, opts) {
  * @returns {Promise<{font: Font, missing: number[], origin: string, attribution: object}>}
  */
 export async function resolveSource(opts) {
-  const chosen = ['google', 'ttf', 'font', 'input'].filter((k) => opts[k] !== undefined);
+  const o = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (opts));
+  const chosen = ['google', 'ttf', 'font', 'input'].filter((k) => o[k] !== undefined);
   if (chosen.length !== 1) {
     throw new CliError('pass exactly one of --google / --ttf / --font / --input', 3);
   }
@@ -183,15 +183,15 @@ export async function resolveSource(opts) {
         const found = decodeCSource(Buffer.from(bytes).toString('utf8'));
         const list = Array.isArray(found) ? found : [found];
         const picked = opts.inputSymbol
-          ? list.find((f) => f.name === opts.inputSymbol || f.symbol === opts.inputSymbol)
+          ? list.find((f) => f.name === opts.inputSymbol)
           : list[0];
         if (!picked) {
           throw new CliError(
             `no font named ${opts.inputSymbol} in ${path}. Found: ` +
-              list.map((f) => f.name ?? f.symbol ?? '?').join(', '),
+              list.map((f) => f.name).join(', '),
           );
         }
-        font = picked.font ?? picked;
+        font = picked.font;
       } else {
         font = decode(bytes, opts.inputFormat ? { format: opts.inputFormat } : {});
       }
@@ -236,7 +236,7 @@ export async function resolveSource(opts) {
   }
 
   const r = await generateFont({
-    source,
+    source: /** @type {ArrayBuffer} */ (source),
     em: opts.em,
     codepoints: opts.codepoints,
     bpp: opts.bpp ?? 1,

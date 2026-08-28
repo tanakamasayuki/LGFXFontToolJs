@@ -165,15 +165,15 @@ function collectCodepoints(v) {
     for (const c of parseCharsetFile(readFileSync(path, 'utf8'))) out.add(c);
   }
   for (const spec of v.sets ?? []) {
-    for (const id of spec.split(',').map((s) => s.trim()).filter(Boolean)) {
+    for (const id of String(spec).split(',').map((/** @type {string} */ x) => x.trim()).filter(Boolean)) {
       const cps = codepointsOfSet(id);
       if (!cps.length) fail(`unknown set: ${id}`, 3);
       for (const c of cps) out.add(c);
     }
   }
   for (const id of v.template ?? []) {
-    const t = TEMPLATES.find((x) => x.id === id);
-    if (!t) fail(`unknown template: ${id}`, 3);
+    const t = /** @type {any} */ (TEMPLATES.find((x) => x.id === id));
+    if (!t) return fail(`unknown template: ${id}`, 3);
     for (const sid of t.sets ?? []) for (const c of codepointsOfSet(sid)) out.add(c);
     for (const ch of t.text ?? '') out.add(/** @type {number} */ (ch.codePointAt(0)));
     for (const c of parseRanges(t.ranges ?? '')) out.add(c);
@@ -263,18 +263,20 @@ async function cmdBuild(v) {
         format: v.format,
         symbolName: name,
         attribution: src.attribution,
-        bpp: /** @type {1|2|4} */ (num(v.bpp, '--bpp')),
+        bpp: /** @type {any} */ (num(v.bpp, '--bpp')),
       }),
       'utf8',
     );
   } else {
     if (v.format === 'cellfont') fail('cellfont has no raw form', 3);
-    output = Buffer.from(encode(font, { format: v.format, bpp: num(v.bpp, '--bpp') }));
+    output = Buffer.from(
+      encode(font, { format: v.format, bpp: /** @type {any} */ (num(v.bpp, '--bpp')) }),
+    );
   }
 
   const previous = existsSync(v.out) ? readFileSync(v.out) : null;
   if (v.check) {
-    if (!previous) fail(`--check: ${v.out} does not exist`, 2);
+    if (!previous) return fail(`--check: ${v.out} does not exist`, 2);
     if (!previous.equals(output)) {
       fail(`--check: ${v.out} differs from a fresh build. Regenerate and commit it.`, 2);
     }
@@ -317,7 +319,8 @@ async function cmdInspect(file, v) {
   const info = inspectFont(font);
   const sizes = estimateSizes(font);
   if (v.json) {
-    console.log(JSON.stringify({ file, info, sizes: Object.fromEntries(Object.entries(sizes).map(([k, s]) => [k, s.bytes])) }, null, 2));
+    const bytes = Object.fromEntries(Object.entries(sizes).map(([k, s]) => [k, s.bytes]));
+    console.log(JSON.stringify({ file, info, sizes: bytes }, null, 2));
     return;
   }
   console.log(`${file}`);
@@ -352,7 +355,7 @@ function cmdCharset(file, v) {
     for (const t of TEMPLATES) console.log(`  ${t.id}`);
     return;
   }
-  if (!file) fail('charset needs a file (or --list)', 3);
+  if (!file) return fail('charset needs a file (or --list)', 3);
   const text = readFileSync(file, 'utf8');
   const bom = text.startsWith('﻿') ? '﻿' : '';
 
@@ -371,8 +374,9 @@ function cmdCharset(file, v) {
     .map((line) => {
       const t = line.trim();
       if (!t || t.startsWith('#') || t.startsWith('@') || /^U\+/i.test(t)) return line;
-      const cps = [...new Set([...line].map((ch) => ch.codePointAt(0)))].sort((a, b) => a - b);
-      return cps.map((c) => String.fromCodePoint(/** @type {number} */ (c))).join('');
+      /** @type {number[]} */
+      const cps = [...line].map((ch) => /** @type {number} */ (ch.codePointAt(0)));
+      return [...new Set(cps)].sort((a, b) => a - b).map((c) => String.fromCodePoint(c)).join('');
     })
     .join('\n');
   if (v.write) {
