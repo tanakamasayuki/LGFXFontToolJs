@@ -55,15 +55,15 @@ The package ships an `lgfx-font` command. A one-off and a CI run are the same co
 
 ```sh
 # A font holding just the characters you need, from a Google Fonts family by name
-npx lgfx-font build --google "Noto Sans JP" --em 12 \
+npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 12 \
     --chars "温度設定完了 23.5℃" --format cellfont --out font.h
 
 # With a confirmation image
-npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
+npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
     --format u8g2 --out font.h --preview font.png
 
 # CI: check the committed output is current, writing nothing
-npx lgfx-font build ... --check
+npx -p lgfx-font-tool lgfx-font build ... --check
 ```
 
 Installing is optional — `npx` fetches it. To pin it, check it, or upgrade it:

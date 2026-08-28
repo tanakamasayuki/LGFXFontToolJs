@@ -41,16 +41,24 @@ const VERSION = JSON.parse(
  * change the file are left out: --check, --preview, --preview-text,
  * --max-height, --offline, --cache-dir, --json. --allow-missing is kept because
  * without it the rebuild would stop.
+ *
+ * `--out` is deliberately absent. Where the file is written is not part of what
+ * the file contains, and recording it made one font put in four directories into
+ * four different files — which defeats copying a generated header around, and
+ * strays from the format spec's "same input, same bytes" (the input being the
+ * character set, yAdvance, and target ABI). `--name` is recorded instead, and
+ * always: the symbol name really is part of the emitted source, and without
+ * `--out` there is nothing left to derive it from.
  */
 const REPRO_FLAGS = /** @type {const} */ ([
   'google', 'ttf', 'font', 'input', 'input-format', 'input-symbol',
   'em', 'chars', 'charset', 'sets', 'template', 'fallback',
   'format', 'name', 'target', 'max-chain', 'no-wrapper', 'bpp', 'threshold',
-  'allow-missing', 'out',
+  'allow-missing',
 ]);
 
 /** Values that name a file, and so need shortening. */
-const REPRO_PATHS = new Set(['ttf', 'input', 'charset', 'template', 'out', 'fallback']);
+const REPRO_PATHS = new Set(['ttf', 'input', 'charset', 'template', 'fallback']);
 
 /**
  * A path under the working directory is recorded relative to it; anything else
@@ -96,15 +104,20 @@ const shellArg = (v, always) =>
  *
  * One line, however long. Wrapping it with a trailing backslash reads better
  * but does not survive being copied: every continuation line is still inside the
- * `//` comment, so what lands in the shell is commented out. `npx` prefixes it
- * because that runs whether or not the package is installed globally.
+ * `//` comment, so what lands in the shell is commented out.
+ *
+ * `npx -p lgfx-font-tool` rather than a bare `npx lgfx-font`: there is no package
+ * called `lgfx-font`, so the short form works only where npm happens to resolve
+ * the binary name, and 404s elsewhere. Naming the package always works.
  *
  * @param {Record<string, any>} v parsed options
+ * @param {string} ident the C symbol name actually used
  */
-function reproCommand(v) {
-  const parts = ['npx lgfx-font build'];
+function reproCommand(v, ident) {
+  const parts = ['npx -p lgfx-font-tool lgfx-font build'];
   for (const flag of REPRO_FLAGS) {
-    const val = v[flag];
+    // Always the resolved symbol name, whether or not --name was given.
+    const val = flag === 'name' ? ident : v[flag];
     if (val === undefined) continue;
     if (val === true) {
       parts.push(`--${flag}`);
@@ -364,7 +377,7 @@ async function cmdBuild(v) {
 
   const isC = C_EXT.test(v.out);
   const name = sanitizeIdent(v.name ?? basename(v.out).replace(/\.[^.]+$/, ''));
-  const attribution = { ...src.attribution, command: reproCommand(v) };
+  const attribution = { ...src.attribution, command: reproCommand(v, name) };
   let output;
   let form = v.format;
   if (v.format === 'cellfont') {

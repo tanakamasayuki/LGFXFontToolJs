@@ -70,10 +70,16 @@ flags.
 No install is needed; `npx` fetches it each time.
 
 ```sh
-npx lgfx-font build ...                 # use it without installing
-npm i -D lgfx-font-tool                 # pin it in the project (do this for CI)
-npm i -g lgfx-font-tool                 # call lgfx-font from anywhere
+npx -p lgfx-font-tool lgfx-font build ...   # use it without installing
+npm i -D lgfx-font-tool                     # pin it in the project (do this for CI)
+npm i -g lgfx-font-tool                     # call lgfx-font from anywhere
 ```
+
+**Do not drop `-p lgfx-font-tool`.** The command is `lgfx-font` but the package is
+`lgfx-font-tool`, and no package called `lgfx-font` exists (`npm view lgfx-font` is a 404). A
+bare `npx lgfx-font` works only where npm manages to resolve the command name to a package,
+or where it is already in `node_modules`. Naming the package always works. Once it is
+installed, drop `npx` entirely and write `lgfx-font build ...`.
 
 Checking and upgrading:
 
@@ -88,7 +94,7 @@ npm i -g lgfx-font-tool@latest          # bring the global install up to date
 npm i -D lgfx-font-tool@2.2.1           # pin an exact version
 ```
 
-**`npx` can hold on to an old version.** If `npx lgfx-font --version` is not what you expect,
+**`npx` can hold on to an old version.** If `npx -p lgfx-font-tool lgfx-font --version` is not what you expect,
 name the version — `npx lgfx-font-tool@latest lgfx-font ...` — or drop the cache with
 `npx clear-npx-cache`.
 
@@ -443,10 +449,18 @@ from `--google <family>`.
 The comment at the top of C source output carries the command that produced the file.
 
 ```
-// Rebuild with:
-//   npx lgfx-font build --google Roboto --em 16 --chars AB温度 --fallback 'google:Noto Sans JP' --format cellfont --out font.h
+// Rebuild with (add --out for wherever this file goes):
+//   npx -p lgfx-font-tool lgfx-font build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
 ```
 
+- **`--out` is not recorded.** Where the file was written is not part of what the file
+  contains. Recording it made one font placed in four directories into four different files,
+  which defeats copying a generated header around, and strays from the format spec's "same
+  input, same bytes" (the input being the character set, yAdvance, and target ABI). There is
+  exactly one thing to add back, and the file you are reading tells you what it is.
+- **`--name` is always recorded, given or not.** The symbol name really is part of the
+  output, and with no `--out` there is nothing left to derive it from. The identifier written
+  is the one actually used, after canonicalization.
 - Flags that do not change the file are left out (`--check`, `--preview`, `--preview-text`,
   `--max-height`, `--offline`, `--cache-dir`, `--json`). `--allow-missing` is kept, because
   without it the rebuild would stop.
@@ -455,7 +469,8 @@ The comment at the top of C source output carries the command that produced the 
 - **One line, however long.** Wrapping with a trailing `\` reads better but does not survive
   being copied: the continuation lines are still inside the `//` comment, so what reaches the
   shell is commented out.
-- `npx` prefixes it because that runs whether or not the package is installed globally.
+- **The form is `npx -p lgfx-font-tool lgfx-font`.** A bare `npx lgfx-font` 404s in some
+  environments (§3).
 - **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
   quoting to run, but without quotes it reads as if one went missing; the value is text, and
   the quotes are what show where it ends. A value starting with `-` and an empty value are
@@ -465,10 +480,28 @@ The comment at the top of C source output carries the command that produced the 
   and `../../elsewhere/x.ttf` both come out as `x.ttf`. No home directory layout leaks into
   the output and the line is the same across machines; the cost is that a font of your own
   has to be put back by hand.
-- **A path inside the working directory is kept.** A project-relative `--out
-  examples/OledI2C/font.h` is not something leaking out — it is what rebuilding that file
-  needs. Separators and a leading `./` are normalized, so `examples/x.h` and `./examples/x.h`
-  produce the same line.
+- **A path inside the working directory is kept.** A project-relative `--charset
+  fonts/chars.txt` is not something leaking out — it is what rebuilding that file needs.
+  Separators and a leading `./` are normalized, so `fonts/x.txt` and `./fonts/x.txt` produce
+  the same line.
+
+The same font written to different directories comes out byte-identical.
+
+```sh
+$ for d in a b c d; do
+    lgfx-font build --font lgfxJapanGothic_8 --chars '℃' --sets digits \
+        --format cellfont --name tgfxClock --out $d/tgfx_clock.h
+  done
+$ md5sum */tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  a/tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  b/tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  c/tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  d/tgfx_clock.h
+```
+
+**Omitting `--name` breaks that.** The default symbol name comes from the basename of
+`--out`, so different file names give different symbol names. Pass `--name` explicitly if the
+header is meant to be reused.
 
 ## 7. Verification mode
 
@@ -576,26 +609,26 @@ copy-pasting your own set together**.
 
 ```sh
 # A one-off: just the characters you need, from a bundled font
-npx lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
+npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
     --format cellfont --out font.h
 
 # From Google Fonts, by name alone
-npx lgfx-font build --google "Noto Sans JP" --em 16 \
+npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 16 \
     --sets ascii,hiragana,hanJaG6 --chars "℃" --format cellfont --out font.h
 
 # From your own TTF, with a confirmation image
-npx lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
+npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
     --format cellfont --out font.h --preview font.png
 
 # A different format
-npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
+npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
 # Fill what a Latin typeface does not have from another one
-npx lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
+npx -p lgfx-font-tool lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
     --sets ascii --chars "温度設定" --format cellfont --out font.h
 
 # For upstream u8g2 (no LovyanGFX type in the output)
-npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
+npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
     --format u8g2 --no-wrapper --out font.h
 
 # Repeated use (package.json)

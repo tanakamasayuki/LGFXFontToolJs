@@ -50,15 +50,15 @@ npm install lgfx-font-tool
 
 ```sh
 # Google Fonts から名前だけで、必要な文字だけのフォントを作る
-npx lgfx-font build --google "Noto Sans JP" --em 12 \
+npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 12 \
     --chars "温度設定完了 23.5℃" --format cellfont --out font.h
 
 # 確認用の画像も一緒に
-npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
+npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
     --format u8g2 --out font.h --preview font.png
 
 # CI: 生成物が最新かどうかだけ見る（何も書かない）
-npx lgfx-font build ... --check
+npx -p lgfx-font-tool lgfx-font build ... --check
 ```
 
 インストールは任意です（`npx` が都度取ってきます）。固定・確認・更新はこちら。

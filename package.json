@@ -87,6 +87,6 @@
     "@napi-rs/canvas": "^0.1.100"
   },
   "dependencies": {
-    "lgfx-font-tool": "^2.1.0"
+    "lgfx-font-tool": "^2.2.1"
   }
 }

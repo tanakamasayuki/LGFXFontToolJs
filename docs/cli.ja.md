@@ -64,10 +64,16 @@ lgfx-font charset <file> [オプション]       文字集合ファイルの正�
 インストールは要らない。`npx` が都度取ってくる。
 
 ```sh
-npx lgfx-font build ...                 # 入れずに使う
-npm i -D lgfx-font-tool                 # プロジェクトに固定（CI で使うならこちら）
-npm i -g lgfx-font-tool                 # どこからでも lgfx-font で呼ぶ
+npx -p lgfx-font-tool lgfx-font build ...   # 入れずに使う
+npm i -D lgfx-font-tool                     # プロジェクトに固定（CI ではこちら）
+npm i -g lgfx-font-tool                     # どこからでも lgfx-font で呼ぶ
 ```
+
+**`-p lgfx-font-tool` を省かない。** コマンド名は `lgfx-font` だがパッケージ名は
+`lgfx-font-tool` で、`lgfx-font` というパッケージは存在しない（`npm view lgfx-font` は 404）。
+素の `npx lgfx-font` は、npm がコマンド名からパッケージを引けた環境か、
+`node_modules` に既に入っている場合しか動かない。パッケージ名を明示すれば常に動く。
+インストール済みなら `npx` ごと省いて `lgfx-font build ...` でよい。
 
 版の確認と更新。
 
@@ -82,7 +88,7 @@ npm i -g lgfx-font-tool@latest          # グローバルを最新に
 npm i -D lgfx-font-tool@2.2.1           # 版を指定して固定
 ```
 
-**`npx` は古い版を握り続けることがある。** `npx lgfx-font --version` が期待と違うときは
+**`npx` は古い版を握り続けることがある。** `npx -p lgfx-font-tool lgfx-font --version` が期待と違うときは
 `npx lgfx-font-tool@latest lgfx-font ...` のように版を明示するか、`npx clear-npx-cache`
 でキャッシュを捨てる。
 
@@ -419,10 +425,17 @@ static const uint8_t myfont[71] LGFXFT_PROGMEM = { ... };
 C ソース出力の先頭コメントに、そのファイルを作ったコマンドが入る。
 
 ```
-// Rebuild with:
-//   npx lgfx-font build --google Roboto --em 16 --chars AB温度 --fallback 'google:Noto Sans JP' --format cellfont --out font.h
+// Rebuild with (add --out for wherever this file goes):
+//   npx -p lgfx-font-tool lgfx-font build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
 ```
 
+- **`--out` は載せない。** ファイルをどこに書いたかは、ファイルの中身ではない。載せると
+  同じフォントを 4 つのディレクトリに置いただけで 4 つとも中身が違うファイルになり、
+  生成済みヘッダをコピーして使い回せなくなる。形式仕様の「同じ入力なら同じバイト列」
+  （入力＝文字集合・yAdvance・対象 ABI）からも外れる。書き足すのは 1 か所だけで、
+  そのファイル自身を見れば分かる。
+- **`--name` は指定が無くても必ず載せる。** シンボル名は出力そのものの一部だし、`--out` を
+  載せないなら他に導く材料が無い。正準化した後の実際の識別子を書く。
 - 出力に影響しない指定（`--check` `--preview` `--preview-text` `--max-height`
   `--offline` `--cache-dir` `--json`）は載せない。`--allow-missing` は、無いと
   作り直しが止まるので載せる。
@@ -430,7 +443,8 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
   出力の正準性（§6）を壊さない。
 - **どれだけ長くても 1 行で出す。** `\` で折り返すと読みやすいが、続きの行も `//` の
   中なので、コピーするとシェルに渡るのはコメントだけになる。
-- `npx` を付けるのは、グローバルに入れていなくてもそのまま動くから。
+- **`npx -p lgfx-font-tool lgfx-font` の形で出す。** 素の `npx lgfx-font` は環境によって
+  404 になる（§3）。
 - **`--chars` の値は 1 文字でも必ず引用する。** `--chars ℃` はシェル的には引用が要らないが、
   引用が無いと片方が消えたように読める。内容を表す指定なので、どこまでが値かを示す。
   先頭が `-` の値と空文字も、読み戻すとフラグになったり消えたりするので引用する。
@@ -438,9 +452,26 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
   解決した先で判断する。`/home/誰か/x.ttf` も `../../どこか/x.ttf` も `x.ttf` になる。
   ホームディレクトリの構成が出力に混ざらず、環境をまたいでも同じ行になる。代わりに、
   手元の TTF は自分で置き直す必要がある。
-- **作業ディレクトリの中のパスはそのまま残す。** `--out examples/OledI2C/font.h` のような
+- **作業ディレクトリの中のパスはそのまま残す。** `--charset fonts/chars.txt` のような
   プロジェクト内の相対パスは、漏れる情報ではなく、そのファイルを作り直すのに必要な情報。
-  区切り文字と `./` は正規化するので、`examples/x.h` と `./examples/x.h` は同じ 1 行になる。
+  区切り文字と `./` は正規化するので、`fonts/x.txt` と `./fonts/x.txt` は同じ 1 行になる。
+
+同じフォントを別のディレクトリに置いてもバイト一致する。
+
+```sh
+$ for d in a b c d; do
+    lgfx-font build --font lgfxJapanGothic_8 --chars '℃' --sets digits \
+        --format cellfont --name tgfxClock --out $d/tgfx_clock.h
+  done
+$ md5sum */tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  a/tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  b/tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  c/tgfx_clock.h
+d5f4f51c84f137f73b6b0562b41250f3  d/tgfx_clock.h
+```
+
+**`--name` を省いた場合は別物になる。** 既定のシンボル名は `--out` の basename から作るので、
+置き場所ごとにファイル名が違えばシンボル名も違う。使い回すつもりなら `--name` を明示する。
 
 ## 7. 検証モード
 
@@ -543,26 +574,26 @@ lgfx-font charset fonts/chars.txt --normalize  # 明示形。同じ
 
 ```sh
 # 単発。内蔵フォントから今欲しい文字だけ
-npx lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
+npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
     --format cellfont --out font.h
 
 # Google Fonts から名前だけで
-npx lgfx-font build --google "Noto Sans JP" --em 16 \
+npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 16 \
     --sets ascii,hiragana,hanJaG6 --chars "℃" --format cellfont --out font.h
 
 # 手持ちの TTF から、確認画像つき
-npx lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
+npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
     --format cellfont --out font.h --preview font.png
 
 # 形式を変えて
-npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
+npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
 # 欧文書体に無い字を別書体から埋める
-npx lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
+npx -p lgfx-font-tool lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
     --sets ascii --chars "温度設定" --format cellfont --out font.h
 
 # 上流 u8g2 で使う（LovyanGFX の型を出さない）
-npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
+npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
     --format u8g2 --no-wrapper --out font.h
 
 # 継続利用（package.json）

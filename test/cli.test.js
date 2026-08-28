@@ -119,12 +119,19 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
     0,
   );
   const text = readFileSync(out, 'utf8');
-  assert.match(text, /Rebuild with:/);
-  assert.match(text, /npx lgfx-font build --font lgfxJapanGothic_12/, 'npx 付きで動く形');
+  assert.match(text, /Rebuild with \(add --out /, '--out は自分で足すと言う');
+  assert.match(
+    text,
+    /npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_12/,
+    '素の npx lgfx-font は環境によって 404 になるのでパッケージ名を明示する',
+  );
   assert.doesNotMatch(text, /\\\n/, 'コメント内で折り返すとコピーしても動かないので 1 行');
   assert.match(text, /--chars 'A B'/, '空白を含む値は引用される');
   assert.match(text, /--format cellfont/, '識別子は引用しない');
-  assert.match(text, /--out repro\.h/, '作業ディレクトリ外の絶対パスはファイル名だけになる');
+  assert.match(text, /--name repro\b/, '省略しても実際の識別子を載せる');
+  const command = /** @type {string[]} */ (text.match(/^\/\/ +npx .*$/m));
+  assert.ok(command, '再現コマンドの行が見つからない');
+  assert.doesNotMatch(command[0], /--out/, '置き場所は中身ではないので載せない');
   assert.doesNotMatch(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '絶対パスは残らない');
   // 出力に影響しない指定は載せない。
   assert.doesNotMatch(text, /--cache-dir|--preview|--check/);
@@ -141,30 +148,44 @@ test('--version は版だけを標準出力に出す', () => {
 
 test('作業ディレクトリの外を指すパスは、書き方に関わらず丸められる', () => {
   // `..` で外へ出る相対パスも、同じ場所を指す絶対パスと同じ扱いにする。
-  const out = tmp('escape.h');
-  const viaDots = relative(process.cwd(), out);
+  const chars = tmp('escape-set.txt');
+  writeFileSync(chars, 'AB\n');
+  const viaDots = relative(process.cwd(), chars);
   assert.ok(viaDots.startsWith('..'), '前提: 作業ディレクトリの外を指している');
-  assert.equal(run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format', 'cellfont',
-    '--out', viaDots]).code, 0);
+  const out = tmp('escape.h');
+  assert.equal(run(['build', '--font', 'lgfxJapanGothic_12', '--charset', viaDots,
+    '--format', 'cellfont', '--out', out]).code, 0);
   const text = readFileSync(out, 'utf8');
-  assert.match(text, /--out escape\.h/, 'ファイル名だけになる');
+  assert.match(text, /--charset escape-set\.txt/, 'ファイル名だけになる');
   assert.doesNotMatch(text, /\.\.\//, '上位ディレクトリの構成は残らない');
 });
 
 test('同じ場所を指す別の書き方は同じ 1 行になる', () => {
-  // `examples/x.h` と `./examples/x.h` が違う出力になると正準性が崩れる。
-  const a = 'examples/repro-a.h';
-  /** @param {string} out */
-  const args = (out) => ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format',
-    'cellfont', '--name', 'R', '--out', out];
+  // `fonts/x.txt` と `./fonts/x.txt` が違う出力になると正準性が崩れる。
+  const set = 'examples/repro-set.txt';
+  const args = /** @param {string} charset */ (charset) => ['build', '--font',
+    'lgfxJapanGothic_12', '--charset', charset, '--format', 'cellfont', '--name', 'R',
+    '--out', tmp('spelling.h')];
   try {
-    assert.equal(run(args(a)).code, 0);
-    const plain = readFileSync(a, 'utf8');
-    assert.equal(run(args('./' + a)).code, 0);
-    assert.deepEqual(readFileSync(a, 'utf8'), plain);
+    writeFileSync(set, 'AB\n');
+    assert.equal(run(args(set)).code, 0);
+    const plain = readFileSync(tmp('spelling.h'), 'utf8');
+    assert.equal(run(args('./' + set)).code, 0);
+    assert.deepEqual(readFileSync(tmp('spelling.h'), 'utf8'), plain);
   } finally {
-    rmSync(a, { force: true });
+    rmSync(set, { force: true });
   }
+});
+
+test('同じフォントを別の場所へ書いてもバイト一致する', () => {
+  // 置き場所はファイルの中身ではない。使い回せることが要点。
+  const args = /** @param {string} out */ (out) => ['build', '--font', 'lgfxJapanGothic_8',
+    '--sets', 'digits', '--format', 'cellfont', '--name', 'tgfxClock', '--out', out];
+  const a = tmp('locA/tgfx_clock.h');
+  const b = tmp('locB/tgfx_clock.h');
+  assert.equal(run(args(a)).code, 0);
+  assert.equal(run(args(b)).code, 0);
+  assert.deepEqual(readFileSync(a), readFileSync(b));
 });
 
 test('--chars は 1 文字でも常に引用する', () => {

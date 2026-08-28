@@ -138,7 +138,13 @@ export function licenseNotice(font, info) {
   L.push('built from it.');
   L.push('');
   L.push(`Format   : ${info.format}`);
-  L.push(`Line box : ${font.ascent + font.descent}px (ascent ${font.ascent}, descent ${font.descent})`);
+  // Said to be the typeface's, because a CellFont reader also sees a per-cell
+  // yOffset and the two are different numbers: this pair is for line spacing,
+  // that one is where the ink box sits on the baseline.
+  L.push(
+    `Line box : ${font.ascent + font.descent}px (ascent ${font.ascent}, descent ${font.descent})` +
+      ' — typeface metrics, for line spacing',
+  );
   L.push(`Glyphs   : ${font.glyphs.size}`);
   L.push(`Data     : ${info.bytes} bytes`);
   L.push(`Coverage : ${summarizeRanges(cps)}`);
@@ -147,7 +153,8 @@ export function licenseNotice(font, info) {
   // machine's layout — a local font may have to be put back by hand.
   if (a.command) {
     L.push('');
-    L.push('Rebuild with:');
+    // --out is not in the command: see the note on REPRO_FLAGS in bin/lgfx-font.js.
+    L.push('Rebuild with (add --out for wherever this file goes):');
     for (const line of a.command.split('\n')) L.push(`  ${line}`);
   }
   return L.join('\n');
