@@ -75,7 +75,7 @@ export {
 
 // Generation (browser-only; calling from Node throws CapabilityError)
 export { generateFont } from './gen/generate.js';
-export { loadTtf, unloadTtf, rasterizeSet, measureTtf, ensureRasterizer } from './gen/rasterize.js';
+export { loadTtf, unloadTtf, rasterizeSet, ensureRasterizer } from './gen/rasterize.js';
 
 // Bundled font collection
 export { fontCatalog, collectionInfo } from './fonts/catalog.js';

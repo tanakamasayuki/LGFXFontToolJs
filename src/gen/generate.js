@@ -9,8 +9,6 @@ import { createFont } from '../model/font.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
 /** @typedef {import('./rasterize.js').RasterGlyph} RasterGlyph */
-/** @typedef {import('./rasterize.js').FontSizing} FontSizing */
-/** @typedef {import('./rasterize.js').FontSizingInput} FontSizingInput */
 
 /**
  * @param {RasterGlyph} g
@@ -40,10 +38,10 @@ export function toModelGlyph(g) {
  * One rasterization pass for a source or family over a character set.
  * @param {{source?: ArrayBuffer | string, family?: string}} src
  * @param {number[]} codepoints
- * @param {{px: number, style?: {weight?: number, italic?: boolean}, bpp?: 1|8, threshold?: number, sizing?: FontSizingInput,
+ * @param {{em: number, style?: {weight?: number, italic?: boolean}, bpp?: 1|8, threshold?: number,
  *          familyName?: string, onProgress?: (p: {done: number, total: number}) => void}} opts
- *   - generateFont opts, sharing px / style / threshold / familyName / onProgress
- * @returns {Promise<{font: Font, missing: number[], sizing: FontSizing}>}
+ *   - generateFont opts, sharing em / style / threshold / familyName / onProgress
+ * @returns {Promise<{font: Font, missing: number[]}>}
  */
 async function generateOne(src, codepoints, opts) {
   if (src.source === undefined && !src.family) {
@@ -52,14 +50,13 @@ async function generateOne(src, codepoints, opts) {
   const own = src.source !== undefined ? await loadTtf(src.source) : null;
   const family = own ? own.family : /** @type {string} */ (src.family);
   try {
-    const { glyphs, missing, sizing, box } = await rasterizeSet({
+    const { glyphs, missing, box } = await rasterizeSet({
       family,
-      size: opts.px,
+      em: opts.em,
       codepoints,
       style: opts.style ?? {},
       bpp: opts.bpp ?? 1,
       threshold: opts.threshold ?? 128,
-      sizing: opts.sizing,
       onProgress: opts.onProgress,
     });
 
@@ -84,10 +81,7 @@ async function generateOne(src, codepoints, opts) {
         issues: [],
         format: {
           gen: {
-            requestedPx: opts.px,
-            cssPx: sizing.cssPx,
-            probe: sizing.probe,
-            probeHeight: sizing.probeHeight,
+            em: opts.em,
             threshold: opts.threshold ?? 128,
             bpp: opts.bpp ?? 1,
             weight: opts.style?.weight ?? 400,
@@ -96,7 +90,7 @@ async function generateOne(src, codepoints, opts) {
         },
       },
     });
-    return { font, missing, sizing };
+    return { font, missing };
   } finally {
     if (own) unloadTtf(own.face);
   }
@@ -153,17 +147,17 @@ function mergeGenerated(base, overlay) {
  * @param {object} opts
  * @param {ArrayBuffer | string} [opts.source] - TTF/OTF/WOFF bytes or URL
  * @param {string} [opts.family] - registered CSS family name, instead of source
- * @param {number} opts.px - glyph ink height, not line-box height
+ * @param {number} opts.em - em size in pixels: a full-width character advances exactly this
+ *   much. The line box is normally larger; read it from the returned font
  * @param {number[] | string} opts.codepoints - code points or text to include
  * @param {{weight?: number, italic?: boolean}} [opts.style]
  * @param {1|8} [opts.bpp] - glyph coverage depth, default 1
  * @param {number} [opts.threshold] - alpha threshold for 1bpp, 1..255, default 128
- * @param {FontSizingInput} [opts.sizing] - sizing that fixes cssPx across calls
  * @param {string} [opts.familyName]
  * @param {Array<{source?: ArrayBuffer | string, family?: string}>} [opts.fallbacks]
  *   - sources tried in order for characters missing from the primary source
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
- * @returns {Promise<{font: Font, missing: number[], filled: {index: number, codepoints: number[]}[], sizing: FontSizing}>}
+ * @returns {Promise<{font: Font, missing: number[], filled: {index: number, codepoints: number[]}[]}>}
  *   font: generated neutral model / missing: absent from every source /
  *   filled: count filled by each fallback index
  */
@@ -178,19 +172,18 @@ export async function generateFont(opts) {
 
   const primary = await generateOne(opts, codepoints, opts);
   let { font, missing } = primary;
-  const sizing = primary.sizing;
 
   /** @type {{index: number, codepoints: number[]}[]} */
   const filled = [];
   const fallbacks = opts.fallbacks ?? [];
   for (let i = 0; i < fallbacks.length && missing.length > 0; i++) {
-    // Draw fallbacks at the primary CSS em scale; do not remeasure each typeface.
-    const r = await generateOne(fallbacks[i], missing, { ...opts, sizing });
+    // Every typeface is drawn at the same em, so fill-in glyphs match by construction.
+    const r = await generateOne(fallbacks[i], missing, opts);
     if (r.font.glyphs.size > 0) {
       font = mergeGenerated(font, r.font);
       filled.push({ index: i, codepoints: [...r.font.glyphs.keys()].sort((a, b) => a - b) });
     }
     missing = r.missing;
   }
-  return { font, missing, filled, sizing };
+  return { font, missing, filled };
 }

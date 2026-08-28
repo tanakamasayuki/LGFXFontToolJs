@@ -9,6 +9,8 @@
  * Browser-only: this file and fonts/loader.js are the only src/ modules allowed
  * to touch the DOM (spec §4.1).
  *
+ * Size is given as `em` (the typeface design size in pixels). See rasterizeSet.
+ *
  * Per-glyph output is { code, w, h, x, y, dx, bits }: bits is row-major coverage,
  * x is left bearing, y is signed baseline-to-bitmap-bottom distance with positive
  * upward (BDF-style), and dx is advance.
@@ -89,12 +91,6 @@ function makeSurface(size) {
 
 /** @typedef {ReturnType<typeof makeSurface>} Surface */
 /** @typedef {{weight?: number, italic?: boolean}} TtfStyle */
-/**
- * CSS drawing size and its derivation. When a supplied cssPx is reused,
- * probe / probeHeight remain as provenance.
- * @typedef {{cssPx: number, probe: string | null, probeHeight: number}} FontSizing
- * @typedef {{cssPx: number, probe?: string | null, probeHeight?: number}} FontSizingInput
- */
 
 // Quote family names, but never generic fallbacks: quoting turns them into
 // nonexistent named families and destroys the comparison baseline.
@@ -105,71 +101,6 @@ const cssFont = (size, family, { weight = 400, italic = false } = {}, fallback =
 /** @param {number} size @param {string} generic @param {TtfStyle} [style] */
 const cssGeneric = (size, generic, { weight = 400, italic = false } = {}) =>
   `${italic ? 'italic ' : ''}${weight} ${size}px ${generic}`;
-
-// Pin size to reference-glyph ink height. Line boxes vary widely by typeface,
-// while a requested 32 normally means a 32px character. Choose the probe from
-// the generated set: a fixed probe can make tofu appear present where no CJK
-// font exists, a lesson inherited from fontgen.
-const PROBE_CANDIDATES = [0x6f22, 0x56fd, 0x65e5, 0xac00, 0x48, 0x45, 0x4e, 0x30];
-const REF_PX = 100;
-
-/** @param {Surface} surf @param {number} cp @param {number} cssPx @param {string} family @param {TtfStyle} style */
-function probeInk(surf, cp, cssPx, family, style) {
-  const g = rasterizeOne(surf, cp, cssPx, family, style, 128);
-  return g && g.h > 0 ? g.h : 0;
-}
-
-/** @param {string} family @param {TtfStyle} style @param {number[]} codepoints */
-function pickProbe(family, style, codepoints) {
-  const surf = makeSurface(REF_PX);
-  const set = new Set(codepoints);
-  for (const cp of PROBE_CANDIDATES) {
-    if (!set.has(cp)) continue;
-    const h = probeInk(surf, cp, REF_PX, family, style);
-    if (h) return { cp, refHeight: h };
-  }
-  // If no standard probe exists, as with a digits-only clock, choose the tallest
-  // among the first few characters as representative of that set.
-  /** @type {{cp: number, refHeight: number} | null} */
-  let best = null;
-  for (const cp of codepoints.slice(0, 24)) {
-    const h = probeInk(surf, cp, REF_PX, family, style);
-    if (h && (!best || h > best.refHeight)) best = { cp, refHeight: h };
-  }
-  return best;
-}
-
-/**
- * Resolves requested glyph height to the CSS px size that produces it.
- * @param {string} family
- * @param {number} size - glyph height in pixels
- * @param {TtfStyle} [style]
- * @param {number[]} [codepoints]
- * @returns {{cssPx: number, probe: string | null, probeHeight: number}}
- */
-export function measureTtf(family, size, style = {}, codepoints = []) {
-  const probe = pickProbe(family, style, codepoints);
-  // A font that draws none of the requested characters has no derivable scale.
-  // Treat size as em size and let the caller report an empty result.
-  if (!probe) return { cssPx: size, probe: null, probeHeight: 0 };
-
-  let cssPx = Math.max(1, (REF_PX * size) / probe.refHeight);
-  const surf = makeSurface(Math.ceil(cssPx));
-  /** @type {{cssPx: number, got: number} | null} */
-  let best = null;
-  for (let i = 0; i < 16; i++) {
-    const got = probeInk(surf, probe.cp, cssPx, family, style);
-    if (!best || Math.abs(got - size) < Math.abs(best.got - size)) best = { cssPx, got };
-    if (got === size) break;
-    cssPx += (got > size ? -1 : 1) * Math.max(0.1, Math.abs(got - size) / 4);
-    if (cssPx < 1) {
-      cssPx = 1;
-      break;
-    }
-  }
-  const b = /** @type {{cssPx: number, got: number}} */ (best);
-  return { cssPx: b.cssPx, probe: String.fromCodePoint(probe.cp), probeHeight: b.got };
-}
 
 /** @typedef {{px: Uint8ClampedArray, adv: number}} Rendered */
 
@@ -347,42 +278,41 @@ function rasterizeOne(surf, code, size, family, style, threshold, bpp = 1) {
 
 /**
  * Rasterizes a complete character set.
+ *
+ * `em` is the design size: the typeface's em square in pixels, drawn as a CSS
+ * font-size. A full-width character advances exactly one em, so `em` fixes the
+ * horizontal scale exactly. Vertical extent follows from the typeface, so the
+ * line box (see lineBoxOf) is normally larger than `em`.
+ *
+ * Nothing here is measured from the requested repertoire, so adding or removing
+ * characters never rescales the glyphs already generated.
+ *
  * @param {object} opts
  * @param {string} opts.family - CSS family returned by loadTtf()
- * @param {number} opts.size - target glyph height in pixels
+ * @param {number} opts.em - em size in pixels
  * @param {number[]} opts.codepoints - ascending code points
  * @param {TtfStyle} [opts.style]
  * @param {1|8} [opts.bpp] - output coverage depth, default 1
  * @param {number} [opts.threshold] - 1bpp alpha threshold, 1..255, default 128
- * @param {FontSizingInput} [opts.sizing] - reusable sizing that skips measureTtf
  * @param {(p: {done: number, total: number}) => void} [opts.onProgress]
  * @returns {Promise<{glyphs: RasterGlyph[], missing: number[],
- *   sizing: {cssPx: number, probe: string | null, probeHeight: number},
  *   box: {ascent: number, descent: number, height: number}}>}
  */
 export async function rasterizeSet({
   family,
-  size,
+  em,
   codepoints,
   style = {},
   bpp = 1,
   threshold = 128,
-  sizing: inheritedSizing,
   onProgress,
 }) {
   ensureRasterizer();
   if (bpp !== 1 && bpp !== 8) throw new RangeError(`rasterizeSet: bpp must be 1 or 8 (got ${bpp})`);
-  if (inheritedSizing && (!Number.isFinite(inheritedSizing.cssPx) || inheritedSizing.cssPx <= 0)) {
-    throw new RangeError('rasterizeSet: sizing.cssPx must be a positive finite number');
+  if (!Number.isFinite(em) || em <= 0) {
+    throw new RangeError(`rasterizeSet: em must be a positive finite number (got ${em})`);
   }
-  const sizing = inheritedSizing
-    ? {
-        cssPx: inheritedSizing.cssPx,
-        probe: inheritedSizing.probe ?? null,
-        probeHeight: inheritedSizing.probeHeight ?? 0,
-      }
-    : measureTtf(family, size, style, codepoints);
-  const surf = makeSurface(sizing.cssPx);
+  const surf = makeSurface(em);
   /** @type {RasterGlyph[]} */
   const glyphs = [];
   /** @type {number[]} */
@@ -391,7 +321,7 @@ export async function rasterizeSet({
   // Yield between chunks so 10,000 CJK glyphs do not freeze the tab.
   const CHUNK = 200;
   for (let i = 0; i < codepoints.length; i++) {
-    const g = rasterizeOne(surf, codepoints[i], sizing.cssPx, family, style, threshold, bpp);
+    const g = rasterizeOne(surf, codepoints[i], em, family, style, threshold, bpp);
     if (g) glyphs.push(g);
     else missing.push(codepoints[i]);
     if ((i + 1) % CHUNK === 0 || i === codepoints.length - 1) {
@@ -409,7 +339,7 @@ export async function rasterizeSet({
     }
   }
 
-  return { glyphs, missing, sizing, box: lineBoxOf(glyphs) };
+  return { glyphs, missing, box: lineBoxOf(glyphs) };
 }
 
 /**

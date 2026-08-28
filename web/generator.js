@@ -47,7 +47,7 @@ const gfontListEl = $('gfont-list');
 const fileEl = /** @type {HTMLInputElement} */ ($('file'));
 const weightEl = /** @type {HTMLSelectElement} */ ($('weight'));
 const italicEl = /** @type {HTMLInputElement} */ ($('italic'));
-const pxEl = /** @type {HTMLInputElement} */ ($('px'));
+const emEl = /** @type {HTMLInputElement} */ ($('em'));
 const thresholdEl = /** @type {HTMLInputElement} */ ($('threshold'));
 const thresholdControlEl = $('threshold-control');
 const symbolEl = /** @type {HTMLInputElement} */ ($('symbol'));
@@ -119,8 +119,6 @@ let fbState = null;
 let baseFont = null;
 /** @type {number[]} Characters the typeface did not have in the main generation */
 let baseMissing = [];
-/** @type {import('../src/gen/rasterize.js').FontSizing | null} Sizing of the main generation */
-let baseSizing = null;
 /** @type {import('../src/model/font.js').Font | null} What is displayed and exported (including any fill-in) */
 let generated = null;
 /** @type {{family: string, filled: number, still: number[]} | null} */
@@ -143,7 +141,7 @@ const OUTPUT_FORMATS = {
 
 // --- Shared helpers -------------------------------------------------------------
 
-const pxNum = () => Number(pxEl.value) || 24;
+const emNum = () => Number(emEl.value) || 24;
 const thresholdNum = () => Math.min(255, Math.max(1, Number(thresholdEl.value) || 128));
 const styleNow = () => ({ weight: Number(weightEl.value), italic: italicEl.checked });
 const outputBpp = () => Number(bppEl.value) || 1;
@@ -311,10 +309,10 @@ function syncAttribution() {
     if (f) {
       typefaceEl.value = f.family;
       licenseEl.value = f.license.name;
-      if (!symbolTouched) symbolEl.value = sanitizeIdent(`${f.family}_${pxEl.value}`);
+      if (!symbolTouched) symbolEl.value = sanitizeIdent(`${f.family}_${emEl.value}`);
     }
   } else if (fontData) {
-    if (!symbolTouched) symbolEl.value = sanitizeIdent(`${typefaceEl.value || 'MyFont'}_${pxEl.value}`);
+    if (!symbolTouched) symbolEl.value = sanitizeIdent(`${typefaceEl.value || 'MyFont'}_${emEl.value}`);
   }
   renderHowto();
 }
@@ -361,7 +359,7 @@ async function updateLive() {
     if (seq !== liveSeq) return;
     const { font, missing } = await generateFont({
       ...src,
-      px: pxNum(),
+      em: emNum(),
       codepoints: cps,
       style: styleNow(),
       bpp: modelBpp(),
@@ -375,9 +373,12 @@ async function updateLive() {
       Number(liveZoomEl.value),
       /** @type {1|2|4|8} */ (outputBpp()),
     );
+    let maxInk = 0;
+    for (const g of font.glyphs.values()) maxInk = Math.max(maxInk, g.bitmap.height);
     let s = t('gen.liveInfo', {
-      px: pxNum(),
+      em: emNum(),
       line: font.lineHeight,
+      ink: maxInk,
       width: textWidth(font, text),
     });
     if (missing.length > 0) s += ' — ' + t('gen.missing', { count: missing.length });
@@ -392,7 +393,7 @@ const scheduleLive = debounce(updateLive, 400);
 for (const el of [liveTextEl, liveZoomEl, thresholdEl]) {
   el.addEventListener('input', scheduleLive);
 }
-pxEl.addEventListener('input', () => {
+emEl.addEventListener('input', () => {
   syncAttribution();
   renderCharSummary();
   scheduleLive();
@@ -513,8 +514,8 @@ function renderCharSummary() {
   const count = currentCodepoints().length;
   charCountEl.textContent = t('gen.selected', { count });
   // Rough u8g2 size estimate (record header + RLE; dense CJK runs over this)
-  const px = pxNum();
-  const kb = (count * (6 + (px * px) / 10)) / 1024;
+  const em = emNum();
+  const kb = (count * (6 + (em * em) / 10)) / 1024;
   charEstimateEl.textContent =
     count > 0 ? t('gen.estimate', { kb: kb < 10 ? kb.toFixed(1) : String(Math.round(kb)) }) : '';
   if (charmapDetailsEl.open) renderSelectedCharmap();
@@ -550,9 +551,9 @@ generateEl.addEventListener('click', async () => {
   try {
     statusEl.textContent = t('gen.fetching');
     const src = await resolveSource(bmp);
-    const { font, missing, sizing } = await generateFont({
+    const { font, missing } = await generateFont({
       ...src,
-      px: pxNum(),
+      em: emNum(),
       codepoints: bmp,
       style: styleNow(),
       bpp: modelBpp(),
@@ -564,7 +565,6 @@ generateEl.addEventListener('click', async () => {
     });
     baseFont = font;
     baseMissing = missing;
-    baseSizing = sizing;
     generated = font;
     fbApplied = null;
     statusEl.textContent = dropped.length > 0 ? t('gen.droppedBmp', { count: dropped.length }) : '';
@@ -640,12 +640,11 @@ fbApplyEl.addEventListener('click', async () => {
     fbState = { key, family: loaded.family, loaded: loaded.loaded };
     const r = await generateFont({
       family: loaded.family,
-      px: pxNum(),
+      em: emNum(),
       codepoints: baseMissing,
       style: styleNow(),
       bpp: /** @type {1|8} */ (fontBpp(baseFont)),
       threshold: thresholdNum(),
-      sizing: baseSizing ?? undefined,
       onProgress: ({ done, total }) => {
         fbStatusEl.textContent = t('gen.generating', { done, total });
       },

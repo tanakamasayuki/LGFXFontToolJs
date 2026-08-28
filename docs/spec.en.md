@@ -641,22 +641,59 @@ import { generateFont } from 'lgfx-font-tool';   // implementation lives in src/
 await generateFont({
   source,                  // ArrayBuffer | Blob | URL string (TTF/OTF/WOFF/WOFF2)
   family,                  // instead of source: a CSS family name already registered on the page
-  px,                      // character height (font size in CSS px)
+  em,                      // em size in pixels. §10.3
   codepoints,              // Iterable<number> | string | named set name
   bpp: 1,                  // 1 (thresholded) | 8 (raw coverage values)
   threshold: 128,          // threshold for 1bpp (0-255)
   weight, italic,          // passed to the FontFace descriptor
-  sizing,                  // optional: reuse { cssPx, probe, probeHeight } from another generation
-  fallbacks: [{ family }], // fill missing characters in order, inheriting the primary cssPx
-})  // -> { font, missing, filled, sizing }
+  fallbacks: [{ family }], // fill missing characters in order, drawn at the same em
+})  // -> { font, missing, filled }
 ```
 
 - The implementation registers the font via `FontFace`, draws glyphs one character at a time on an `OffscreenCanvas` 2D context, and harvests the alpha channel. **opentype.js and the like are not used** (design decision #2). The method is proven in LGFXScreenBuilder's `fontgen/rasterize.js`; that implementation is migrated and cleaned up here.
 - Whether the font actually carries a given glyph (tofu exclusion) is likewise determined by cross-checking the rasterization result against `measureText` (following fontgen's existing technique).
-- **Division of responsibility for fallback fill (decided)**: fallback fill at generation time (rasterizing missing characters at the primary typeface's `cssPx` / threshold, aligning them on the baseline, and recomputing the line box from all glyphs) is a **library feature** (`fallbacks`; what was filled with what is reported in `filled`, and what remains absent in `missing`). For a separate fill call, pass the returned `sizing` to the next `generateFont`. **Selecting and obtaining** the fill source is the **application's responsibility** (the Generator suggests FALLBACK_CHAIN and never fills on its own). Fallback fill between existing bitmap fonts is **not automated in the library** — it is a `coverage → subset → merge` recipe, and pixel-size compatibility is left to the user's judgment (documented in the usage guide).
+- **Division of responsibility for fallback fill (decided)**: fallback fill at generation time (rasterizing missing characters at the primary typeface's `em` / threshold, aligning them on the baseline, and recomputing the line box from all glyphs) is a **library feature** (`fallbacks`; what was filled with what is reported in `filled`, and what remains absent in `missing`). **Every typeface is drawn at the same `em`, so the scales align by construction** (previously a measured value had to be threaded through). **Selecting and obtaining** the fill source is the **application's responsibility** (the Generator suggests FALLBACK_CHAIN and never fills on its own). Fallback fill between existing bitmap fonts is **not automated in the library** — it is a `coverage → subset → merge` recipe, and pixel-size compatibility is left to the user's judgment (documented in the usage guide).
 - Calling this outside a browser throws `CapabilityError('RASTERIZER_UNAVAILABLE')`. Node support will be considered later as a rasterizer-injection interface (§18).
 
-### 10.3 Determinism
+### 10.3 Size is given as em
+
+**`em` is the typeface's design size (the em square) in pixels**, passed straight through as
+the CSS `font-size`.
+
+- **A full-width character advances exactly `em`.** The definition is horizontal, not vertical
+- **The line box is normally larger than `em`**, because of the space above and below and
+  because glyphs such as `|` and brackets extend past the em. Read the line box from the
+  generated result (`font.ascent` / `font.descent`)
+
+Measured (Noto Sans JP):
+
+| `em` | Full-width advance | Line height | Tallest ink |
+| --- | --- | --- | --- |
+| 8 | **8** | 10 | 10 |
+| 12 | **12** | 14 | 14 |
+| 16 | **16** | 19 | 18 |
+| 24 | **24** | 29 | 28 |
+
+This matches how the bundled bitmap fonts are named (`lgfxJapanGothic_16` has a full-width
+advance of 16).
+
+#### Why not a measured scale
+
+The earlier implementation scaled by "the ink height of a reference glyph
+(`[漢 国 日 가 H E N 0]`, whichever is **present in the requested repertoire**)", converging on
+`cssPx` by binary search. It had two defects.
+
+- **Adding one character shrank the existing ones.** Adding `日` to 95 ASCII characters changed
+  the reference from `H` to `日`, which **changed the dimensions of 92 existing glyphs and the
+  line height** (measured)
+- **The requested number guaranteed nothing.** Asking for `16` could yield a tallest ink of 24
+  pixels and a line height of 25 (the reference glyph is not necessarily the tallest)
+
+`em` involves no measurement, so neither happens. Adding 7 kanji to 95 ASCII characters changes
+**0 of 95** glyphs (measured). The change removed `measureTtf`, `pickProbe`,
+`PROBE_CANDIDATES`, and all threading of `sizing`.
+
+### 10.4 Determinism
 
 Generation requires that the same input produce the same font.
 
