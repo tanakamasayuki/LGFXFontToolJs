@@ -61,7 +61,6 @@
   "gen.typeface": "書体名（帰属表示用）",
   "gen.licenseName": "ライセンス（帰属表示用）",
   "gen.dropInvalid": "違反グリフを落として続行",
-  "gen.noWrapper": "u8g2: lgfx::U8g2font を付けずデータ配列だけ出力",
   "gen.generate": "フォントを生成",
   "gen.generating": "ラスタライズ中… {done} / {total}",
   "gen.fetching": "フォントを取得中…",

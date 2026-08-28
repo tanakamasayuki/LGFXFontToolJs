@@ -149,7 +149,8 @@
       <div class="controls">
         <label><span data-i18n="gen.format">Output format</span>
           <select id="format">
-            <option value="u8g2" selected>u8g2</option>
+            <option value="u8g2" selected>u8g2 (lgfx::U8g2font)</option>
+            <option value="u8g2-raw">u8g2 (uint8_t[])</option>
             <option value="gfx">GFXfont</option>
             <option value="bdf">BDF</option>
             <option value="vlw">VLW (TFT_eSPI Smooth Font)</option>
@@ -166,7 +167,6 @@
           <input id="license" type="text" value="">
         </label>
         <label class="check"><input id="drop-invalid" type="checkbox"> <span data-i18n="gen.dropInvalid">Drop violating glyphs and continue</span></label>
-        <label class="check" id="no-wrapper-row" hidden><input id="no-wrapper" type="checkbox"> <span data-i18n="gen.noWrapper">u8g2: data array only, without lgfx::U8g2font</span></label>
       </div>
       <div class="controls">
         <button id="generate" class="primary" data-i18n="gen.generate">Generate font</button>

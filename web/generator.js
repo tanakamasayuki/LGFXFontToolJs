@@ -70,8 +70,6 @@ const bppEl = /** @type {HTMLSelectElement} */ ($('bpp'));
 const typefaceEl = /** @type {HTMLInputElement} */ ($('typeface'));
 const licenseEl = /** @type {HTMLInputElement} */ ($('license'));
 const dropInvalidEl = /** @type {HTMLInputElement} */ ($('drop-invalid'));
-const noWrapperEl = /** @type {HTMLInputElement} */ ($('no-wrapper'));
-const noWrapperRowEl = $('no-wrapper-row');
 const generateEl = /** @type {HTMLButtonElement} */ ($('generate'));
 const statusEl = $('status');
 const outputEl = $('output');
@@ -133,6 +131,18 @@ let currentTextOutput = null;
 const PREVIEW_LINES = 60;
 
 /** @type {Record<string, {ext: string, mime: string, textExt?: string, bpps: number[]}>} */
+/**
+ * The output select offers u8g2 twice — with the LovyanGFX object and without —
+ * so its value is not always a format id. Everything downstream asks these two
+ * instead of reading the select, so there is one place that knows the mapping.
+ */
+const outputFormat = () =>
+  /** @type {'u8g2'|'gfx'|'bdf'|'vlw'|'bff'} */ (
+    formatEl.value === 'u8g2-raw' ? 'u8g2' : formatEl.value
+  );
+/** True when the u8g2 byte array is emitted alone, for upstream u8g2. */
+const noWrapper = () => formatEl.value === 'u8g2-raw';
+
 const OUTPUT_FORMATS = {
   u8g2: { ext: 'u8g2', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
   gfx: { ext: 'gfx1', mime: 'application/octet-stream', textExt: 'h', bpps: [1] },
@@ -161,15 +171,15 @@ const sourceLanguage = () => /** @type {'en'|'ja'|'zh-Hans'|'zh-Hant'} */ (curre
 
 function encodeOptions() {
   return {
-    format: formatEl.value,
+    format: outputFormat(),
     dropInvalid: dropInvalidEl.checked,
     language: sourceLanguage(),
-    ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
+    ...(outputFormat() === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
   };
 }
 
 function syncFormatControls() {
-  const supported = OUTPUT_FORMATS[formatEl.value].bpps;
+  const supported = OUTPUT_FORMATS[outputFormat()].bpps;
   const previous = outputBpp();
   bppEl.textContent = '';
   for (const bpp of supported) {
@@ -180,9 +190,6 @@ function syncFormatControls() {
   }
   bppEl.value = String(supported.includes(previous) ? previous : supported[0]);
   thresholdControlEl.hidden = modelBpp() !== 1;
-  // Only u8g2 declares a LovyanGFX object that can be left out. The other
-  // formats either declare a type the format itself requires, or nothing.
-  noWrapperRowEl.hidden = formatEl.value !== 'u8g2';
 }
 
 /**
@@ -677,7 +684,7 @@ fbClearEl.addEventListener('click', () => {
 function renderResult() {
   if (!generated) return;
   const font = generated;
-  const format = formatEl.value;
+  const format = outputFormat();
   const output = OUTPUT_FORMATS[format];
   const baseCheck = canEncode(font, format);
   const check = { ok: baseCheck.ok, issues: [...baseCheck.issues] };
@@ -774,16 +781,13 @@ function renderResult() {
 /** Builds a text output such as a `.h` or a BDF. */
 function buildTextOutput() {
   if (!generated) throw new Error('no font');
-  if (formatEl.value === 'bdf') {
+  if (outputFormat() === 'bdf') {
     return new TextDecoder().decode(
       encode(generated, { format: 'bdf', dropInvalid: dropInvalidEl.checked }),
     );
   }
   return buildHeader();
 }
-
-/** u8g2 without the LovyanGFX object: only meaningful for that one format. */
-const noWrapper = () => formatEl.value === 'u8g2' && noWrapperEl.checked;
 
 /** Builds the .h including attribution. When a fill-in was applied, both typefaces are recorded */
 function buildHeader() {
@@ -802,12 +806,12 @@ function buildHeader() {
     origin = origin ? `${origin} + ${fbCurated.family}` : `Google Fonts (${fbCurated.family})`;
   }
   return encodeCSource(generated, {
-    format: /** @type {'u8g2' | 'gfx' | 'vlw' | 'bff'} */ (formatEl.value),
+    format: /** @type {'u8g2' | 'gfx' | 'vlw' | 'bff'} */ (outputFormat()),
     symbolName: ident,
     dropInvalid: dropInvalidEl.checked,
     wrapper: !noWrapper(),
     language: sourceLanguage(),
-    ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
+    ...(outputFormat() === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
     attribution: {
       typeface,
       license,
@@ -837,8 +841,8 @@ function howtoBlock(label, code) {
  * @param {string} ident
  */
 function howtoSetFont(display, ident) {
-  if (formatEl.value === 'vlw') return `if (!${display}.loadFont(${ident}_data)) return;`;
-  if (formatEl.value === 'bff') {
+  if (outputFormat() === 'vlw') return `if (!${display}.loadFont(${ident}_data)) return;`;
+  if (outputFormat() === 'bff') {
     return `if (!${display}.loadFont(${ident}_data, lgfx::IFont::font_type_t::ft_lvgl)) return;`;
   }
   return `${display}.setFont(&${ident});`;
@@ -851,7 +855,7 @@ function howtoSetFont(display, ident) {
 function renderHowto() {
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
   howtoEl.textContent = '';
-  if (formatEl.value === 'bdf' || noWrapper()) {
+  if (outputFormat() === 'bdf' || noWrapper()) {
     // Without the wrapper the file is for upstream u8g2, so the LovyanGFX
     // sketches below would not compile against it.
     const note = document.createElement('p');
@@ -892,7 +896,7 @@ void setup() {
 
 dlHEl.addEventListener('click', () => {
   if (!generated) return;
-  const output = OUTPUT_FORMATS[formatEl.value];
+  const output = OUTPUT_FORMATS[outputFormat()];
   if (!output.textExt) return;
   const src = currentTextOutput ?? buildTextOutput();
   download(src, `${sanitizeIdent(symbolEl.value || 'MyFont')}.${output.textExt}`, 'text/plain');
@@ -909,7 +913,7 @@ dlBinEl.addEventListener('click', () => {
   if (!generated) return;
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
   const bytes = encode(generated, encodeOptions());
-  const output = OUTPUT_FORMATS[formatEl.value];
+  const output = OUTPUT_FORMATS[outputFormat()];
   // Uint8Array is a valid BlobPart, but lib.dom types it as ArrayBuffer only, hence the cast
   download(/** @type {any} */ (bytes), `${ident}.${output.ext}`, output.mime);
 });
@@ -917,11 +921,6 @@ dlBinEl.addEventListener('click', () => {
 for (const el of [dropInvalidEl, previewTextEl, zoomEl]) {
   el.addEventListener('input', renderResult);
 }
-
-noWrapperEl.addEventListener('input', () => {
-  renderHowto();
-  renderResult();
-});
 
 formatEl.addEventListener('input', () => {
   syncFormatControls();

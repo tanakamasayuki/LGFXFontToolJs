@@ -61,7 +61,6 @@
   "gen.typeface": "Typeface name (for attribution)",
   "gen.licenseName": "License (for attribution)",
   "gen.dropInvalid": "Drop violating glyphs and continue",
-  "gen.noWrapper": "u8g2: data array only, without lgfx::U8g2font",
   "gen.generate": "Generate font",
   "gen.generating": "Rasterizing… {done} / {total}",
   "gen.fetching": "Fetching font subsets…",

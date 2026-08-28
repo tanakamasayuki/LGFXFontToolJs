@@ -412,8 +412,7 @@ The comment at the top of C source output carries the command that produced the 
 
 ```
 // Rebuild with:
-//   lgfx-font build --google Roboto --em 16 --chars AB温度 \
-//       --fallback 'google:Noto Sans JP' --format cellfont --out font.h
+//   npx lgfx-font build --google Roboto --em 16 --chars AB温度 --fallback 'google:Noto Sans JP' --format cellfont --out font.h
 ```
 
 - Flags that do not change the file are left out (`--check`, `--preview`, `--preview-text`,
@@ -421,6 +420,10 @@ The comment at the top of C source output carries the command that produced the 
   without it the rebuild would stop.
 - The order is **fixed, not as-typed**, so the same build always writes the same line and
   canonical output (§6) is not broken.
+- **One line, however long.** Wrapping with a trailing `\` reads better but does not survive
+  being copied: the continuation lines are still inside the `//` comment, so what reaches the
+  shell is commented out.
+- `npx` prefixes it because that runs whether or not the package is installed globally.
 - An absolute path outside the working directory is **reduced to its file name**, so no home
   directory layout leaks into the output and the line is the same across machines. The cost
   is that a font of your own has to be put back by hand.

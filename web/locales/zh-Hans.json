@@ -61,7 +61,6 @@
   "gen.typeface": "字体名（用于署名）",
   "gen.licenseName": "许可证（用于署名）",
   "gen.dropInvalid": "丢弃冲突字形并继续",
-  "gen.noWrapper": "u8g2：仅输出数据数组，不生成 lgfx::U8g2font",
   "gen.generate": "生成字体",
   "gen.generating": "栅格化中… {done} / {total}",
   "gen.fetching": "正在获取字体子集…",

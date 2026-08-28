@@ -120,7 +120,8 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
   );
   const text = readFileSync(out, 'utf8');
   assert.match(text, /Rebuild with:/);
-  assert.match(text, /lgfx-font build --font lgfxJapanGothic_12/);
+  assert.match(text, /npx lgfx-font build --font lgfxJapanGothic_12/, 'npx 付きで動く形');
+  assert.doesNotMatch(text, /\\\n/, 'コメント内で折り返すとコピーしても動かないので 1 行');
   assert.match(text, /--chars 'A B'/, '空白を含む値は引用される');
   assert.match(text, /--out repro\.h/, '作業ディレクトリ外の絶対パスはファイル名だけになる');
   assert.doesNotMatch(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '絶対パスは残らない');

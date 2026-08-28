@@ -42,8 +42,6 @@ const targetEl = /** @type {HTMLSelectElement} */ ($('target'));
 const symbolRowEl = $('symbol-row');
 const symbolEl = /** @type {HTMLInputElement} */ ($('symbol'));
 const dropInvalidEl = /** @type {HTMLInputElement} */ ($('drop-invalid'));
-const noWrapperEl = /** @type {HTMLInputElement} */ ($('no-wrapper'));
-const noWrapperRowEl = $('no-wrapper-row');
 const dlEl = /** @type {HTMLButtonElement} */ ($('dl'));
 const targetBytesEl = $('target-bytes');
 const encodeIssuesEl = $('encode-issues');
@@ -138,15 +136,19 @@ function renderAll() {
 }
 
 /** Target format id (a csource target maps back to its underlying format) */
-const targetFormat = () => targetEl.value.replace(/^csource-/, '');
+/**
+ * The target select offers the u8g2 header twice — with the LovyanGFX object and
+ * without — so its value carries a suffix the format id does not have.
+ */
+const targetFormat = () => targetEl.value.replace(/^csource-/, '').replace(/-raw$/, '');
+/** True when the u8g2 byte array is emitted alone, for upstream u8g2. */
+const noWrapper = () => targetEl.value === 'csource-u8g2-raw';
 
 function renderTarget() {
   const font = currentFont();
   if (!font) return;
   const isCsource = targetEl.value.startsWith('csource-');
   symbolRowEl.hidden = !isCsource;
-  // Only the u8g2 header declares a LovyanGFX object that can be left out.
-  noWrapperRowEl.hidden = targetEl.value !== 'csource-u8g2';
 
   const format = targetFormat();
   const check = canEncode(font, format);
@@ -192,7 +194,7 @@ dlEl.addEventListener('click', () => {
       format: /** @type {'u8g2' | 'gfx'} */ (format),
       symbolName: base,
       dropInvalid: dropInvalidEl.checked,
-      wrapper: !(format === 'u8g2' && noWrapperEl.checked),
+      wrapper: !noWrapper(),
       attribution: {
         typeface: font.familyName || fonts[fontIndex].label,
         license: font.meta.license,

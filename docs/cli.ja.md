@@ -388,8 +388,7 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
 
 ```
 // Rebuild with:
-//   lgfx-font build --google Roboto --em 16 --chars AB温度 \
-//       --fallback 'google:Noto Sans JP' --format cellfont --out font.h
+//   npx lgfx-font build --google Roboto --em 16 --chars AB温度 --fallback 'google:Noto Sans JP' --format cellfont --out font.h
 ```
 
 - 出力に影響しない指定（`--check` `--preview` `--preview-text` `--max-height`
@@ -397,6 +396,9 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
   作り直しが止まるので載せる。
 - 並び順は**入力した順ではなく固定**。同じビルドが常に同じ 1 行になり、
   出力の正準性（§6）を壊さない。
+- **どれだけ長くても 1 行で出す。** `\` で折り返すと読みやすいが、続きの行も `//` の
+  中なので、コピーするとシェルに渡るのはコメントだけになる。
+- `npx` を付けるのは、グローバルに入れていなくてもそのまま動くから。
 - 作業ディレクトリの外にある絶対パスは**ファイル名だけに丸める**。ホームディレクトリの
   構成が出力に混ざらず、環境をまたいでも同じ行になる。代わりに、手元の TTF は
   自分で置き直す必要がある。

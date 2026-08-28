@@ -81,7 +81,8 @@
             <option value="vlw">VLW</option>
             <option value="bff">BFF</option>
             <option value="fontx2">FONTX2</option>
-            <option value="csource-u8g2">C header (u8g2)</option>
+            <option value="csource-u8g2">C header (u8g2, lgfx::U8g2font)</option>
+            <option value="csource-u8g2-raw">C header (u8g2, uint8_t[])</option>
             <option value="csource-gfx">C header (GFXfont)</option>
           </select>
         </label>
@@ -89,7 +90,6 @@
           <input id="symbol" type="text" value="MyFont">
         </label>
         <label class="check"><input id="drop-invalid" type="checkbox"> <span data-i18n="gen.dropInvalid">Drop violating glyphs and continue</span></label>
-        <label class="check" id="no-wrapper-row" hidden><input id="no-wrapper" type="checkbox"> <span data-i18n="gen.noWrapper">u8g2: data array only, without lgfx::U8g2font</span></label>
         <button id="dl" class="primary" data-i18n="cv.download">Download</button>
       </div>
       <p class="charsummary"><strong id="target-bytes"></strong></p>

@@ -63,11 +63,17 @@ const NEEDS_QUOTE = /[\s"'\\$&|;<>()*?\[\]{}!#`~]/;
 const shellArg = (v) => (NEEDS_QUOTE.test(v) ? `'${v.split("'").join(`'\\''`)}'` : v);
 
 /**
- * The command that reproduces the output file, wrapped for a comment block.
+ * The command that reproduces the output file.
+ *
+ * One line, however long. Wrapping it with a trailing backslash reads better
+ * but does not survive being copied: every continuation line is still inside the
+ * `//` comment, so what lands in the shell is commented out. `npx` prefixes it
+ * because that runs whether or not the package is installed globally.
+ *
  * @param {Record<string, any>} v parsed options
  */
 function reproCommand(v) {
-  const parts = ['lgfx-font build'];
+  const parts = ['npx lgfx-font build'];
   for (const flag of REPRO_FLAGS) {
     const val = v[flag];
     if (val === undefined) continue;
@@ -79,18 +85,7 @@ function reproCommand(v) {
       parts.push(`--${flag} ${shellArg(REPRO_PATHS.has(flag) ? tidyPath(one) : one)}`);
     }
   }
-  // Wrap with a trailing backslash so the block can be pasted and run as is.
-  const lines = [];
-  let line = '';
-  for (const part of parts) {
-    if (line && line.length + part.length + 1 > 74) {
-      lines.push(line + ' \\');
-      line = '    ';
-    }
-    line += (line && line !== '    ' ? ' ' : '') + part;
-  }
-  lines.push(line);
-  return lines.join('\n');
+  return parts.join(' ');
 }
 
 const OPTIONS = /** @type {const} */ ({
