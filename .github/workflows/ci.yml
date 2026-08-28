@@ -20,3 +20,40 @@ jobs:
       - run: npm run types
       - run: npm run smoke:dist
       - run: npm run build:site
+
+  # The rasterizer is a native optional dependency, so whether it works is a
+  # per-platform fact the source cannot establish. @napi-rs/canvas ships prebuilt
+  # binaries per platform; these runners cover linux-x64, linux-arm64,
+  # darwin-arm64, darwin-x64 and win32-x64.
+  #
+  # Steps avoid inline `node -e` because Windows runners use PowerShell, where the
+  # quoting differs.
+  rasterizer:
+    name: rasterizer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Does the native binding load
+        run: node scripts/check-rasterizer.mjs
+      # Silkscreen is a 30 KB pixel face, so this exercises the whole --google path
+      # (CSS API, User-Agent negotiation, cache, rasterize) without a large download.
+      - name: Build a font from Google Fonts
+        run: node bin/lgfx-font.js build --google Silkscreen --em 8 --sets ascii --format cellfont --out out.h --preview out.png
+      - name: The same input must produce the same bytes
+        run: node bin/lgfx-font.js build --google Silkscreen --em 8 --sets ascii --format cellfont --out out.h --check
+      - name: Keep the result for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: rasterizer-${{ matrix.os }}
+          path: |
+            out.h
+            out.png

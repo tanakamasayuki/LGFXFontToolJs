@@ -237,8 +237,9 @@ function render(sets) {
   L.push('// kGB0 / kBigFive / kKoreanEducationHanja, plus KSX1001.TXT) so every set is');
   L.push('// auditable, and from the literal symbol lists in that generator.');
   L.push('//');
-  L.push('// hanJaG1-G6 are 学年別漢字配当表 (MEXT), taken from KANJIDIC2 <grade> because');
-  L.push('// Unicode carries no Japanese grade data (kGradeLevel is the Hong Kong system).');
+  L.push('// hanJaG1-G6 are the Japanese school-grade kanji tables (MEXT), taken from');
+  L.push('// KANJIDIC2 <grade> because Unicode carries no Japanese grade data at all');
+  L.push('// (kGradeLevel is the Hong Kong school system, not this one).');
   L.push('// KANJIDIC2 is (C) EDRDG, CC BY-SA 4.0 — see NOTICE.');
   L.push('//');
   L.push('// Han tiers are CUMULATIVE unions: the underlying standards do not nest (Jōyō kanji');

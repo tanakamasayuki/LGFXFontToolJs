@@ -51,7 +51,7 @@ export const AXES = [
     languages: [
       {
         id: 'ja',
-        // 学年別漢字配当表（累積）→ 常用 → 人名用 → JIS 1 → JIS 2
+        // School grades (cumulative) -> Joyo -> Jinmeiyo -> JIS level 1 -> JIS level 2
         tiers: [
           'hanJaG1',
           'hanJaG2',
