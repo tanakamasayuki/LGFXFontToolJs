@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 2.0.0
 - (EN) Packaging fix: `web/googlefonts.js` is now included, so `--google` and `--list-google` work from an installed package (they failed with a module-resolution error before, which only shows up outside a repository checkout).
 - (JA) 梱包の修正: `web/googlefonts.js` を含めるようにした。公開版で `--google` / `--list-google` が動くようになる（従来はモジュール解決エラーで起動しなかった。リポジトリ内では相対パスで解決できるため気づけない類の不具合）。
 - (EN) CI gained a `rasterizer` matrix job that loads the native binding, builds a font from Google Fonts, and verifies byte-identical output on linux-x64, linux-arm64, darwin-arm64, darwin-x64 and win32-x64. `scripts/check-rasterizer.mjs` reports the same for one machine.
