@@ -214,6 +214,67 @@ em は書体の設計上の 1 文字ぶんの正方形で、**全角 1 文字の
 --max-height 16    行の高さが 16 を超えたらエラー（終了コード 1）
 ```
 
+### 4.6 不足文字の補完（`--fallback`）
+
+収録判定が正しくなったので、不足分を別の書体から埋められる。
+
+```
+lgfx-font build --google Roboto --fallback google:"Noto Sans JP" \
+  --em 16 --sets ascii,hiraganaKatakana,hanJaG1 \
+  --format cellfont --out font.h
+```
+
+- `--fallback` は繰り返せる。**指定した順**に試す。どの書体が広いかで結果が変わらないように、
+  順序は指定順に固定してある。
+- 記法は入力元と同じ（`google:<family>` / パス / URL）。覚えることを増やさない。
+- 埋めた文字数と内容は標準エラーに出る。
+- **補完元の権利表記も出力ファイルに入る。** 埋めた側も派生元なので、書体名・作者・
+  ライセンス・取得元・`sha256` を書体ごとに記録する。
+- 補完はラスタライズなので `--em` が要る。
+
+#### 既存フォントに文字を足す
+
+`--input`（手元のビットマップフォント）にも補完が効く。**「フォント同士を連結する」機能は
+用意しない。** 足りない字を補うほうが、扱う概念が少なく、出力も 1 個のフォントで済む。
+
+```sh
+# 既存の .h に漢字を足して作り直す
+lgfx-font build --input font.h --chars "AB温度" --em 16 \
+    --fallback google:"Noto Sans JP" --format cellfont --out font.h
+```
+
+ただし**本ツールで作ったフォントなら、こちらが本筋**である。生成ヘッダには作った
+コマンドが入っている（§6）ので、文字を足して同じコマンドを回すだけでよい。
+
+```sh
+# ヘッダの "Rebuild with" のコマンドに文字を足して回す
+lgfx-font build --google Roboto --em 16 --chars "AB温度" \
+    --fallback google:"Noto Sans JP" --format cellfont --out font.h
+```
+
+全字形が同じ書体・同じ `--em` から出るので、**寸法が揃い、出力も最小になる**。
+`--input` からの追加が要るのは、元の書体が手元に無い場合か、元からビットマップだった場合。
+
+| | `--input` + `--fallback` | 元コマンドに文字を足す |
+| --- | --- | --- |
+| 元の書体 | 不要 | 必要 |
+| 寸法 | **揃わないことがある**（下記） | 揃う |
+| 出力量 | 大きくなりがち | 最小 |
+
+**寸法が食い違うと警告する。** 基準になるのは入力フォントの行高で、補完した字形はそれに
+合わない位置・大きさになりうる。黙って拡縮するほうが悪いので、両方の値を出して
+`--preview` での確認を促す。
+
+```
+warning: the filled characters were drawn to different metrics than the base font.
+  base: {"ascent":12,"descent":0,"lineHeight":12}
+  fill: {"ascent":14,"descent":2,"lineHeight":16}
+  The base font's line box is kept. Check the result with --preview.
+```
+
+**CellFont のヘッダは読み戻せない**（C ソース入力が読むのは GFXfont と u8g2）。
+CellFont に文字を足すときは、ヘッダの `Rebuild with` のコマンドを回す。
+
 ## 5. 文字の指定
 
 4 系統。**併用でき、すべて和集合になる。**
@@ -261,7 +322,7 @@ lgfx-font charset --list      集合 ID・テンプレート ID と現在の字�
 | `--format` | C ソース | 生ファイル |
 | --- | --- | --- |
 | `cellfont` | CellFont 構造体（形式仕様 §12） | — |
-| `u8g2` | `lgfx::U8g2font` として使える | u8g2 バイナリ |
+| `u8g2` | `lgfx::U8g2font` として使える（`--no-wrapper` で配列のみ） | u8g2 バイナリ |
 | `gfx` | Adafruit GFX 互換。疎な集合は LovyanGFX 拡張 | **GFX1 コンテナ**（本ツール固有。Adafruit の生形式ではない） |
 | `vlw` | 実行時 `loadFont` 用の配列 | VLW バイナリ |
 | `bff` | 実行時 `loadFont` 用の配列。`--bpp 1\|2\|4` | BFF バイナリ |
@@ -277,9 +338,39 @@ lgfx-font charset --list      集合 ID・テンプレート ID と現在の字�
 | --- | --- |
 | `--name <ident>` | C のシンボル名。省略時は `--out` の basename を C 識別子へ正準化 |
 | `--target ilp32\|avr` | CellFont の候補比較に使う `sizeof(CellFont)`（28 / 20）。既定 `ilp32` |
+| `--no-wrapper` | u8g2 の `lgfx::U8g2font` 宣言を出さない |
 
 `--target` が要るのは CellFont だけ。**対象 ABI で勝つ候補が変わる**ため、形式仕様 §10.4 が
 これを生成器の入力の一部と定めている。他の形式では無視する。
+
+#### `--no-wrapper` — u8g2 を LovyanGFX 抜きで使う
+
+u8g2 出力のうち **LovyanGFX 固有なのは最後の 1 行だけ**である。バイト配列そのものは
+上流 u8g2 が読む形式で、ライブラリ非依存である。
+
+```c
+static const uint8_t myfont_data[71] LGFXFT_PROGMEM = { ... };   // 上流 u8g2 の形式
+static const lgfx::U8g2font myfont(myfont_data);                 // ここだけ LovyanGFX
+```
+
+`--no-wrapper` を付けると後者を出さず、**配列そのものをフォント記号にする**
+（上流 u8g2 のフォントと同じ形）。
+
+```c
+static const uint8_t myfont[71] LGFXFT_PROGMEM = { ... };
+// 使い方:  u8g2.setFont(myfont);
+```
+
+`--format u8g2` 以外に付けると引数エラー（3）にする。他の形式が宣言するのは
+形式そのものが要求する型であって、外せる包みではないため。
+
+| `--format` | 出力にライブラリ固有の型が出るか |
+| --- | --- |
+| `u8g2` | `lgfx::U8g2font`。`--no-wrapper` で外せる |
+| `gfx`（連続 1 範囲） | `GFXfont` / `GFXglyph`。Adafruit GFX の標準型で、これが形式そのもの |
+| `gfx`（疎な集合） | `lgfx::v1::GFXfont` / `EncodeRange`。LovyanGFX 拡張。**外せない**（Adafruit の `GFXfont` は単一の連続範囲しか表せない） |
+| `vlw` / `bff` | 出ない。**既に配列だけ**を出している |
+| `cellfont` | `CellFont` / `CellGlyph`。形式仕様 §12 の型で、特定のライブラリに属さない |
 
 ### 生成される C ソース
 
@@ -290,6 +381,25 @@ lgfx-font charset --list      集合 ID・テンプレート ID と現在の字�
 **コメントに揺れる値を入れない。** 絶対パス、取得時刻、版つきの一時 URL は正準出力を壊す
 （形式仕様 §10.4）。入手元は「入力された相対パス」か「`--google <family>` の書体名」など、
 **同じ入力なら同じ文字列になるものだけ**を書く。
+
+### 再現コマンドの記録
+
+C ソース出力の先頭コメントに、そのファイルを作ったコマンドが入る。
+
+```
+// Rebuild with:
+//   lgfx-font build --google Roboto --em 16 --chars AB温度 \
+//       --fallback 'google:Noto Sans JP' --format cellfont --out font.h
+```
+
+- 出力に影響しない指定（`--check` `--preview` `--preview-text` `--max-height`
+  `--offline` `--cache-dir` `--json`）は載せない。`--allow-missing` は、無いと
+  作り直しが止まるので載せる。
+- 並び順は**入力した順ではなく固定**。同じビルドが常に同じ 1 行になり、
+  出力の正準性（§6）を壊さない。
+- 作業ディレクトリの外にある絶対パスは**ファイル名だけに丸める**。ホームディレクトリの
+  構成が出力に混ざらず、環境をまたいでも同じ行になる。代わりに、手元の TTF は
+  自分で置き直す必要がある。
 
 ## 7. 検証モード
 
@@ -341,7 +451,8 @@ lgfx-font inspect <file> [--input-format <id>] [--input-symbol <name>] [--json]
 | 3 | 引数の誤り（`--format` 省略時の形式一覧表示を含む） |
 
 **書体に無い文字は既定でエラー（コード 1）。** 黙って空白を焼き込むと実機で気づくまで
-分からないため。`--allow-missing` で警告に落とせる。
+分からないため。`--fallback` で別の書体から埋める（§4.6）か、`--allow-missing` で
+警告に落とす。
 
 ## 11. 文字集合ファイル
 
@@ -405,6 +516,14 @@ npx lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
 # 形式を変えて
 npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
+# 欧文書体に無い字を別書体から埋める
+npx lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
+    --sets ascii --chars "温度設定" --format cellfont --out font.h
+
+# 上流 u8g2 で使う（LovyanGFX の型を出さない）
+npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
+    --format u8g2 --no-wrapper --out font.h
+
 # 継続利用（package.json）
 "scripts": {
   "font": "lgfx-font build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
@@ -452,10 +571,34 @@ $ git add -A && git commit
 **未検証: OS と CPU の組み合わせ。** 確認したのは Linux x64 のみで、
 `@napi-rs/canvas` のプリビルドが無い環境の挙動は見ていない。
 
-**注意点。** 収録判定は総称フォント（`serif` / `monospace`）との比較で行うため、
-**ホストのフォント設定を継承してはならない。** 対象書体とフォールバックだけを
-CLI が明示的に登録する。継承すると、書体が持たない字をシステムフォントが描いてしまい
-「収録されている」と誤判定する（実測で確認）。
+#### 収録判定は cmap で行う
+
+ライブラリの収録判定は、対象書体で描いた結果と総称フォント（`serif` / `monospace`）で
+描いた結果を比べる方式である。ブラウザではこれで正しく動く。`FontFace` の
+`unicode-range` が、登録した書体を範囲外の文字に一切使わせないためである。
+
+**Node では成り立たない。** Skia のフォント登録に `unicode-range` に相当する仕組みがなく、
+書体が持たない字は Skia が勝手にシステムフォントで代替描画してしまう。比較方式はこれを
+「書体が持っている」と読む。実測では、漢字を持たない DejaVu Sans に `温` を要求すると
+152 px 相当の字形が返ってきた。
+
+登録の隔離では解決しない。`GlobalFonts.removeAll()` を先に呼んでも後に呼んでも
+（実測）書体数は 162 に戻り、すべての書体が同じ結果を返すようになるため、
+`A` すら「持っていない」と判定される。つまり悪化する。
+
+そこで CLI は、**フォントファイルの `cmap` を自分で読んで収録文字を確定する**
+（[bin/coverage.js](../bin/coverage.js)）。ラスタライザに渡すのは、その書体が実際に
+持っている符号位置だけになる。読むのは `cmap` だけで、字形も何も解釈しない。
+書式 0 / 4 / 6 / 12 に対応する。仕様書 §2.3（ライブラリはフォントの表を解析しない）は
+そのままで、この処理は `bin/` 側に閉じている。
+
+| 入力 | 収録判定 |
+| --- | --- |
+| TTF / OTF / TTC | `cmap` から確定 |
+| WOFF / WOFF2 | **判定できない。**`cmap` が圧縮されているため、警告を出して絞り込みなしで通す |
+
+WOFF / WOFF2 では、書体が持たない字がシステムフォントで描かれる可能性が残る。
+確実にしたい場合は非圧縮の TTF / OTF を渡す。
 
 ### 13.2 依存とネットワーク
 
@@ -510,6 +653,10 @@ CLI が明示的に登録する。継承すると、書体が持たない字を�
 | プリビルドが無い OS / CPU | 動かない。**そう言う**（§13.2）。`--font` / `--input` は動く |
 | リモートが変わったとき | キャッシュが実質の固定。**取得元の SHA-256 をヘッダに記録**して差分に出す（§4.4） |
 | キャッシュの位置 | **ユーザのキャッシュディレクトリ**。`--cache-dir` で変更（§4.4） |
+| 収録判定 | **フォントの `cmap` を読む**（§13.1）。描画結果の比較は Node では成り立たない |
+| 不足文字 | `--fallback` で別書体から埋める。**ビットマップ同士は自動化しない**（§4.6） |
+| 出力の再現 | **コマンドをヘッダのコメントに記録**する。作業ディレクトリ外の絶対パスは丸める（§6） |
+| ライブラリ固有の型 | `u8g2` は `--no-wrapper` で外せる。`gfx` の疎な集合は外せない（§6） |
 
 ### プラットフォームの確認状況
 

@@ -52,6 +52,11 @@ jobs:
         run: node bin/lgfx-font.js build --google Silkscreen --em 8 --sets ascii --format cellfont --out out.h --preview out.png
       - name: The same input must produce the same bytes
         run: node bin/lgfx-font.js build --google Silkscreen --em 8 --sets ascii --format cellfont --out out.h --check
+      # Presence detection is a per-platform fact: Skia substitutes a system font
+      # for a character the typeface lacks, so what the host has installed can
+      # change the result. Tiny5 is another pixel face, so this stays small.
+      - name: A character the typeface lacks must be reported, not substituted
+        run: node scripts/check-coverage.mjs
       - name: Keep the result for inspection
         uses: actions/upload-artifact@v4
         with:

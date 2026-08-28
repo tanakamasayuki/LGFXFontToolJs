@@ -70,6 +70,8 @@ const bppEl = /** @type {HTMLSelectElement} */ ($('bpp'));
 const typefaceEl = /** @type {HTMLInputElement} */ ($('typeface'));
 const licenseEl = /** @type {HTMLInputElement} */ ($('license'));
 const dropInvalidEl = /** @type {HTMLInputElement} */ ($('drop-invalid'));
+const noWrapperEl = /** @type {HTMLInputElement} */ ($('no-wrapper'));
+const noWrapperRowEl = $('no-wrapper-row');
 const generateEl = /** @type {HTMLButtonElement} */ ($('generate'));
 const statusEl = $('status');
 const outputEl = $('output');
@@ -178,6 +180,9 @@ function syncFormatControls() {
   }
   bppEl.value = String(supported.includes(previous) ? previous : supported[0]);
   thresholdControlEl.hidden = modelBpp() !== 1;
+  // Only u8g2 declares a LovyanGFX object that can be left out. The other
+  // formats either declare a type the format itself requires, or nothing.
+  noWrapperRowEl.hidden = formatEl.value !== 'u8g2';
 }
 
 /**
@@ -777,6 +782,9 @@ function buildTextOutput() {
   return buildHeader();
 }
 
+/** u8g2 without the LovyanGFX object: only meaningful for that one format. */
+const noWrapper = () => formatEl.value === 'u8g2' && noWrapperEl.checked;
+
 /** Builds the .h including attribution. When a fill-in was applied, both typefaces are recorded */
 function buildHeader() {
   if (!generated) throw new Error('no font');
@@ -797,6 +805,7 @@ function buildHeader() {
     format: /** @type {'u8g2' | 'gfx' | 'vlw' | 'bff'} */ (formatEl.value),
     symbolName: ident,
     dropInvalid: dropInvalidEl.checked,
+    wrapper: !noWrapper(),
     language: sourceLanguage(),
     ...(formatEl.value === 'bff' ? { bpp: /** @type {1|2|4} */ (outputBpp()) } : {}),
     attribution: {
@@ -842,10 +851,14 @@ function howtoSetFont(display, ident) {
 function renderHowto() {
   const ident = sanitizeIdent(symbolEl.value || 'MyFont');
   howtoEl.textContent = '';
-  if (formatEl.value === 'bdf') {
+  if (formatEl.value === 'bdf' || noWrapper()) {
+    // Without the wrapper the file is for upstream u8g2, so the LovyanGFX
+    // sketches below would not compile against it.
     const note = document.createElement('p');
     note.className = 'sub';
-    note.textContent = t('gen.howtoBdf');
+    note.textContent = noWrapper()
+      ? t('gen.howtoU8g2Raw').replace('{name}', ident)
+      : t('gen.howtoBdf');
     howtoEl.appendChild(note);
     return;
   }
@@ -904,6 +917,11 @@ dlBinEl.addEventListener('click', () => {
 for (const el of [dropInvalidEl, previewTextEl, zoomEl]) {
   el.addEventListener('input', renderResult);
 }
+
+noWrapperEl.addEventListener('input', () => {
+  renderHowto();
+  renderResult();
+});
 
 formatEl.addEventListener('input', () => {
   syncFormatControls();

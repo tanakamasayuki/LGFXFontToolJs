@@ -11,7 +11,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { dirname, basename, resolve } from 'node:path';
+import { dirname, basename, resolve, relative, isAbsolute } from 'node:path';
 import { subset } from '../src/model/subset.js';
 import { encode, listFormats } from '../src/format/registry.js';
 import { encodeCSource, sanitizeIdent } from '../src/format/csource.js';
@@ -25,10 +25,79 @@ import { encodePng, renderSheet, renderText } from './render.js';
 
 const C_EXT = /\.(h|hpp|c|cpp)$/i;
 
+/**
+ * Flags recorded in the generated file's "Rebuild with" line, in this order.
+ *
+ * The order is fixed rather than as-typed so that the same build always writes
+ * the same line, which is what keeps the output canonical. Flags that do not
+ * change the file are left out: --check, --preview, --preview-text,
+ * --max-height, --offline, --cache-dir, --json. --allow-missing is kept because
+ * without it the rebuild would stop.
+ */
+const REPRO_FLAGS = /** @type {const} */ ([
+  'google', 'ttf', 'font', 'input', 'input-format', 'input-symbol',
+  'em', 'chars', 'charset', 'sets', 'template', 'fallback',
+  'format', 'name', 'target', 'max-chain', 'no-wrapper', 'bpp', 'threshold',
+  'allow-missing', 'out',
+]);
+
+/** Values that name a file, and so need shortening. */
+const REPRO_PATHS = new Set(['ttf', 'input', 'charset', 'template', 'out', 'fallback']);
+
+/**
+ * A path under the working directory stays relative; anything else is reduced
+ * to its file name. The line then neither leaks nor depends on one machine's
+ * layout — the cost is that a font from elsewhere has to be put back by hand,
+ * which is unavoidable for a local file anyway.
+ * @param {string} v
+ */
+function tidyPath(v) {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return v; // URL, or google:family
+  if (!isAbsolute(v)) return v;
+  const rel = relative(process.cwd(), v);
+  return rel === '' || rel.startsWith('..') ? basename(v) : rel;
+}
+
+const NEEDS_QUOTE = /[\s"'\\$&|;<>()*?\[\]{}!#`~]/;
+/** @param {string} v */
+const shellArg = (v) => (NEEDS_QUOTE.test(v) ? `'${v.split("'").join(`'\\''`)}'` : v);
+
+/**
+ * The command that reproduces the output file, wrapped for a comment block.
+ * @param {Record<string, any>} v parsed options
+ */
+function reproCommand(v) {
+  const parts = ['lgfx-font build'];
+  for (const flag of REPRO_FLAGS) {
+    const val = v[flag];
+    if (val === undefined) continue;
+    if (val === true) {
+      parts.push(`--${flag}`);
+      continue;
+    }
+    for (const one of Array.isArray(val) ? val : [val]) {
+      parts.push(`--${flag} ${shellArg(REPRO_PATHS.has(flag) ? tidyPath(one) : one)}`);
+    }
+  }
+  // Wrap with a trailing backslash so the block can be pasted and run as is.
+  const lines = [];
+  let line = '';
+  for (const part of parts) {
+    if (line && line.length + part.length + 1 > 74) {
+      lines.push(line + ' \\');
+      line = '    ';
+    }
+    line += (line && line !== '    ' ? ' ' : '') + part;
+  }
+  lines.push(line);
+  return lines.join('\n');
+}
+
 const OPTIONS = /** @type {const} */ ({
   // input
   google: { type: 'string' },
   ttf: { type: 'string' },
+  fallback: { type: 'string', multiple: true },
   font: { type: 'string' },
   input: { type: 'string' },
   'input-format': { type: 'string' },
@@ -45,6 +114,7 @@ const OPTIONS = /** @type {const} */ ({
   name: { type: 'string' },
   target: { type: 'string' },
   'max-chain': { type: 'string' },
+  'no-wrapper': { type: 'boolean' },
   bpp: { type: 'string' },
   threshold: { type: 'string' },
   // modes
@@ -78,6 +148,9 @@ build — source (exactly one)
   --input <path>        bitmap font file (--input-format, --input-symbol)
   --em <px>             em size; a full-width character advances exactly this
                         much. Required for --google / --ttf.
+  --fallback <spec>     take characters the source lacks from this typeface;
+                        repeatable, tried in order. Same notation as the source:
+                        google:<family>, or a path / url.
 
 build — characters (combined as a union)
   --chars <text>        every character in the text
@@ -91,6 +164,8 @@ build — output
   --name <ident>        C symbol name (default: from --out)
   --target ilp32|avr    cellfont: target ABI for candidate comparison
   --max-chain <n>       cellfont: chain-length limit (default 2)
+  --no-wrapper          u8g2: emit the data array only, without the
+                        lgfx::U8g2font object, for use with upstream u8g2
   --bpp <n>             output depth where the format allows it
   --threshold <n>       1bpp threshold when rasterizing (default 128)
 
@@ -202,6 +277,9 @@ async function cmdBuild(v) {
     fail('missing --format', 3);
   }
   if (!v.out) fail('--out is required', 3);
+  if (v['no-wrapper'] && v.format !== 'u8g2') {
+    fail(`--no-wrapper applies to --format u8g2; ${v.format} declares no LovyanGFX type`, 3);
+  }
 
   const codepoints = collectCodepoints(v);
   if (codepoints.length === 0) fail('no characters selected (--chars / --charset / --sets / --template)', 1);
@@ -210,6 +288,7 @@ async function cmdBuild(v) {
   const src = await resolveSource({
     google: v.google,
     ttf: v.ttf,
+    fallbacks: v.fallback,
     font: v.font,
     input: v.input,
     inputFormat: v['input-format'],
@@ -221,6 +300,25 @@ async function cmdBuild(v) {
     cache,
     offline: Boolean(v.offline),
   });
+
+  const mismatch = src.font.meta.issues.find((i) => i.code === 'MERGE_METRICS_MISMATCH');
+  if (mismatch) {
+    // The base font's line box is kept, so filled glyphs may sit differently.
+    // Say so: the alternative — silently rescaling — is worse.
+    console.error(
+      'warning: the filled characters were drawn to different metrics than the base font.\n' +
+        `  base: ${JSON.stringify(/** @type {any} */ (mismatch.params).base)}\n` +
+        `  fill: ${JSON.stringify(/** @type {any} */ (mismatch.params).overlay)}\n` +
+        '  The base font\'s line box is kept. Check the result with --preview.',
+    );
+  }
+  for (const f of src.filled ?? []) {
+    const show = f.codepoints.slice(0, 20).map((c) => String.fromCodePoint(c)).join('');
+    console.error(
+      `filled ${f.codepoints.length} character(s) from ${f.spec}: ${show}` +
+        (f.codepoints.length > 20 ? '…' : ''),
+    );
+  }
 
   // Bitmap sources hold more than was asked for, so cut them down.
   const font = subset(src.font, codepoints);
@@ -240,6 +338,7 @@ async function cmdBuild(v) {
 
   const isC = C_EXT.test(v.out);
   const name = sanitizeIdent(v.name ?? basename(v.out).replace(/\.[^.]+$/, ''));
+  const attribution = { ...src.attribution, command: reproCommand(v) };
   let output;
   let form = v.format;
   if (v.format === 'cellfont') {
@@ -253,7 +352,7 @@ async function cmdBuild(v) {
       encodeCSource(font, {
         format: 'cellfont',
         symbolName: name,
-        attribution: src.attribution,
+        attribution,
         abi: v.target === 'avr' ? 'avr' : 'ilp32',
         maxChain: num(v['max-chain'], '--max-chain') ?? 2,
       }),
@@ -267,7 +366,8 @@ async function cmdBuild(v) {
       encodeCSource(font, {
         format: v.format,
         symbolName: name,
-        attribution: src.attribution,
+        attribution,
+        wrapper: !v['no-wrapper'],
         bpp: /** @type {any} */ (num(v.bpp, '--bpp')),
       }),
       'utf8',

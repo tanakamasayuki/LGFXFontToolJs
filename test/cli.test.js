@@ -102,13 +102,71 @@ test('--check: 一致で 0、不一致で 2、出力が無ければ 2。いず�
   assert.deepEqual(readFileSync(out), written, '--check は上書きしない');
 });
 
-test('同じ引数からバイト一致の出力が出る', () => {
-  const a = tmp('det1.h');
-  const b = tmp('det2.h');
-  const args = ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'ABC温度', '--format', 'cellfont'];
-  assert.equal(run([...args, '--out', a, '--name', 'F']).code, 0);
-  assert.equal(run([...args, '--out', b, '--name', 'F']).code, 0);
-  assert.deepEqual(readFileSync(a), readFileSync(b));
+test('同じコマンドを二度走らせるとバイト一致の出力が出る', () => {
+  // 出力先の名前はヘッダの再現コマンドに載るので、比較は同じ --out で行う。
+  const a = tmp('det.h');
+  const args = ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'ABC温度', '--format', 'cellfont', '--out', a, '--name', 'F'];
+  assert.equal(run(args).code, 0);
+  const first = readFileSync(a);
+  assert.equal(run(args).code, 0);
+  assert.deepEqual(readFileSync(a), first);
+});
+
+test('再現コマンドが記録され、絶対パスはファイル名に丸められる', () => {
+  const out = tmp('repro.h');
+  assert.equal(
+    run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A B', '--format', 'cellfont', '--out', out]).code,
+    0,
+  );
+  const text = readFileSync(out, 'utf8');
+  assert.match(text, /Rebuild with:/);
+  assert.match(text, /lgfx-font build --font lgfxJapanGothic_12/);
+  assert.match(text, /--chars 'A B'/, '空白を含む値は引用される');
+  assert.match(text, /--out repro\.h/, '作業ディレクトリ外の絶対パスはファイル名だけになる');
+  assert.doesNotMatch(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '絶対パスは残らない');
+  // 出力に影響しない指定は載せない。
+  assert.doesNotMatch(text, /--cache-dir|--preview|--check/);
+});
+
+test('--fallback は --em を要求する（3）', () => {
+  // 補完はラスタライズなので、ビットマップ入力でも寸法の指定が要る。
+  const r = run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format', 'cellfont',
+    '--fallback', 'google:Roboto', '--out', tmp('fb.h')]);
+  assert.equal(r.code, 3);
+  assert.match(r.stderr, /--em is required when --fallback is used/);
+});
+
+test('CellFont ヘッダは読み戻せないと明言する', () => {
+  const cf = tmp('rt.h');
+  assert.equal(
+    run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'AB', '--format', 'cellfont', '--out', cf]).code,
+    0,
+  );
+  const r = run(['build', '--input', cf, '--chars', 'AB', '--format', 'u8g2', '--out', tmp('rt2.h')]);
+  assert.equal(r.code, 1);
+  assert.match(r.stderr, /no readable font/);
+  assert.match(r.stderr, /Rebuild with/, '代わりに何をすればよいかを言う');
+});
+
+test('--no-wrapper は u8g2 だけで、LovyanGFX の型宣言を落とす', () => {
+  const base = ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'AB', '--format', 'u8g2', '--name', 'W'];
+  const wrapped = tmp('w.h');
+  assert.equal(run([...base, '--out', wrapped]).code, 0);
+  const withWrapper = readFileSync(wrapped, 'utf8');
+  assert.match(withWrapper, /static const lgfx::U8g2font W\(W_data\);/);
+  assert.match(withWrapper, /static const uint8_t W_data\[/);
+
+  const raw = tmp('raw.h');
+  assert.equal(run([...base, '--no-wrapper', '--out', raw]).code, 0);
+  const withoutWrapper = readFileSync(raw, 'utf8');
+  assert.doesNotMatch(withoutWrapper, /lgfx::/, 'LovyanGFX の型は出てこない');
+  assert.match(withoutWrapper, /static const uint8_t W\[/, '配列そのものがフォント記号になる');
+  assert.match(withoutWrapper, /u8g2\.setFont\(W\);/);
+
+  const bad = run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'AB', '--format', 'gfx',
+    '--no-wrapper', '--out', tmp('bad.h')]);
+  assert.equal(bad.code, 3);
+  assert.match(bad.stderr, /--no-wrapper applies to --format u8g2/);
 });
 
 //--- 収まりの検査（§4.5） ---------------------------------------------------------

@@ -42,6 +42,8 @@ const targetEl = /** @type {HTMLSelectElement} */ ($('target'));
 const symbolRowEl = $('symbol-row');
 const symbolEl = /** @type {HTMLInputElement} */ ($('symbol'));
 const dropInvalidEl = /** @type {HTMLInputElement} */ ($('drop-invalid'));
+const noWrapperEl = /** @type {HTMLInputElement} */ ($('no-wrapper'));
+const noWrapperRowEl = $('no-wrapper-row');
 const dlEl = /** @type {HTMLButtonElement} */ ($('dl'));
 const targetBytesEl = $('target-bytes');
 const encodeIssuesEl = $('encode-issues');
@@ -143,6 +145,8 @@ function renderTarget() {
   if (!font) return;
   const isCsource = targetEl.value.startsWith('csource-');
   symbolRowEl.hidden = !isCsource;
+  // Only the u8g2 header declares a LovyanGFX object that can be left out.
+  noWrapperRowEl.hidden = targetEl.value !== 'csource-u8g2';
 
   const format = targetFormat();
   const check = canEncode(font, format);
@@ -188,6 +192,7 @@ dlEl.addEventListener('click', () => {
       format: /** @type {'u8g2' | 'gfx'} */ (format),
       symbolName: base,
       dropInvalid: dropInvalidEl.checked,
+      wrapper: !(format === 'u8g2' && noWrapperEl.checked),
       attribution: {
         typeface: font.familyName || fonts[fontIndex].label,
         license: font.meta.license,

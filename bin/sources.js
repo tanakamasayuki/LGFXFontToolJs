@@ -13,6 +13,8 @@ import { homedir } from 'node:os';
 import { decode } from '../src/format/registry.js';
 import { decodeCSource } from '../src/format/csource.js';
 import { loadFont } from '../src/fonts/loader.js';
+import { merge } from '../src/model/subset.js';
+import { fontCoverage } from './coverage.js';
 
 /** @typedef {import('../src/model/font.js').Font} Font */
 
@@ -173,6 +175,114 @@ async function googleTtf(family, opts) {
 //--- public -------------------------------------------------------------------
 
 /**
+ * Resolves one typeface spec into bytes plus its attribution.
+ *
+ * A spec is `google:<family>` for a curated family, or a path / URL to a font
+ * file — the same notation as the primary source, so there is one syntax.
+ *
+ * @param {string} spec
+ * @param {{cache: string, offline: boolean}} opts
+ */
+export async function resolveTypeface(spec, opts) {
+  if (spec.startsWith('google:')) {
+    const { bytes, entry } = await googleTtf(spec.slice('google:'.length), opts);
+    const origin = `Google Fonts: ${entry.family}`;
+    return {
+      bytes,
+      origin,
+      attribution: {
+        typeface: entry.family,
+        author: entry.by,
+        license: entry.license.name,
+        licenseUrl: entry.license.url,
+        origin,
+        sourceHash: sha256(bytes),
+      },
+    };
+  }
+  const bytes = /^https?:/.test(spec) ? await fetchCached(spec, opts) : readFileSync(spec);
+  // A relative path stays stable across machines; an absolute one would not.
+  const origin = /^https?:/.test(spec) ? spec : spec.replace(process.cwd() + '/', '');
+  return { bytes, origin, attribution: { origin, sourceHash: sha256(bytes) } };
+}
+
+/**
+ * Rasterizes the characters this typeface actually contains.
+ *
+ * Skia substitutes a system font for anything the typeface lacks, so the code
+ * points are filtered by the font's own cmap first (see coverage.js). Without
+ * that, a Latin face would appear to carry kanji drawn by whatever the host has
+ * installed. When the coverage cannot be read the request goes through
+ * unfiltered, with a warning, because refusing would be worse than degrading.
+ *
+ * @param {Uint8Array} bytes
+ * @param {number[]} codepoints
+ * @param {{em: number, bpp?: 1|8, threshold?: number, label: string}} opts
+ */
+async function rasterize(bytes, codepoints, opts) {
+  const { generateFont } = await import('../src/gen/generate.js');
+  const cov = fontCoverage(bytes);
+  let wanted = codepoints;
+  if ('codepoints' in cov) {
+    wanted = codepoints.filter((c) => cov.codepoints.has(c));
+  } else {
+    process.stderr.write(
+      `warning: cannot read the coverage of ${opts.label} (${cov.unavailable}).\n` +
+        '  Characters it does not have may be drawn by a system font instead.\n',
+    );
+  }
+  if (wanted.length === 0) return { font: null, missing: codepoints };
+  // Sets, not filters over arrays: a full kanji request is several thousand
+  // code points and this runs once per typeface.
+  const inside = new Set(wanted);
+  const outside = codepoints.filter((c) => !inside.has(c));
+  const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const r = await generateFont({
+    source: /** @type {ArrayBuffer} */ (buf),
+    em: opts.em,
+    codepoints: wanted,
+    bpp: opts.bpp ?? 1,
+    threshold: opts.threshold ?? 128,
+  });
+  return { font: r.font, missing: [...outside, ...r.missing].sort((a, b) => a - b) };
+}
+
+/**
+ * Fills what the base font is missing from the fallback typefaces, in order.
+ *
+ * The same loop serves both kinds of source. A bitmap source starts with a font
+ * and no missing set — the characters it lacks are found by subsetting — while a
+ * rasterized source starts with what its own cmap could supply.
+ *
+ * @param {Font | null} base
+ * @param {number[]} missing
+ * @param {string[]} fallbacks typeface specs, tried in order
+ * @param {{em: number, bpp?: 1|8, threshold?: number}} draw
+ * @param {{cache: string, offline: boolean}} where
+ */
+async function fillFrom(base, missing, fallbacks, draw, where) {
+  let font = base;
+  /** @type {{spec: string, codepoints: number[]}[]} */
+  const filled = [];
+  /** @type {object[]} */
+  const used = [];
+  for (const fb of fallbacks) {
+    if (missing.length === 0) break;
+    const t = await resolveTypeface(fb, where);
+    const r = await rasterize(t.bytes, missing, { ...draw, label: t.origin });
+    const still = new Set(r.missing);
+    const got = missing.filter((c) => !still.has(c));
+    missing = r.missing;
+    if (got.length === 0) continue;
+    font = font === null ? r.font : merge(font, /** @type {Font} */ (r.font));
+    filled.push({ spec: fb, codepoints: got });
+    // Each contributing typeface keeps its own license block in the output.
+    used.push({ ...t.attribution, filled: got.length });
+  }
+  return { font, missing, filled, used };
+}
+
+/**
  * @param {object} opts
  * @param {string} [opts.google]
  * @param {string} [opts.ttf]
@@ -183,10 +293,12 @@ async function googleTtf(family, opts) {
  * @param {number} [opts.em]
  * @param {1|8} [opts.bpp]
  * @param {number} [opts.threshold]
+ * @param {string[]} [opts.fallbacks] - typeface specs tried in order for missing characters
  * @param {number[]} opts.codepoints
  * @param {string} opts.cache
  * @param {boolean} opts.offline
- * @returns {Promise<{font: Font, missing: number[], origin: string, attribution: object}>}
+ * @returns {Promise<{font: Font, missing: number[], origin: string, attribution: object,
+ *   filled: {spec: string, codepoints: number[]}[]}>}
  */
 export async function resolveSource(opts) {
   const o = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (opts));
@@ -217,8 +329,17 @@ export async function resolveSource(opts) {
           ? list.find((f) => f.name === opts.inputSymbol)
           : list[0];
         if (!picked) {
+          // An empty list means the file held nothing this tool can read back.
+          // Say which forms are readable rather than reporting a missing symbol.
+          if (list.length === 0) {
+            throw new CliError(
+              `no readable font in ${path}. C source input reads GFXfont and u8g2 headers; ` +
+                'CellFont headers cannot be read back. To add characters to a CellFont, ' +
+                'rerun the command in its "Rebuild with" comment with the extra characters.',
+            );
+          }
           throw new CliError(
-            `no font named ${opts.inputSymbol} in ${path}. Found: ` +
+            `no font named ${opts.inputSymbol ?? '(unnamed)'} in ${path}. Found: ` +
               list.map((f) => f.name).join(', '),
           );
         }
@@ -227,55 +348,56 @@ export async function resolveSource(opts) {
         font = decode(bytes, opts.inputFormat ? { format: opts.inputFormat } : {});
       }
     }
-    return {
+    /** @type {object} */
+    const own = { typeface: font.familyName || undefined, origin, sourceHash: hash };
+    if (!opts.fallbacks?.length) {
+      return { font, missing: [], filled: [], origin, attribution: own };
+    }
+    // Adding characters to a font you already have: the ones it does not carry
+    // are rasterized from the fallbacks and merged in. Metrics may not agree —
+    // the base font's line box wins, and the caller is warned.
+    if (opts.em === undefined) {
+      throw new CliError('--em is required when --fallback is used', 3);
+    }
+    await installRasterizer();
+    const r = await fillFrom(
       font,
-      missing: [],
+      opts.codepoints.filter((c) => !font.glyphs.has(c)),
+      opts.fallbacks,
+      { em: opts.em, bpp: opts.bpp, threshold: opts.threshold },
+      { cache: opts.cache, offline: opts.offline },
+    );
+    return {
+      font: /** @type {Font} */ (r.font),
+      missing: r.missing,
+      filled: r.filled,
       origin,
-      attribution: { typeface: font.familyName || undefined, origin, sourceHash: hash },
+      attribution: r.used.length ? { ...own, fallbacks: r.used } : own,
     };
   }
 
   // Rasterized sources.
   if (opts.em === undefined) throw new CliError('--em is required for --google / --ttf', 3);
   await installRasterizer();
-  const { generateFont } = await import('../src/gen/generate.js');
 
-  let source;
-  let origin;
-  /** @type {object} */
-  let attribution;
-  if (opts.google !== undefined) {
-    const { bytes, entry } = await googleTtf(opts.google, opts);
-    source = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    origin = `Google Fonts: ${entry.family}`;
-    attribution = {
-      typeface: entry.family,
-      author: entry.by,
-      license: entry.license.name,
-      licenseUrl: entry.license.url,
-      origin,
-      // Which bytes produced this font. Stable for the same input, so it does
-      // not break canonical output, and a silently updated remote shows up in
-      // the diff instead of only as changed glyph data.
-      sourceHash: sha256(bytes),
-    };
-  } else {
-    const ref = /** @type {string} */ (opts.ttf);
-    const bytes = /^https?:/.test(ref)
-      ? await fetchCached(ref, { cache: opts.cache, offline: opts.offline })
-      : readFileSync(ref);
-    source = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    // A relative path stays stable across machines; an absolute one would not.
-    origin = /^https?:/.test(ref) ? ref : ref.replace(process.cwd() + '/', '');
-    attribution = { origin, sourceHash: sha256(bytes) };
+  const draw = { em: opts.em, bpp: opts.bpp, threshold: opts.threshold };
+  const where = { cache: opts.cache, offline: opts.offline };
+
+  const spec = opts.google !== undefined ? `google:${opts.google}` : /** @type {string} */ (opts.ttf);
+  const primary = await resolveTypeface(spec, where);
+  const first = await rasterize(primary.bytes, opts.codepoints, { ...draw, label: primary.origin });
+  const r = await fillFrom(first.font, first.missing, opts.fallbacks ?? [], draw, where);
+
+  if (r.font === null) {
+    throw new CliError(`no requested character is present in ${primary.origin}`, 1);
   }
-
-  const r = await generateFont({
-    source: /** @type {ArrayBuffer} */ (source),
-    em: opts.em,
-    codepoints: opts.codepoints,
-    bpp: opts.bpp ?? 1,
-    threshold: opts.threshold ?? 128,
-  });
-  return { font: r.font, missing: r.missing, origin, attribution };
+  return {
+    font: r.font,
+    missing: r.missing,
+    filled: r.filled,
+    origin: primary.origin,
+    attribution: r.used.length
+      ? { ...primary.attribution, fallbacks: r.used }
+      : primary.attribution,
+  };
 }

@@ -229,6 +229,72 @@ The line height depends on the typeface, so **whether it fits is a check, not a 
 --max-height 16    fail when the line box exceeds 16 (exit code 1)
 ```
 
+### 4.6 Filling in what the source lacks (`--fallback`)
+
+Now that presence detection is right (§13.1), the gaps can be filled from another typeface.
+
+```
+lgfx-font build --google Roboto --fallback google:"Noto Sans JP" \
+  --em 16 --sets ascii,hiraganaKatakana,hanJaG1 \
+  --format cellfont --out font.h
+```
+
+- `--fallback` is repeatable and tried **in the order given**, so the result does not depend
+  on which typeface happens to be wider.
+- The notation is the same as the source (`google:<family>`, a path, or a URL). Nothing new
+  to remember.
+- How many characters were filled, and which, goes to stderr.
+- **The fallback's attribution goes into the output too.** A typeface that supplied glyphs is
+  a source of the derived work just as the primary is, so its name, author, licence, origin,
+  and `sha256` are recorded in their own block.
+- Filling rasterizes, so `--em` is required.
+
+#### Adding characters to a font you already have
+
+Fallbacks work with `--input` (a bitmap font of your own) as well. **There is no
+"concatenate two fonts" feature.** Filling in what is missing needs fewer concepts and
+produces one font instead of two.
+
+```sh
+# Add kanji to an existing .h and rebuild it
+lgfx-font build --input font.h --chars "AB温度" --em 16 \
+    --fallback google:"Noto Sans JP" --format cellfont --out font.h
+```
+
+For a font this tool made, though, **this is the better route.** The generated header carries
+the command that made it (§6), so adding a character means adding it and running that command
+again.
+
+```sh
+# The header's "Rebuild with" command, plus the new characters
+lgfx-font build --google Roboto --em 16 --chars "AB温度" \
+    --fallback google:"Noto Sans JP" --format cellfont --out font.h
+```
+
+Every glyph then comes from the same typeface at the same `--em`, so **the metrics agree and
+the output is as small as it can be.** Adding through `--input` is for when the original
+typeface is not at hand, or the source was a bitmap font to begin with.
+
+| | `--input` + `--fallback` | Add to the original command |
+| --- | --- | --- |
+| Original typeface | Not needed | Needed |
+| Metrics | **May disagree** (below) | Agree |
+| Output size | Tends to be larger | Smallest |
+
+**Disagreeing metrics are reported.** The input font's line box is what is kept, so filled
+glyphs may sit at a different position or size. Silently rescaling them would be worse, so
+both sets of numbers are printed and `--preview` is suggested.
+
+```
+warning: the filled characters were drawn to different metrics than the base font.
+  base: {"ascent":12,"descent":0,"lineHeight":12}
+  fill: {"ascent":14,"descent":2,"lineHeight":16}
+  The base font's line box is kept. Check the result with --preview.
+```
+
+**A CellFont header cannot be read back** (C source input reads GFXfont and u8g2). To add
+characters to a CellFont, run the `Rebuild with` command from its header.
+
 ## 5. Choosing characters
 
 Four kinds. **They combine, and the result is their union.**
@@ -278,7 +344,7 @@ formats and stops.
 | `--format` | C source | Raw file |
 | --- | --- | --- |
 | `cellfont` | CellFont structures (format spec §12) | — |
-| `u8g2` | usable as `lgfx::U8g2font` | u8g2 binary |
+| `u8g2` | usable as `lgfx::U8g2font` (`--no-wrapper` for the array alone) | u8g2 binary |
 | `gfx` | Adafruit GFX compatible; sparse sets use the LovyanGFX extension | **the GFX1 container** (this tool's own; not Adafruit's raw form) |
 | `vlw` | an array for `loadFont` at run time | VLW binary |
 | `bff` | an array for `loadFont` at run time. `--bpp 1\|2\|4` | BFF binary |
@@ -294,10 +360,40 @@ raw form, and `bdf` has no C source form).
 | --- | --- |
 | `--name <ident>` | The C symbol name. Defaults to the basename of `--out`, canonicalized into an identifier |
 | `--target ilp32\|avr` | The `sizeof(CellFont)` used for candidate comparison (28 / 20). Default `ilp32` |
+| `--no-wrapper` | u8g2: leave out the `lgfx::U8g2font` declaration |
 
 `--target` matters only for CellFont. **The winning candidate changes with the target ABI**,
 which is why format spec §10.4 makes it part of the generator's input. Other formats ignore
 it.
+
+#### `--no-wrapper` — u8g2 without LovyanGFX
+
+In the u8g2 output, **only the last line is LovyanGFX-specific**. The byte array itself is
+the format the upstream u8g2 library reads, and depends on no library.
+
+```c
+static const uint8_t myfont_data[71] LGFXFT_PROGMEM = { ... };   // upstream u8g2 format
+static const lgfx::U8g2font myfont(myfont_data);                 // only this is LovyanGFX
+```
+
+`--no-wrapper` leaves out the second line and **names the array itself** the font symbol,
+which is the shape upstream u8g2 fonts have.
+
+```c
+static const uint8_t myfont[71] LGFXFT_PROGMEM = { ... };
+// Usage:  u8g2.setFont(myfont);
+```
+
+Passing it with any other `--format` is an argument error (3): what the other formats declare
+is a type the format itself requires, not a wrapper that can be taken off.
+
+| `--format` | Library-specific type in the output |
+| --- | --- |
+| `u8g2` | `lgfx::U8g2font`. Removable with `--no-wrapper` |
+| `gfx` (one contiguous range) | `GFXfont` / `GFXglyph`. Adafruit GFX's own types — this *is* the format |
+| `gfx` (sparse set) | `lgfx::v1::GFXfont` / `EncodeRange`. A LovyanGFX extension, and **not removable**: Adafruit's `GFXfont` can only express a single contiguous range |
+| `vlw` / `bff` | None. **Already the array alone** |
+| `cellfont` | `CellFont` / `CellGlyph`. The types of format spec §12, which belong to no particular library |
 
 ### The generated C source
 
@@ -309,6 +405,25 @@ that comment, `git diff` alone shows which characters were added or removed.**
 temporary URLs would break canonical output (format spec §10.4). The origin records only
 things that are the same for the same input: the relative path as given, or the family name
 from `--google <family>`.
+
+### Recording the command
+
+The comment at the top of C source output carries the command that produced the file.
+
+```
+// Rebuild with:
+//   lgfx-font build --google Roboto --em 16 --chars AB温度 \
+//       --fallback 'google:Noto Sans JP' --format cellfont --out font.h
+```
+
+- Flags that do not change the file are left out (`--check`, `--preview`, `--preview-text`,
+  `--max-height`, `--offline`, `--cache-dir`, `--json`). `--allow-missing` is kept, because
+  without it the rebuild would stop.
+- The order is **fixed, not as-typed**, so the same build always writes the same line and
+  canonical output (§6) is not broken.
+- An absolute path outside the working directory is **reduced to its file name**, so no home
+  directory layout leaks into the output and the line is the same across machines. The cost
+  is that a font of your own has to be put back by hand.
 
 ## 7. Verification mode
 
@@ -363,7 +478,8 @@ descent), the size in every format, and any issues found while reading.
 | 3 | Bad arguments (including the format listing printed when `--format` is omitted) |
 
 **Characters the typeface does not have are an error by default (code 1)**, because burning
-blanks silently is only discovered on the device. `--allow-missing` turns it into a warning.
+blanks silently is only discovered on the device. Fill them from another typeface with
+`--fallback` (§4.6), or turn the error into a warning with `--allow-missing`.
 
 ## 11. Character-set files
 
@@ -429,6 +545,14 @@ npx lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
 # A different format
 npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
+# Fill what a Latin typeface does not have from another one
+npx lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
+    --sets ascii --chars "温度設定" --format cellfont --out font.h
+
+# For upstream u8g2 (no LovyanGFX type in the output)
+npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
+    --format u8g2 --no-wrapper --out font.h
+
 # Repeated use (package.json)
 "scripts": {
   "font": "lgfx-font build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
@@ -477,10 +601,34 @@ Verified:
 **Not verified: the OS and CPU matrix.** Only Linux x64 was checked; what happens where
 `@napi-rs/canvas` has no prebuilt binary has not been looked at.
 
-**One caveat.** Presence detection compares against the generic families (`serif` /
-`monospace`), so **the host's font configuration must not be inherited**. The CLI registers
-only the target typeface and its fallbacks. Inheriting lets a system font draw a glyph the
-typeface does not have, which is then reported as present (observed in practice).
+#### Presence is decided from the cmap
+
+The library decides presence by drawing with the target typeface and comparing against the
+generic families (`serif` / `monospace`). In a browser this is correct: a `FontFace`'s
+`unicode-range` keeps the registered typeface away from every character outside its range.
+
+**In Node it does not hold.** Skia's font registry has no equivalent of `unicode-range`, so
+Skia substitutes a system font for any character the typeface lacks, and the comparison reads
+that as "the typeface has it". Measured: asking DejaVu Sans, which has no kanji, for `温`
+returned a glyph 152 px tall.
+
+Isolating the registry does not help. Calling `GlobalFonts.removeAll()` either before or
+after registration (both measured) leaves the family count back at 162 and makes every family
+return the same result, so even `A` is reported absent. It is strictly worse.
+
+So the CLI **reads the font file's own `cmap` to decide what it contains**
+([bin/coverage.js](../bin/coverage.js)). The rasterizer is only ever handed code points the
+typeface actually has. Only `cmap` is read — no outlines, nothing else interpreted — for
+formats 0, 4, 6, and 12. Format spec §2.3 (the library parses no font tables) is untouched:
+this stays inside `bin/`.
+
+| Input | Presence |
+| --- | --- |
+| TTF / OTF / TTC | Decided from `cmap` |
+| WOFF / WOFF2 | **Cannot be decided.** The `cmap` is compressed, so a warning is printed and the request goes through unfiltered |
+
+With WOFF / WOFF2, a character the typeface lacks may still be drawn by a system font. Pass
+an uncompressed TTF / OTF when that matters.
 
 ### 13.2 Dependencies and the network
 
@@ -536,6 +684,10 @@ is "run it, get an error, install the extra package" (the §13.2 message).
 | An OS / CPU with no prebuilt binary | It does not work, and **says so** (§13.2). `--font` / `--input` still do |
 | A remote that changes | The cache is the pin in practice; **the source SHA-256 is recorded in the header** so it shows in the diff (§4.4) |
 | Cache location | **The user's cache directory**, overridable with `--cache-dir` (§4.4) |
+| Presence detection | **Read the font's `cmap`** (§13.1). Comparing rendered output does not work in Node |
+| Missing characters | Fill from another typeface with `--fallback`. **Bitmap to bitmap is not automated** (§4.6) |
+| Reproducing an output | **Record the command in the header comment**; absolute paths outside the working directory are rounded off (§6) |
+| Library-specific types | `u8g2` can drop its wrapper with `--no-wrapper`; `gfx`'s sparse form cannot (§6) |
 
 ### Platform coverage
 

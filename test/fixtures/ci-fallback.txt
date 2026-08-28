@@ -1,0 +1,3 @@
+# Characters Silkscreen does not have, used by the CI fallback check.
+U+03B1
+U+2190
