@@ -49,6 +49,51 @@ cannot change your application without a code change:
 </script>
 ```
 
+## From the command line
+
+The package ships an `lgfx-font` command. A one-off and a CI run are the same command.
+
+```sh
+# A font holding just the characters you need, from a Google Fonts family by name
+npx lgfx-font build --google "Noto Sans JP" --em 12 \
+    --chars "温度設定完了 23.5℃" --format cellfont --out font.h
+
+# With a confirmation image
+npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
+    --format u8g2 --out font.h --preview font.png
+
+# CI: check the committed output is current, writing nothing
+npx lgfx-font build ... --check
+```
+
+Full reference: [docs/cli.ja.md](docs/cli.ja.md) (Japanese).
+
+### TTF input needs one extra install
+
+`--ttf` and `--google` rasterize a TTF, which needs a rasterizer. It is an
+**optional dependency**, so it is not installed by default.
+
+```sh
+npm install @napi-rs/canvas
+```
+
+Point the CLI at a TTF without it and it tells you:
+
+```
+lgfx-font: TTF input needs the rasterizer. Install it with:
+  npm install @napi-rs/canvas
+Bitmap sources (--font / --input) work without it.
+```
+
+It is optional because the platform binaries come to **33 MB**. Anyone using the
+library alone, or working only from bundled fonts and existing font files, does
+not need it.
+
+| Source | Rasterizer |
+| --- | --- |
+| `--google <family>` / `--ttf <path\|url>` | **required** |
+| `--font <name>` (bundled) / `--input <path>` (a file) | not needed |
+
 ## Ten lines to first pixels
 
 ```js
@@ -126,6 +171,8 @@ configureFontData({ baseUrl: 'https://intra.example.com/lgfx-fonts/' });
 | [Use-case guide](./docs/guide-usecases.en.md) ([日本語](./docs/guide-usecases.ja.md)) | Recipes: pick, render, generate, convert, CI checks… |
 | [Advanced guide](./docs/guide-advanced.en.md) ([日本語](./docs/guide-advanced.ja.md)) | Internals, pixel-exactness, encoding constraints, extending |
 | [Specification](./docs/spec.en.md) ([日本語](./docs/spec.ja.md)) | Normative spec (use cases, design decisions, format details) |
+| [CLI specification](./docs/cli.ja.md) (Japanese) | The `lgfx-font` command: inputs, character sets, outputs, CI use |
+| [CellFont format](./docs/formats/cellfont.en.md) ([日本語](./docs/formats/cellfont.ja.md)) | Normative spec for the low-footprint bitmap font format, v1 |
 
 Minimal one-file samples live in [examples/](./examples/) (Node and browser).
 

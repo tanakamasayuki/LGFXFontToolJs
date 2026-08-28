@@ -12,6 +12,9 @@
   "unpkg": "dist/lgfx-font-tool.min.js",
   "jsdelivr": "dist/lgfx-font-tool.min.js",
   "types": "types/index.d.ts",
+  "bin": {
+    "lgfx-font": "./bin/lgfx-font.js"
+  },
   "exports": {
     ".": {
       "types": "./types/index.d.ts",
@@ -21,6 +24,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "bin",
     "dist",
     "src",
     "!src/fonts/data",
@@ -77,5 +81,8 @@
     "@types/node": "^26.2.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas": "^0.1.100"
   }
 }

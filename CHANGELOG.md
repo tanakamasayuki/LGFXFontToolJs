@@ -1,6 +1,18 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) New `lgfx-font` CLI (`bin/`), shipped with the package. `build` / `inspect` / `charset` work from arguments alone, so a one-off needs no config file and CI is the same command with `--check`. Sources: a curated Google Fonts family by name, any TTF by path or URL, a bundled font, or a bitmap font file.
+- (JA) `lgfx-font` コマンドを追加（`bin/`、パッケージに同梱）。`build` / `inspect` / `charset` は引数だけで動くので、単発では設定ファイルが要らず、CI は同じコマンドに `--check` を付けるだけ。入力は Google Fonts の書体名、TTF（パス / URL）、同梱フォント、手元のビットマップフォントファイルの 4 系統。
+- (EN) TTF input in Node needs `@napi-rs/canvas`, declared as an **optional dependency** (33 MB of platform binaries). Running `--ttf` / `--google` without it prints the install command; bitmap sources work without it.
+- (JA) Node での TTF 入力には `@napi-rs/canvas` が要る。プラットフォーム別バイナリが 33 MB あるため**任意依存**とした。未インストールで `--ttf` / `--google` を指定するとインストール方法を案内する。ビットマップ入力は不要。
+- (EN) New CellFont v1 format (`docs/formats/cellfont.ja.md` / `.en.md`), a compile-time bitmap font format for 16-64 KB microcontrollers: shared cell metrics, optional glyph table, sparse index with a contiguous head block, and chaining. `encodeCSource({ format: 'cellfont' })` emits it.
+- (JA) CellFont v1 形式を追加（`docs/formats/cellfont.ja.md` / `.en.md`）。16〜64 KB のマイコン向けのコンパイル時フォント形式で、共通セルのメトリクス、グリフ表の省略、頭ブロック付き疎索引、連鎖を持つ。`encodeCSource({ format: 'cellfont' })` で出力する。
+- (EN) **Breaking:** `generateFont()` and `rasterizeSet()` take `em` (the typeface design size in pixels; a full-width character advances exactly this much) instead of `px`. The old `px` measured a reference glyph chosen from the requested repertoire, so adding one character rescaled the rest — measured at 92 of 95 ASCII glyphs changing when `日` was added. `sizing`, `measureTtf`, and the probe machinery are gone.
+- (JA) **破壊的変更:** `generateFont()` と `rasterizeSet()` の指定が `px` から `em`（書体のデザインサイズ。全角 1 文字の送り幅がちょうどこの値）へ変わった。旧 `px` は要求した文字集合から選んだ基準字の墨面高さを尺度にしていたため、1 字足すと既存の字が縮んだ（`日` の追加で ASCII 95 字中 92 字の寸法が変化）。`sizing` / `measureTtf` と probe 機構は削除。
+- (EN) `tools/gen-charsets.mjs` restored: it regenerates `src/charsets/charsets-data.js` from Unicode's own data with the Unicode version pinned, and `--check` fails when the committed data drifts. Two errors in the previous data's provenance are corrected (the Korean sets come from `KSX1001.TXT`, and `hanKo2` needs the CJK Compatibility Ideographs that KS X 1001 duplicates).
+- (JA) `tools/gen-charsets.mjs` を復元した。Unicode の実データから `src/charsets/charsets-data.js` を再生成し、Unicode のバージョンを固定して記録する。`--check` で手編集や版ずれを検出できる。従来のヘッダにあった出典の誤り 2 件も修正（韓国語系は `KSX1001.TXT` 由来、`hanKo2` は KS X 1001 が重複符号化する CJK 互換漢字を含む）。
+- (EN) New Japanese grade-level kanji sets `hanJaG1`-`hanJaG6` (学年別漢字配当表; G6 is the 1,026 Kyōiku kanji), so the smallest Japanese tier is no longer Jōyō at 2,139.
+- (JA) 学年別漢字の集合 `hanJaG1`〜`hanJaG6` を追加（G6 = 教育漢字 1,026 字）。日本語の最小ティアが常用漢字 2,139 字ではなくなった。
 
 ## 1.1.0
 - (EN) Generated C headers no longer auto-include `<LovyanGFX.hpp>`. The `#if` that guarded it tested include-guard macros that never matched (`__LOVYANGFX_HPP__` vs the real `LOVYANGFX_HPP_`, `_M5GFX_H_` vs `__M5GFX_H__`), so for a sketch that included the font header first it could pull LovyanGFX into an M5GFX / M5Unified build. Include your graphics library before the generated header instead; VLW/BFF headers are data only and need no library header at all.

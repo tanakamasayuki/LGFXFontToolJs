@@ -44,6 +44,50 @@ npm install lgfx-font-tool
 </script>
 ```
 
+## コマンドラインから使う
+
+`lgfx-font` コマンドが付いてきます。単発でも、CI で毎回走らせる形でも同じコマンドです。
+
+```sh
+# Google Fonts から名前だけで、必要な文字だけのフォントを作る
+npx lgfx-font build --google "Noto Sans JP" --em 12 \
+    --chars "温度設定完了 23.5℃" --format cellfont --out font.h
+
+# 確認用の画像も一緒に
+npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
+    --format u8g2 --out font.h --preview font.png
+
+# CI: 生成物が最新かどうかだけ見る（何も書かない）
+npx lgfx-font build ... --check
+```
+
+くわしくは [docs/cli.ja.md](docs/cli.ja.md)。
+
+### TTF を使うときだけ追加のインストールが要る
+
+`--ttf` と `--google` は TTF をラスタライズするので、ラスタライザが要ります。
+これは**任意依存**なので、既定では入りません。
+
+```sh
+npm install @napi-rs/canvas
+```
+
+入れずに TTF を指定すると、その場で案内が出ます。
+
+```
+lgfx-font: TTF input needs the rasterizer. Install it with:
+  npm install @napi-rs/canvas
+Bitmap sources (--font / --input) work without it.
+```
+
+任意依存にしているのは、プラットフォーム別のバイナリが **33 MB** あるためです。
+ライブラリだけ使う人や、同梱フォント・既存のフォントファイルだけを扱う人には要りません。
+
+| 入力 | ラスタライザ |
+| --- | --- |
+| `--google <family>` / `--ttf <path\|url>` | **要る** |
+| `--font <name>`（同梱） / `--input <path>`（手元のファイル） | 要らない |
+
 ## 10 行で動かす
 
 ```js
@@ -121,6 +165,8 @@ configureFontData({ baseUrl: 'https://intra.example.com/lgfx-fonts/' });
 | [用途別ガイド](./docs/guide-usecases.ja.md) ([English](./docs/guide-usecases.en.md)) | やりたいこと別のレシピ集(選ぶ・描く・作る・変換する・CI 検査…) |
 | [上級者ガイド](./docs/guide-advanced.ja.md) ([English](./docs/guide-advanced.en.md)) | 内部規約・完全一致の仕組み・エンコード制約・拡張方法 |
 | [仕様書](./docs/spec.ja.md) ([English](./docs/spec.en.md)) | 規範的な仕様(ユースケース・設計判断・形式仕様) |
+| [CLI 仕様](./docs/cli.ja.md) | `lgfx-font` コマンドの仕様(入力・文字集合・出力・CI 運用) |
+| [CellFont 形式](./docs/formats/cellfont.ja.md) ([English](./docs/formats/cellfont.en.md)) | 省メモリ向けビットマップフォント形式 v1 の規範仕様 |
 
 最小サンプルは [examples/](./examples/) に(Node / ブラウザ各 1 ファイル)。
 
