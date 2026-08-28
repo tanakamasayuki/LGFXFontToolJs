@@ -254,6 +254,23 @@ test('引数なし / --help で使い方を出して 0', () => {
   }
 });
 
+test('--list-google はキュレーション済みの書体を出す', () => {
+  const r = run(['build', '--list-google']);
+  assert.equal(r.code, 0);
+  assert.match(r.stdout, /Noto Sans JP/);
+  assert.match(r.stdout, /OFL|Apache/, 'ライセンスも添える');
+});
+
+test('charset は既定で正準化し、--normalize は明示形として同じ結果を出す', () => {
+  const f = tmp('same.txt');
+  writeFileSync(f, '# c\n温度温度\n');
+  const a = run(['charset', f]);
+  const b = run(['charset', f, '--normalize']);
+  assert.equal(a.code, 0);
+  assert.equal(b.code, 0);
+  assert.equal(a.stdout, b.stdout);
+});
+
 test('未知のコマンドはエラー（3）', () => {
   const r = run(['nope']);
   assert.equal(r.code, 3);

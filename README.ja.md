@@ -165,7 +165,7 @@ configureFontData({ baseUrl: 'https://intra.example.com/lgfx-fonts/' });
 | [用途別ガイド](./docs/guide-usecases.ja.md) ([English](./docs/guide-usecases.en.md)) | やりたいこと別のレシピ集(選ぶ・描く・作る・変換する・CI 検査…) |
 | [上級者ガイド](./docs/guide-advanced.ja.md) ([English](./docs/guide-advanced.en.md)) | 内部規約・完全一致の仕組み・エンコード制約・拡張方法 |
 | [仕様書](./docs/spec.ja.md) ([English](./docs/spec.en.md)) | 規範的な仕様(ユースケース・設計判断・形式仕様) |
-| [CLI 仕様](./docs/cli.ja.md) | `lgfx-font` コマンドの仕様(入力・文字集合・出力・CI 運用) |
+| [CLI 仕様](./docs/cli.ja.md) ([English](./docs/cli.en.md)) | `lgfx-font` コマンドの仕様(入力・文字集合・出力・CI 運用) |
 | [CellFont 形式](./docs/formats/cellfont.ja.md) ([English](./docs/formats/cellfont.en.md)) | 省メモリ向けビットマップフォント形式 v1 の規範仕様 |
 
 最小サンプルは [examples/](./examples/) に(Node / ブラウザ各 1 ファイル)。

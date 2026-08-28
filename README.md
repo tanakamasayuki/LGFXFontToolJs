@@ -66,7 +66,7 @@ npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
 npx lgfx-font build ... --check
 ```
 
-Full reference: [docs/cli.ja.md](docs/cli.ja.md) (Japanese).
+Full reference: [docs/cli.en.md](docs/cli.en.md) ([日本語](docs/cli.ja.md)).
 
 ### TTF input needs one extra install
 
@@ -171,7 +171,7 @@ configureFontData({ baseUrl: 'https://intra.example.com/lgfx-fonts/' });
 | [Use-case guide](./docs/guide-usecases.en.md) ([日本語](./docs/guide-usecases.ja.md)) | Recipes: pick, render, generate, convert, CI checks… |
 | [Advanced guide](./docs/guide-advanced.en.md) ([日本語](./docs/guide-advanced.ja.md)) | Internals, pixel-exactness, encoding constraints, extending |
 | [Specification](./docs/spec.en.md) ([日本語](./docs/spec.ja.md)) | Normative spec (use cases, design decisions, format details) |
-| [CLI specification](./docs/cli.ja.md) (Japanese) | The `lgfx-font` command: inputs, character sets, outputs, CI use |
+| [CLI specification](./docs/cli.en.md) ([日本語](./docs/cli.ja.md)) | The `lgfx-font` command: inputs, character sets, outputs, CI use |
 | [CellFont format](./docs/formats/cellfont.en.md) ([日本語](./docs/formats/cellfont.ja.md)) | Normative spec for the low-footprint bitmap font format, v1 |
 
 Minimal one-file samples live in [examples/](./examples/) (Node and browser).

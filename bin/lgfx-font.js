@@ -59,6 +59,7 @@ const OPTIONS = /** @type {const} */ ({
   normalize: { type: 'boolean' },
   expand: { type: 'boolean' },
   list: { type: 'boolean' },
+  'list-google': { type: 'boolean' },
   write: { type: 'boolean' },
   json: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
@@ -71,7 +72,7 @@ const USAGE = `lgfx-font — embedded bitmap fonts
   lgfx-font charset <file> [options]   canonicalize / expand a character set
 
 build — source (exactly one)
-  --google <family>     curated Google Fonts family by name (--google --list)
+  --google <family>     curated Google Fonts family by name (--list-google)
   --ttf <path|url>      any TTF / OTF / WOFF / WOFF2
   --font <name>         bundled bitmap font
   --input <path>        bitmap font file (--input-format, --input-symbol)
@@ -101,8 +102,11 @@ build — modes
   --allow-missing       warn instead of failing on absent characters
   --offline             use only cached downloads
 
-charset
-  --normalize           sort and de-duplicate each literal line
+build — listing
+  --list-google         print the curated Google Fonts families
+
+charset (normalizing is the default action)
+  --normalize           explicit form of the default: sort and de-duplicate each literal line
   --expand              expand @named sets to literal characters
   --list                list set and template ids with their sizes
   --write               rewrite the file in place (default: stdout)
@@ -185,7 +189,7 @@ function collectCodepoints(v) {
 
 /** @param {Record<string, any>} v */
 async function cmdBuild(v) {
-  if (v.list && v.google !== undefined) {
+  if (v['list-google']) {
     const { FONTS } = await import('../web/googlefonts.js');
     for (const f of FONTS) console.log(`${f.family}  (${f.script}, ${f.license.id})`);
     return;

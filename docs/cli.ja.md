@@ -1,8 +1,11 @@
-# lgfx-font — CLI 仕様（草案）
+# lgfx-font — CLI 仕様
 
-- 状態: **草案。詰めながら書き換える**
+[English](./cli.en.md)
+
+- 状態: **v1 — 実装済み・テスト済み**（未決は §14）
 - 対象読者: この CLI を実装する人・使う人
 - 最終更新: 2026-08-28
+- 本書の内容は `bin/` に実装があり、`test/cli.test.js` が終了コードと出力の契約を検査する
 
 ## 1. 位置づけ
 
@@ -73,7 +76,7 @@ lgfx-font charset <file> [オプション]       文字集合ファイルの正�
 ### 4.1 `--google`
 
 再配布可能（SIL OFL 1.1 / Apache-2.0）と確認済みの書体から名前で選ぶ。
-一覧は `web/googlefonts.js` が正で、増減する。`lgfx-font build --google --list` で出す。
+一覧は `web/googlefonts.js` が正で、増減する。`lgfx-font build --list-google` で出す。
 グリフをファームウェアに焼くことは書体の再配布にあたるため、既定ではこの範囲に絞る。
 
 ラテン UI 系、表示・時計向け、日本語、記号、その他 CJK が入っている。
@@ -96,8 +99,7 @@ TTF を返す User-Agent を使う。
 ### 4.2 `--font`（同梱フォント）
 
 `--font lgfxJapanGothic_16` のように名前で引く。既にビットマップなので `--em` は不要で、
-**ラスタライザも要らない**。3 系統の入力のうち、これだけが完全に決定的である
-（取得もラスタライズも挟まらない）。
+**ラスタライザも要らない**。
 
 用途は 2 つ。
 
@@ -337,7 +339,8 @@ U+00B0-U+00B1
 ### 正準化
 
 ```
-lgfx-font charset fonts/chars.txt --normalize
+lgfx-font charset fonts/chars.txt              # 正準化は既定の動作
+lgfx-font charset fonts/chars.txt --normalize  # 明示形。同じ
 ```
 
 **リテラル行ごとに正準化する。行をまたいで文字を動かさない。**
