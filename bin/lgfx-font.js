@@ -26,6 +26,14 @@ import { encodePng, renderSheet, renderText } from './render.js';
 const C_EXT = /\.(h|hpp|c|cpp)$/i;
 
 /**
+ * Which version is installed. Read from package.json rather than hardcoded, so
+ * `npm version` stays the only place a release number is written.
+ */
+const VERSION = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+).version;
+
+/**
  * Flags recorded in the generated file's "Rebuild with" line, in this order.
  *
  * The order is fixed rather than as-typed so that the same build always writes
@@ -135,6 +143,7 @@ const USAGE = `lgfx-font — embedded bitmap fonts
   lgfx-font build   [options]          make font data
   lgfx-font inspect <file> [options]   report on an existing font
   lgfx-font charset <file> [options]   canonicalize / expand a character set
+  lgfx-font --version                  print the installed version
 
 build — source (exactly one)
   --google <family>     curated Google Fonts family by name (--list-google)
@@ -494,6 +503,12 @@ async function main() {
   const command = argv[0];
   if (!command || command === '--help' || command === '-h' || command === 'help') {
     process.stdout.write(USAGE);
+    return;
+  }
+  // Before parseArgs, so it works without a subcommand — which is how everyone
+  // asks a tool its version.
+  if (command === '--version' || command === '-v' || command === 'version') {
+    process.stdout.write(`${VERSION}\n`);
     return;
   }
   let parsed;

@@ -129,6 +129,15 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
   assert.doesNotMatch(text, /--cache-dir|--preview|--check/);
 });
 
+test('--version は版だけを標準出力に出す', () => {
+  const pkg = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
+  for (const flag of ['--version', '-v', 'version']) {
+    const r = run([flag]);
+    assert.equal(r.code, 0, flag);
+    assert.equal(r.stdout.trim(), pkg.version, flag);
+  }
+});
+
 test('--fallback は --em を要求する（3）', () => {
   // 補完はラスタライズなので、ビットマップ入力でも寸法の指定が要る。
   const r = run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format', 'cellfont',
