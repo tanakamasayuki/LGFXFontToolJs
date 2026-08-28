@@ -76,7 +76,7 @@ typedef struct CellFont {
   uint8_t  xAdvance, yAdvance;        /* xAdvance is for fixed pitch. yAdvance is the line advance */
   int8_t   xOffset, yOffset;          /* Shared by all glyphs */
   uint8_t  bytesPerGlyph;             /* Fixed pitch only, so no division at run time */
-  uint8_t  headCount;                 /* Head-block length of a sparse index. 0 = no head */
+  uint8_t  headCount;                 /* Head-block length of a sparse index (>= 1). 0 for a contiguous index */
 } CellFont;
 ```
 
@@ -765,7 +765,7 @@ Generators guarantee these; renderers may assume them.
 | --- | --- |
 | `count` | `count >= 1`. **An empty font is invalid** |
 | Contiguous index | `first + count <= 0x10000` |
-| Head block | `1 <= headCount < count`, `first + headCount <= 0x10000` |
+| Head block of a sparse index | `1 <= headCount < count`, `first + headCount <= 0x10000` |
 | `codes` | Strictly ascending, no duplicates. Length is `count - headCount` |
 | | Contains no head-block code point. **May contain code points below `first`** |
 | `glyphs` | Non-`NULL` with `count` elements for variable pitch |

@@ -72,7 +72,7 @@ typedef struct CellFont {
   uint8_t  xAdvance, yAdvance;        /* xAdvance は固定ピッチ用。yAdvance は行送り */
   int8_t   xOffset, yOffset;          /* 全グリフ共通 */
   uint8_t  bytesPerGlyph;             /* 固定ピッチ用。実行時に除算しないため */
-  uint8_t  headCount;                 /* 疎索引の頭ブロック長。0 = 頭なし */
+  uint8_t  headCount;                 /* 疎索引の頭ブロック長（1 以上）。連続索引では 0 */
 } CellFont;
 ```
 
@@ -725,7 +725,7 @@ D の値は描画器の実装によるので、境目を厳密に決めたい場
 | --- | --- |
 | `count` | `count >= 1`。**空のフォントは不正** |
 | 連続索引 | `first + count <= 0x10000` |
-| 頭ブロック | `1 <= headCount < count`、`first + headCount <= 0x10000` |
+| 疎索引の頭ブロック | `1 <= headCount < count`、`first + headCount <= 0x10000` |
 | `codes` | 狭義単調増加（重複なし）。要素数は `count - headCount` |
 | | 頭ブロックのコードを含まない。**`first` より小さいコードを含んでよい** |
 | `glyphs` | 可変ピッチのとき非 `NULL`、要素数は `count` |
