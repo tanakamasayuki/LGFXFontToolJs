@@ -1,4 +1,4 @@
-# lgfx-font — CLI specification
+# lgfx-font-tool — CLI specification
 
 [日本語版](./cli.ja.md)
 
@@ -46,7 +46,7 @@ The CLI takes on **only what a browser fundamentally cannot do**.
 
 | Use | Form |
 | --- | --- |
-| One-off | `lgfx-font build <args>` |
+| One-off | `lgfx-font-tool build <args>` |
 | Day-to-day edits | `npm run font` (a saved `build`) |
 | CI verification | `npm run font -- --check` |
 
@@ -56,9 +56,9 @@ ever needed it can be added compatibly later, as nothing more than saved argumen
 ## 3. Commands
 
 ```
-lgfx-font build   [options]              make font data (§4-§8)
-lgfx-font inspect <file> [options]       report on an existing font (§9)
-lgfx-font charset <file> [options]       canonicalize / list character sets (§11)
+lgfx-font-tool build   [options]              make font data (§4-§8)
+lgfx-font-tool inspect <file> [options]       report on an existing font (§9)
+lgfx-font-tool charset <file> [options]       canonicalize / list character sets (§11)
 ```
 
 Three. `build` is the tool; the other two support it. **Everything on `build` is an option**
@@ -70,52 +70,60 @@ flags.
 No install is needed; `npx` fetches it each time.
 
 ```sh
-npx -p lgfx-font-tool lgfx-font build ...   # use it without installing
-npm i -D lgfx-font-tool                     # pin it in the project (do this for CI)
-npm i -g lgfx-font-tool                     # call lgfx-font from anywhere
+npx lgfx-font-tool build ...   # use it without installing
+npm i -D lgfx-font-tool        # pin it in the project (do this for CI)
+npm i -g lgfx-font-tool        # call lgfx-font-tool from anywhere
 ```
 
-**Do not drop `-p lgfx-font-tool`.** The command is `lgfx-font` but the package is
-`lgfx-font-tool`, and no package called `lgfx-font` exists (`npm view lgfx-font` is a 404). A
-bare `npx lgfx-font` works only where npm manages to resolve the command name to a package,
-or where it is already in `node_modules`. Naming the package always works. Once it is
-installed, drop `npx` entirely and write `lgfx-font build ...`.
+The command and the package are the same name, so that one word names both the package to
+fetch and the binary to run; there is no `-p` to remember. Once it is installed, drop `npx`
+entirely and write `lgfx-font-tool build ...`.
 
 Checking and upgrading:
 
 ```sh
-lgfx-font --version                     # the version that is running (-v / version too)
-npm ls lgfx-font-tool                   # the version installed in this project
-npm ls -g lgfx-font-tool                # the version installed globally
-npm view lgfx-font-tool version         # the latest on npm — not what you have
+lgfx-font-tool --version           # the version that is running (-v / version too)
+npm ls lgfx-font-tool              # the version installed in this project
+npm ls -g lgfx-font-tool           # the version installed globally
+npm view lgfx-font-tool version    # the latest on npm — not what you have
 
-npm i -D lgfx-font-tool@latest          # bring the project up to date
-npm i -g lgfx-font-tool@latest          # bring the global install up to date
-npm i -D lgfx-font-tool@2.3.0           # pin an exact version
+npm i -D lgfx-font-tool@latest     # bring the project up to date
+npm i -g lgfx-font-tool@latest     # bring the global install up to date
+npm i -D lgfx-font-tool@2.3.0      # pin an exact version
 ```
 
 **`npx` does not give the same answer twice, even on one machine.** Three things cause it,
-and **the first two ignore `-p` and any version you name** (both observed in practice).
+in this order (all three observed in practice).
 
 | | |
 | --- | --- |
-| A command of the same name on `PATH` wins | With `lgfx-font` installed by `npm i -g`, writing `npx -p lgfx-font-tool@2.3.0` still runs that global copy. **Naming the version has no effect** |
+| A command of the same name on `PATH` wins | `npx lgfx-font-tool` finds the binary by name before the registry is consulted, so an `npm i -g` copy runs — measured: a global 2.3.0 ran while the npx cache sat at an older version. Naming a version puts the version in the word npx looks up, so no bin matches it and this case does not apply |
 | A `node_modules` at or above the cwd wins | npx walks up looking for `node_modules/.bin`, and if it finds the binary it neither fetches nor uses its cache. Run it where an old version was installed and that is what runs |
-| The cache is keyed by the spec string and never re-resolved | `-p lgfx-font-tool` with no version resolves the latest at that moment and stores it as `^x.y.z` under `~/.npm/_npx/<hash>/`. Later runs **reuse that tree**, so a newer release does not take effect |
+| The cache is keyed by the spec string and never re-resolved | `npx lgfx-font-tool` with no version resolves the latest at that moment and stores it as `^x.y.z` under `~/.npm/_npx/<hash>/`. Later runs **reuse that tree**, so a newer release does not take effect |
 
-**Naming a version does not make it deterministic.** It only addresses the third case;
-anything that wins earlier still wins. The quickest way to find out what actually ran is to
-ask it.
+**What each spelling does** (measured on npm 10.9.4):
+
+| | |
+| --- | --- |
+| `npx lgfx-font-tool` | Runs whatever is already there — a copy of the same name on `PATH` or in `node_modules`, otherwise whatever npx cached the first time. A newer release does not take effect and **nothing says so** |
+| `npx lgfx-font-tool@latest` | Looks the version up and installs when something newer exists. **That install is what asks:** `Ok to proceed?` in a terminal, a `npm warn exec … will be installed` line anywhere else |
+| `npx lgfx-font-tool@<version>` | Installs on first use, then runs from the cache with no lookup and no question. **This is the CI form**, and what a `Rebuild with` line records under `--pin-version` |
+
+**CI does not need `--yes`.** npm asks only when stdin is a TTY *and* `ci-info` fails to
+recognize a CI; GitHub Actions sets `GITHUB_ACTIONS`, which it recognizes, and a piped stdin
+takes the same silent path. `--no` turns that question into an error instead.
+
+The quickest way to find out what actually ran is to ask it.
 
 ```sh
-lgfx-font --version                  # what actually runs
-which -a lgfx-font                   # anything on PATH?
-ls node_modules/.bin/lgfx-font       # anything local?
-npm ls -g --depth=0                  # what is installed globally
+lgfx-font-tool --version              # what actually runs
+which -a lgfx-font-tool               # anything on PATH?
+ls node_modules/.bin/lgfx-font-tool   # anything local?
+npm ls -g --depth=0                   # what is installed globally
 
-npm i -g lgfx-font-tool@latest       # upgrade the global copy
-npm rm -g lgfx-font-tool             # or remove it and let npx decide
-npx clear-npx-cache                  # drop the cache
+npm i -g lgfx-font-tool@latest        # upgrade the global copy
+npm rm -g lgfx-font-tool              # or remove it and let npx decide
+npx clear-npx-cache                   # drop the cache
 ```
 
 **Install it if it has to be certain.** With `npm i -D lgfx-font-tool` and `npm ci`, the
@@ -146,7 +154,7 @@ deterministic**.
 
 Pick by name from the typefaces confirmed to be redistributable (SIL OFL 1.1 / Apache-2.0).
 `web/googlefonts.js` is the source of truth for the list and it changes;
-`lgfx-font build --list-google` prints the current one. Burning glyphs into firmware is
+`lgfx-font-tool build --list-google` prints the current one. Burning glyphs into firmware is
 redistribution of the typeface, so the default is limited to that set.
 
 It covers Latin UI faces, display and clock faces, Japanese, symbols, and other CJK.
@@ -296,7 +304,7 @@ The line height depends on the typeface, so **whether it fits is a check, not a 
 Now that presence detection is right (§13.1), the gaps can be filled from another typeface.
 
 ```
-lgfx-font build --google Roboto --fallback google:"Noto Sans JP" \
+lgfx-font-tool build --google Roboto --fallback google:"Noto Sans JP" \
   --em 16 --sets ascii,hiraganaKatakana,hanJaG1 \
   --format cellfont --out font.h
 ```
@@ -319,7 +327,7 @@ produces one font instead of two.
 
 ```sh
 # Add kanji to an existing .h and rebuild it
-lgfx-font build --input font.h --chars "AB温度" --em 16 \
+lgfx-font-tool build --input font.h --chars "AB温度" --em 16 \
     --fallback google:"Noto Sans JP" --format cellfont --out font.h
 ```
 
@@ -329,7 +337,7 @@ again.
 
 ```sh
 # The header's "Rebuild with" command, plus the new characters
-lgfx-font build --google Roboto --em 16 --chars "AB温度" \
+lgfx-font-tool build --google Roboto --em 16 --chars "AB温度" \
     --fallback google:"Noto Sans JP" --format cellfont --out font.h
 ```
 
@@ -378,7 +386,7 @@ sizes change there** (six grade-level kanji sets were in fact added later). **Th
 lists neither.** Copying them here guarantees they drift.
 
 ```
-lgfx-font charset --list      print set and template ids with their current sizes
+lgfx-font-tool charset --list      print set and template ids with their current sizes
 ```
 
 There are five axes: Latin, kana, Han, Hangul, symbols. Han is a **cumulative tier** per
@@ -475,7 +483,7 @@ The comment at the top of C source output carries the command that produced the 
 
 ```
 // Rebuild with (add --out for wherever this file goes):
-//   npx -p lgfx-font-tool lgfx-font build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
+//   npx lgfx-font-tool build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
 ```
 
 - **`--out` is not recorded.** Where the file was written is not part of what the file
@@ -494,8 +502,9 @@ The comment at the top of C source output carries the command that produced the 
 - **One line, however long.** Wrapping with a trailing `\` reads better but does not survive
   being copied: the continuation lines are still inside the `//` comment, so what reaches the
   shell is commented out.
-- **The form is `npx -p lgfx-font-tool lgfx-font`.** A bare `npx lgfx-font` 404s in some
-  environments (§3).
+- **The form is `npx lgfx-font-tool`, one word.** The command is named after the package, so
+  npx resolves and runs it from that word alone — nothing to install first, and nothing about
+  the reader's machine in the line (§3).
 - **The tool's version is not recorded unless `--pin-version` asks for it.** Without a
   version npx resolves the latest, so a rebuild can pick up a release that changes the shape
   of the output; with one it cannot, but then every upgrade of the tool rewrites every
@@ -505,7 +514,7 @@ The comment at the top of C source output carries the command that produced the 
 
 ```
 // Rebuild with (add --out for wherever this file goes):
-//   npx -p lgfx-font-tool@2.3.0 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
 ```
 - **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
   quoting to run, but without quotes it reads as if one went missing; the value is text, and
@@ -525,7 +534,7 @@ The same font written to different directories comes out byte-identical.
 
 ```sh
 $ for d in a b c d; do
-    lgfx-font build --font lgfxJapanGothic_8 --chars '℃' --sets digits \
+    lgfx-font-tool build --font lgfxJapanGothic_8 --chars '℃' --sets digits \
         --format cellfont --name tgfxClock --out $d/tgfx_clock.h
   done
 $ md5sum */tgfx_clock.h
@@ -542,7 +551,7 @@ header is meant to be reused.
 ## 7. Verification mode
 
 ```
-lgfx-font build ... --check
+lgfx-font-tool build ... --check
 ```
 
 **Writes no main output (`--out`); only checks that the existing one matches.** For CI.
@@ -569,7 +578,7 @@ PNG, 8-bit grayscale. The only dependency is `node:zlib`.
 Reads an existing font and reports on it (the CLI form of UC2 / UC9).
 
 ```
-lgfx-font inspect <file> [--input-format <id>] [--input-symbol <name>] [--json]
+lgfx-font-tool inspect <file> [--input-format <id>] [--input-symbol <name>] [--json]
 ```
 
 Reports: the format, the glyph count, the coverage, the metrics (em / line height / ascent /
@@ -618,8 +627,8 @@ U+00B0-U+00B1
 ### Canonicalization
 
 ```
-lgfx-font charset fonts/chars.txt              # normalizing is the default action
-lgfx-font charset fonts/chars.txt --normalize  # the explicit form; identical
+lgfx-font-tool charset fonts/chars.txt              # normalizing is the default action
+lgfx-font-tool charset fonts/chars.txt --normalize  # the explicit form; identical
 ```
 
 **Each literal line is canonicalized on its own. Characters never move between lines.**
@@ -645,31 +654,31 @@ copy-pasting your own set together**.
 
 ```sh
 # A one-off: just the characters you need, from a bundled font
-npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
+npx lgfx-font-tool build --font lgfxJapanGothic_16 --chars "温度設定完了" \
     --format cellfont --out font.h
 
 # From Google Fonts, by name alone
-npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 16 \
+npx lgfx-font-tool build --google "Noto Sans JP" --em 16 \
     --sets ascii,hiragana,hanJaG6 --chars "℃" --format cellfont --out font.h
 
 # From your own TTF, with a confirmation image
-npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
+npx lgfx-font-tool build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
     --format cellfont --out font.h --preview font.png
 
 # A different format
-npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
+npx lgfx-font-tool build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
 # Fill what a Latin typeface does not have from another one
-npx -p lgfx-font-tool lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
+npx lgfx-font-tool build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
     --sets ascii --chars "温度設定" --format cellfont --out font.h
 
 # For upstream u8g2 (no LovyanGFX type in the output)
-npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
+npx lgfx-font-tool build --ttf ./MyFont.ttf --em 12 --sets ascii \
     --format u8g2 --no-wrapper --out font.h
 
 # Repeated use (package.json)
 "scripts": {
-  "font": "lgfx-font build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
+  "font": "lgfx-font-tool build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
 }
 ```
 
@@ -747,7 +756,7 @@ an uncompressed TTF / OTF when that matters.
 ### 13.2 Dependencies and the network
 
 **The CLI ships in the same package** (not a separate one), provided through `bin` in
-`package.json` as `lgfx-font`.
+`package.json` as `lgfx-font-tool`.
 
 The rasterizer is an **`optionalDependency`**.
 

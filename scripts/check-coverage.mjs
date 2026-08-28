@@ -19,7 +19,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const cli = join(root, 'bin', 'lgfx-font.js');
+const cli = join(root, 'bin', 'lgfx-font-tool.js');
 const charset = join(root, 'test', 'fixtures', 'ci-fallback.txt');
 const out = join(root, 'coverage-check.h');
 
@@ -62,7 +62,7 @@ if (filled.code === 0) {
   const rebuild = /Rebuild with[^\n]*:\n\/\/\s+(\S[^\n]*)/.exec(text);
   expect(
     'the rebuild command is recorded',
-    !!rebuild && /lgfx-font build/.test(rebuild[1]) && rebuild[1].includes('--fallback google:Tiny5'),
+    !!rebuild && /lgfx-font-tool build/.test(rebuild[1]) && rebuild[1].includes('--fallback google:Tiny5'),
     rebuild ? rebuild[1] : 'no "Rebuild with" line',
   );
 }

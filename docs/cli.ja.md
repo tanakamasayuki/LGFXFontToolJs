@@ -1,4 +1,4 @@
-# lgfx-font — CLI 仕様
+# lgfx-font-tool — CLI 仕様
 
 [English](./cli.en.md)
 
@@ -41,7 +41,7 @@ Web UI は書体を探し、文字集合を組み立て、目で見て決める�
 
 | 使い方 | 形 |
 | --- | --- |
-| 単発 | `lgfx-font build <引数>` |
+| 単発 | `lgfx-font-tool build <引数>` |
 | 日常の増減 | `npm run font`（= 保存した `build`） |
 | CI 検証 | `npm run font -- --check` |
 
@@ -51,9 +51,9 @@ Web UI は書体を探し、文字集合を組み立て、目で見て決める�
 ## 3. コマンド
 
 ```
-lgfx-font build   [オプション]              フォントデータを作る（§4-§8）
-lgfx-font inspect <file> [オプション]       既存フォントを調べる（§9）
-lgfx-font charset <file> [オプション]       文字集合ファイルの正準化・一覧（§11）
+lgfx-font-tool build   [オプション]              フォントデータを作る（§4-§8）
+lgfx-font-tool inspect <file> [オプション]       既存フォントを調べる（§9）
+lgfx-font-tool charset <file> [オプション]       文字集合ファイルの正準化・一覧（§11）
 ```
 
 3 つ。`build` が本体で、他の 2 つは補助。**`build` の指定はすべてオプション**で、
@@ -64,51 +64,61 @@ lgfx-font charset <file> [オプション]       文字集合ファイルの正�
 インストールは要らない。`npx` が都度取ってくる。
 
 ```sh
-npx -p lgfx-font-tool lgfx-font build ...   # 入れずに使う
-npm i -D lgfx-font-tool                     # プロジェクトに固定（CI ではこちら）
-npm i -g lgfx-font-tool                     # どこからでも lgfx-font で呼ぶ
+npx lgfx-font-tool build ...   # 入れずに使う
+npm i -D lgfx-font-tool        # プロジェクトに固定（CI ではこちら）
+npm i -g lgfx-font-tool        # どこからでも lgfx-font-tool で呼ぶ
 ```
 
-**`-p lgfx-font-tool` を省かない。** コマンド名は `lgfx-font` だがパッケージ名は
-`lgfx-font-tool` で、`lgfx-font` というパッケージは存在しない（`npm view lgfx-font` は 404）。
-素の `npx lgfx-font` は、npm がコマンド名からパッケージを引けた環境か、
-`node_modules` に既に入っている場合しか動かない。パッケージ名を明示すれば常に動く。
-インストール済みなら `npx` ごと省いて `lgfx-font build ...` でよい。
+コマンド名とパッケージ名が同じなので、この 1 語が「取ってくるパッケージ」と「動かす
+コマンド」の両方を指す。`-p` は要らない。インストール済みなら `npx` ごと省いて
+`lgfx-font-tool build ...` でよい。
 
 版の確認と更新。
 
 ```sh
-lgfx-font --version                     # 動いているツールの版（-v / version も同じ）
-npm ls lgfx-font-tool                   # プロジェクトに入っている版
-npm ls -g lgfx-font-tool                # グローバルに入っている版
-npm view lgfx-font-tool version         # npm 上の最新（入っている版ではない）
+lgfx-font-tool --version           # 動いているツールの版（-v / version も同じ）
+npm ls lgfx-font-tool              # プロジェクトに入っている版
+npm ls -g lgfx-font-tool           # グローバルに入っている版
+npm view lgfx-font-tool version    # npm 上の最新（入っている版ではない）
 
-npm i -D lgfx-font-tool@latest          # プロジェクトを最新に
-npm i -g lgfx-font-tool@latest          # グローバルを最新に
-npm i -D lgfx-font-tool@2.3.0           # 版を指定して固定
+npm i -D lgfx-font-tool@latest     # プロジェクトを最新に
+npm i -g lgfx-font-tool@latest     # グローバルを最新に
+npm i -D lgfx-font-tool@2.3.0      # 版を指定して固定
 ```
 
-**`npx` の結果は同じマシンでも一定しない。** 原因は 3 つあり、**上の 2 つは `-p` も版指定も
-無視する**（実測で確認）。
+**`npx` の結果は同じマシンでも一定しない。** 原因は 3 つあり、上から順に効く
+（3 つとも実測で確認）。
 
 | | |
 | --- | --- |
-| PATH に同名のコマンドがあるとそれが勝つ | `npm i -g` で入れた `lgfx-font` があると、`npx -p lgfx-font-tool@2.3.0` と書いてもそのグローバル版が動く。**版指定は効かない** |
+| PATH に同名のコマンドがあるとそれが勝つ | `npx lgfx-font-tool` はレジストリを見る前に名前でバイナリを見つけるので、`npm i -g` で入れた版が動く（実測: npx のキャッシュが古い版のままでもグローバルの 2.3.0 が動いた）。版を書くとその版込みの文字列を引くことになり、それに一致する bin は無いので、この経路には乗らない |
 | cwd から上に `node_modules` があるとそれが勝つ | npx は `node_modules/.bin` を上へ探し、見つかれば取得もキャッシュも使わない。古い版を入れたディレクトリで実行すると、その版が動く |
-| キャッシュは spec 文字列で引き、再解決しない | 版を書かない `-p lgfx-font-tool` は、その時点の最新を解決して `^x.y.z` として `~/.npm/_npx/<hash>/` に置く。次からは**その木をそのまま使う**ので、後で新しい版が出ても上がらない |
+| キャッシュは spec 文字列で引き、再解決しない | 版を書かない `npx lgfx-font-tool` は、その時点の最新を解決して `^x.y.z` として `~/.npm/_npx/<hash>/` に置く。次からは**その木をそのまま使う**ので、後で新しい版が出ても上がらない |
 
-**版を書いても決定的にはならない。** 効くのは 3 つ目に対してだけで、先に勝つものがあれば
-そちらが動く。実際に何が走ったかは `--version` で確かめるのが早い。
+**書き方ごとの挙動**（npm 10.9.4 で実測）。
+
+| | |
+| --- | --- |
+| `npx lgfx-font-tool` | 既にあるものが動く。PATH や `node_modules` に同名のコマンドがあればそれ、無ければ npx が最初にキャッシュしたもの。新しい版が出ても上がらず、**その旨も出ない** |
+| `npx lgfx-font-tool@latest` | 版を引き直し、新しいものがあればインストールする。**聞かれるのはこのインストールのとき**で、端末なら `Ok to proceed?`、それ以外では `npm warn exec … will be installed` の 1 行だけ |
+| `npx lgfx-font-tool@<版>` | 初回だけインストールし、以降はキャッシュから、問い合わせも確認もなく動く。**CI ではこれ**。`--pin-version` を付けたときに `Rebuild with` に書かれるのもこの形 |
+
+**CI に `--yes` は要らない。** npm が聞くのは、stdin が TTY で**かつ** `ci-info` が CI だと
+判定できなかったときだけ。GitHub Actions は `GITHUB_ACTIONS` を立てるので判定され、
+stdin がパイプの場合も同じ黙って進む経路に入る。`--no` を書くと、その場面が質問ではなく
+エラーになる。
+
+実際に何が走ったかは `--version` で確かめるのが早い。
 
 ```sh
-lgfx-font --version                  # まず実際に動くものの版を見る
-which -a lgfx-font                   # PATH に何かあるか
-ls node_modules/.bin/lgfx-font       # cwd 側に何かあるか
-npm ls -g --depth=0                  # グローバルに何が入っているか
+lgfx-font-tool --version              # まず実際に動くものの版を見る
+which -a lgfx-font-tool               # PATH に何かあるか
+ls node_modules/.bin/lgfx-font-tool   # cwd 側に何かあるか
+npm ls -g --depth=0                   # グローバルに何が入っているか
 
-npm i -g lgfx-font-tool@latest       # グローバルを上げる
-npm rm -g lgfx-font-tool             # または消して npx に任せる
-npx clear-npx-cache                  # キャッシュを捨てる
+npm i -g lgfx-font-tool@latest        # グローバルを上げる
+npm rm -g lgfx-font-tool              # または消して npx に任せる
+npx clear-npx-cache                   # キャッシュを捨てる
 ```
 
 **確実にしたいならインストールする。** `npm i -D lgfx-font-tool` + `npm ci` なら
@@ -136,7 +146,7 @@ npx clear-npx-cache                  # キャッシュを捨てる
 ### 4.1 `--google`
 
 再配布可能（SIL OFL 1.1 / Apache-2.0）と確認済みの書体から名前で選ぶ。
-一覧は `web/googlefonts.js` が正で、増減する。`lgfx-font build --list-google` で出す。
+一覧は `web/googlefonts.js` が正で、増減する。`lgfx-font-tool build --list-google` で出す。
 グリフをファームウェアに焼くことは書体の再配布にあたるため、既定ではこの範囲に絞る。
 
 ラテン UI 系、表示・時計向け、日本語、記号、その他 CJK が入っている。
@@ -279,7 +289,7 @@ em は書体の設計上の 1 文字ぶんの正方形で、**全角 1 文字の
 収録判定が正しくなったので、不足分を別の書体から埋められる。
 
 ```
-lgfx-font build --google Roboto --fallback google:"Noto Sans JP" \
+lgfx-font-tool build --google Roboto --fallback google:"Noto Sans JP" \
   --em 16 --sets ascii,hiraganaKatakana,hanJaG1 \
   --format cellfont --out font.h
 ```
@@ -299,7 +309,7 @@ lgfx-font build --google Roboto --fallback google:"Noto Sans JP" \
 
 ```sh
 # 既存の .h に漢字を足して作り直す
-lgfx-font build --input font.h --chars "AB温度" --em 16 \
+lgfx-font-tool build --input font.h --chars "AB温度" --em 16 \
     --fallback google:"Noto Sans JP" --format cellfont --out font.h
 ```
 
@@ -308,7 +318,7 @@ lgfx-font build --input font.h --chars "AB温度" --em 16 \
 
 ```sh
 # ヘッダの "Rebuild with" のコマンドに文字を足して回す
-lgfx-font build --google Roboto --em 16 --chars "AB温度" \
+lgfx-font-tool build --google Roboto --em 16 --chars "AB温度" \
     --fallback google:"Noto Sans JP" --format cellfont --out font.h
 ```
 
@@ -356,7 +366,7 @@ CellFont に文字を足すときは、ヘッダの `Rebuild with` のコマン�
 書き写せば必ずずれる。
 
 ```
-lgfx-font charset --list      集合 ID・テンプレート ID と現在の字数を出す
+lgfx-font-tool charset --list      集合 ID・テンプレート ID と現在の字数を出す
 ```
 
 軸は ラテン / かな / 漢字 / ハングル / 記号 の 5 つ。漢字は言語ごとの**累積ティア**で、
@@ -449,7 +459,7 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
 
 ```
 // Rebuild with (add --out for wherever this file goes):
-//   npx -p lgfx-font-tool lgfx-font build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
+//   npx lgfx-font-tool build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
 ```
 
 - **`--out` は載せない。** ファイルをどこに書いたかは、ファイルの中身ではない。載せると
@@ -466,8 +476,9 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
   出力の正準性（§6）を壊さない。
 - **どれだけ長くても 1 行で出す。** `\` で折り返すと読みやすいが、続きの行も `//` の
   中なので、コピーするとシェルに渡るのはコメントだけになる。
-- **`npx -p lgfx-font-tool lgfx-font` の形で出す。** 素の `npx lgfx-font` は環境によって
-  404 になる（§3）。
+- **`npx lgfx-font-tool` の 1 語で出す。** コマンド名をパッケージ名と同じにしてあるので、
+  npx はこの 1 語だけで取得も実行もできる。事前のインストールも要らず、読む側のマシンの
+  事情も行に混ざらない（§3）。
 - **ツールの版は既定では書かない。`--pin-version` で書く。** 版を書かないと npx が最新を
   解決するので、出力の形が変わる版が出ていれば作り直しの結果が変わる。書けばそれは
   起きないが、代わりにツールを上げるたび全ヘッダが書き換わる。どちらの費用を払うかは
@@ -476,7 +487,7 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
 
 ```
 // Rebuild with (add --out for wherever this file goes):
-//   npx -p lgfx-font-tool@2.3.0 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
 ```
 - **`--chars` の値は 1 文字でも必ず引用する。** `--chars ℃` はシェル的には引用が要らないが、
   引用が無いと片方が消えたように読める。内容を表す指定なので、どこまでが値かを示す。
@@ -493,7 +504,7 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
 
 ```sh
 $ for d in a b c d; do
-    lgfx-font build --font lgfxJapanGothic_8 --chars '℃' --sets digits \
+    lgfx-font-tool build --font lgfxJapanGothic_8 --chars '℃' --sets digits \
         --format cellfont --name tgfxClock --out $d/tgfx_clock.h
   done
 $ md5sum */tgfx_clock.h
@@ -509,7 +520,7 @@ d5f4f51c84f137f73b6b0562b41250f3  d/tgfx_clock.h
 ## 7. 検証モード
 
 ```
-lgfx-font build ... --check
+lgfx-font-tool build ... --check
 ```
 
 **主出力（`--out`）を書かず、既存のものと一致するかだけを見る。** CI 用。
@@ -535,7 +546,7 @@ PNG は 8bit グレースケール。依存は `node:zlib` のみ。
 既存フォントを読んで内容を出す（UC2 / UC9 の CLI 版）。
 
 ```
-lgfx-font inspect <file> [--input-format <id>] [--input-symbol <name>] [--json]
+lgfx-font-tool inspect <file> [--input-format <id>] [--input-symbol <name>] [--json]
 ```
 
 出すもの: 形式、収録字数、収録範囲、メトリクス（em / 行高 / ascent / descent）、
@@ -582,8 +593,8 @@ U+00B0-U+00B1
 ### 正準化
 
 ```
-lgfx-font charset fonts/chars.txt              # 正準化は既定の動作
-lgfx-font charset fonts/chars.txt --normalize  # 明示形。同じ
+lgfx-font-tool charset fonts/chars.txt              # 正準化は既定の動作
+lgfx-font-tool charset fonts/chars.txt --normalize  # 明示形。同じ
 ```
 
 **リテラル行ごとに正準化する。行をまたいで文字を動かさない。**
@@ -607,31 +618,31 @@ lgfx-font charset fonts/chars.txt --normalize  # 明示形。同じ
 
 ```sh
 # 単発。内蔵フォントから今欲しい文字だけ
-npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
+npx lgfx-font-tool build --font lgfxJapanGothic_16 --chars "温度設定完了" \
     --format cellfont --out font.h
 
 # Google Fonts から名前だけで
-npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 16 \
+npx lgfx-font-tool build --google "Noto Sans JP" --em 16 \
     --sets ascii,hiragana,hanJaG6 --chars "℃" --format cellfont --out font.h
 
 # 手持ちの TTF から、確認画像つき
-npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
+npx lgfx-font-tool build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
     --format cellfont --out font.h --preview font.png
 
 # 形式を変えて
-npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
+npx lgfx-font-tool build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
 # 欧文書体に無い字を別書体から埋める
-npx -p lgfx-font-tool lgfx-font build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
+npx lgfx-font-tool build --google Roboto --fallback google:"Noto Sans JP" --em 16 \
     --sets ascii --chars "温度設定" --format cellfont --out font.h
 
 # 上流 u8g2 で使う（LovyanGFX の型を出さない）
-npx -p lgfx-font-tool lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii \
+npx lgfx-font-tool build --ttf ./MyFont.ttf --em 12 --sets ascii \
     --format u8g2 --no-wrapper --out font.h
 
 # 継続利用（package.json）
 "scripts": {
-  "font": "lgfx-font build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
+  "font": "lgfx-font-tool build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
 }
 ```
 
@@ -708,7 +719,7 @@ WOFF / WOFF2 では、書体が持たない字がシステムフォントで描�
 ### 13.2 依存とネットワーク
 
 **CLI は同じパッケージに同梱する**（別パッケージにしない）。`package.json` の `bin` から
-`lgfx-font` を提供する。
+`lgfx-font-tool` を提供する。
 
 ラスタライザは **`optionalDependencies`** とする。
 

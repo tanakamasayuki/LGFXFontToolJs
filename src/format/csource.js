@@ -153,7 +153,7 @@ export function licenseNotice(font, info) {
   // machine's layout — a local font may have to be put back by hand.
   if (a.command) {
     L.push('');
-    // --out is not in the command: see the note on REPRO_FLAGS in bin/lgfx-font.js.
+    // --out is not in the command: see the note on REPRO_FLAGS in bin/lgfx-font-tool.js.
     L.push('Rebuild with (add --out for wherever this file goes):');
     for (const line of a.command.split('\n')) L.push(`  ${line}`);
   }

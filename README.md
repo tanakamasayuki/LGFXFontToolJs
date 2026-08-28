@@ -31,9 +31,37 @@ Plain ESM with zero runtime dependencies and no build step — runs in Node.js a
 | [Converter](https://tanakamasayuki.github.io/LGFXFontToolJs/converter.html) | Drop a font file / C source, convert between formats |
 | [Inspector](https://tanakamasayuki.github.io/LGFXFontToolJs/inspector.html) | Coverage, metrics, size comparison across every format, text checks |
 
-## Install
+## From the command line
 
-[lgfx-font-tool on npm](https://www.npmjs.com/package/lgfx-font-tool):
+Nothing to install: `npx` fetches the tool and runs it. A one-off and a CI run are the
+same command.
+
+```sh
+# A font holding just the characters you need, from a Google Fonts family by name
+npx lgfx-font-tool build --google "Noto Sans JP" --em 12 \
+    --chars "温度設定完了 23.5℃" --format cellfont --out font.h
+
+# With a confirmation image
+npx lgfx-font-tool build --font lgfxJapanGothic_12 --sets ascii,hiragana \
+    --format u8g2 --out font.h --preview font.png
+
+# CI: check the committed output is current, writing nothing. Naming the version keeps a
+# later release from failing the check by changing the shape of the output
+npx lgfx-font-tool@2.3.0 build ... --check
+```
+
+`--google` and `--ttf` rasterize a TTF, so they need `@napi-rs/canvas` (33 MB of platform
+binaries), which comes along on its own. `--font` (bundled) and `--input` (a file) are
+bitmaps already and need no rasterizer; where there is no prebuilt binary for the platform
+they keep working, and TTF input says what to install.
+
+Full reference — every flag, character sets, CI use, and which version of the tool actually
+runs: [docs/cli.en.md](docs/cli.en.md) ([日本語](docs/cli.ja.md)).
+
+## As a library
+
+[lgfx-font-tool on npm](https://www.npmjs.com/package/lgfx-font-tool) — for `import`,
+not for the command above:
 
 ```sh
 npm install lgfx-font-tool
@@ -49,59 +77,7 @@ cannot change your application without a code change:
 </script>
 ```
 
-## From the command line
-
-The package ships an `lgfx-font` command. A one-off and a CI run are the same command.
-
-```sh
-# A font holding just the characters you need, from a Google Fonts family by name
-npx -p lgfx-font-tool lgfx-font build --google "Noto Sans JP" --em 12 \
-    --chars "温度設定完了 23.5℃" --format cellfont --out font.h
-
-# With a confirmation image
-npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
-    --format u8g2 --out font.h --preview font.png
-
-# CI: check the committed output is current, writing nothing
-npx -p lgfx-font-tool lgfx-font build ... --check
-```
-
-Installing is optional — `npx` fetches it. To pin it, check it, or upgrade it:
-
-```sh
-npm i -D lgfx-font-tool          # pin it in the project (do this for CI)
-lgfx-font --version              # the version that is running
-npm ls lgfx-font-tool            # the version installed here
-npm i -D lgfx-font-tool@latest   # upgrade
-```
-
-Full reference: [docs/cli.en.md](docs/cli.en.md) ([日本語](docs/cli.ja.md)).
-
-### About the TTF rasterizer
-
-`--ttf` and `--google` rasterize a TTF, which needs a rasterizer
-(`@napi-rs/canvas`). **`npm install lgfx-font-tool` brings it along**, so normally
-there is nothing to do (33 MB of platform binaries come with it).
-
-| Source | Rasterizer |
-| --- | --- |
-| `--google <family>` / `--ttf <path\|url>` | **required** |
-| `--font <name>` (bundled) / `--input <path>` (a file) | not needed |
-
-It is an **optional dependency** so that **`npm install` still succeeds on an OS or
-CPU with no prebuilt binary**. The rasterizer is needed by two of the four sources,
-so its absence should not block the whole package.
-
-If you installed with `--omit=optional`, or you are on a platform with no prebuilt
-binary, pointing the CLI at a TTF tells you what to do. Bitmap sources keep working.
-
-```
-lgfx-font: TTF input needs the rasterizer. Install it with:
-  npm install @napi-rs/canvas
-Bitmap sources (--font / --input) work without it.
-```
-
-## Ten lines to first pixels
+### Ten lines to first pixels
 
 ```js
 import { loadFont, createBitmap, drawString, textWidth, fontHeight, bitmapToText }
@@ -178,7 +154,7 @@ configureFontData({ baseUrl: 'https://intra.example.com/lgfx-fonts/' });
 | [Use-case guide](./docs/guide-usecases.en.md) ([日本語](./docs/guide-usecases.ja.md)) | Recipes: pick, render, generate, convert, CI checks… |
 | [Advanced guide](./docs/guide-advanced.en.md) ([日本語](./docs/guide-advanced.ja.md)) | Internals, pixel-exactness, encoding constraints, extending |
 | [Specification](./docs/spec.en.md) ([日本語](./docs/spec.ja.md)) | Normative spec (use cases, design decisions, format details) |
-| [CLI specification](./docs/cli.en.md) ([日本語](./docs/cli.ja.md)) | The `lgfx-font` command: inputs, character sets, outputs, CI use |
+| [CLI specification](./docs/cli.en.md) ([日本語](./docs/cli.ja.md)) | The `lgfx-font-tool` command: inputs, character sets, outputs, CI use |
 | [CellFont format](./docs/formats/cellfont.en.md) ([日本語](./docs/formats/cellfont.ja.md)) | Normative spec for the low-footprint bitmap font format, v1 |
 
 Minimal one-file samples live in [examples/](./examples/) (Node and browser).

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * lgfx-font — embedded bitmap fonts from the command line (docs/cli.ja.md).
+ * lgfx-font-tool — embedded bitmap fonts from the command line (docs/cli.ja.md).
  *
  * Three commands. `build` is the tool; `inspect` and `charset` support it.
  * Everything works from arguments alone, so a one-off needs no config file and
@@ -106,9 +106,10 @@ const shellArg = (v, always) =>
  * but does not survive being copied: every continuation line is still inside the
  * `//` comment, so what lands in the shell is commented out.
  *
- * `npx -p lgfx-font-tool` rather than a bare `npx lgfx-font`: there is no package
- * called `lgfx-font`, so the short form works only where npm happens to resolve
- * the binary name, and 404s elsewhere. Naming the package always works.
+ * The command and the package share one name, so `npx lgfx-font-tool build` both
+ * names the package to fetch and the binary to run. Keep them the same: npx
+ * resolves its first argument against the registry, so a command named anything
+ * else needs the two-part `npx -p <package> <command>` for every reader.
  *
  * The tool version is left out unless `--pin-version` asks for it. Without a
  * version npx resolves the latest, so a rebuild can pick up a release that
@@ -122,7 +123,7 @@ const shellArg = (v, always) =>
  */
 function reproCommand(v, ident) {
   const pin = v['pin-version'] ? `@${VERSION}` : '';
-  const parts = [`npx -p lgfx-font-tool${pin} lgfx-font build`];
+  const parts = [`npx lgfx-font-tool${pin} build`];
   for (const flag of REPRO_FLAGS) {
     // Always the resolved symbol name, whether or not --name was given.
     const val = flag === 'name' ? ident : v[flag];
@@ -182,12 +183,12 @@ const OPTIONS = /** @type {const} */ ({
   help: { type: 'boolean', short: 'h' },
 });
 
-const USAGE = `lgfx-font — embedded bitmap fonts
+const USAGE = `lgfx-font-tool — embedded bitmap fonts
 
-  lgfx-font build   [options]          make font data
-  lgfx-font inspect <file> [options]   report on an existing font
-  lgfx-font charset <file> [options]   canonicalize / expand a character set
-  lgfx-font --version                  print the installed version
+  lgfx-font-tool build   [options]          make font data
+  lgfx-font-tool inspect <file> [options]   report on an existing font
+  lgfx-font-tool charset <file> [options]   canonicalize / expand a character set
+  lgfx-font-tool --version                  print the installed version
 
 build — source (exactly one)
   --google <family>     curated Google Fonts family by name (--list-google)
@@ -203,7 +204,7 @@ build — source (exactly one)
 build — characters (combined as a union)
   --chars <text>        every character in the text
   --charset <path>      character-set file
-  --sets <id,...>       named sets (lgfx-font charset --list)
+  --sets <id,...>       named sets (lgfx-font-tool charset --list)
   --template <id>       named combination
 
 build — output
@@ -589,6 +590,6 @@ async function main() {
 
 main().catch((e) => {
   const code = e instanceof CliError ? e.exitCode : 1;
-  console.error(`lgfx-font: ${e.message}`);
+  console.error(`lgfx-font-tool: ${e.message}`);
   process.exit(code);
 });

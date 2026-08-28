@@ -10,13 +10,13 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseCharsetFile } from '../bin/lgfx-font.js';
+import { parseCharsetFile } from '../bin/lgfx-font-tool.js';
 import { encodePng, renderSheet, renderText } from '../bin/render.js';
 import { defaultCacheDir } from '../bin/sources.js';
 import { loadFont } from '../src/fonts/loader.js';
 import { subset } from '../src/model/subset.js';
 
-const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'lgfx-font.js');
+const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'lgfx-font-tool.js');
 
 /**
  * Runs the CLI and returns its exit code with both streams.
@@ -122,8 +122,8 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
   assert.match(text, /Rebuild with \(add --out /, '--out は自分で足すと言う');
   assert.match(
     text,
-    /npx -p lgfx-font-tool lgfx-font build --font lgfxJapanGothic_12/,
-    '素の npx lgfx-font は環境によって 404 になるのでパッケージ名を明示する',
+    /npx lgfx-font-tool build --font lgfxJapanGothic_12/,
+    'コマンド名はパッケージ名と同じなので、npx はこの 1 語で取得も実行もできる',
   );
   assert.doesNotMatch(text, /\\\n/, 'コメント内で折り返すとコピーしても動かないので 1 行');
   assert.match(text, /--chars 'A B'/, '空白を含む値は引用される');
@@ -194,12 +194,12 @@ test('--pin-version でツールの版が入り、自分自身も記録される
 
   const plain = tmp('nopin.h');
   assert.equal(run([...args, '--out', plain]).code, 0);
-  assert.match(readFileSync(plain, 'utf8'), /npx -p lgfx-font-tool lgfx-font build/, '既定では版を書かない');
+  assert.match(readFileSync(plain, 'utf8'), /npx lgfx-font-tool build/, '既定では版を書かない');
 
   const pinned = tmp('pin.h');
   assert.equal(run([...args, '--pin-version', '--out', pinned]).code, 0);
   const text = readFileSync(pinned, 'utf8');
-  assert.match(text, new RegExp(`npx -p lgfx-font-tool@${pkg.version.replace(/\./g, '\\.')} lgfx-font build`));
+  assert.match(text, new RegExp(`npx lgfx-font-tool@${pkg.version.replace(/\./g, '\\.')} build`));
   // 自分自身を記録しないと、書かれたコマンドを回した結果が元と違ってしまう。
   assert.match(text, /--pin-version/);
 });
@@ -401,7 +401,7 @@ test('引数なし / --help で使い方を出して 0', () => {
   for (const args of [[], ['--help'], ['build', '--help']]) {
     const r = run(args);
     assert.equal(r.code, 0, args.join(' '));
-    assert.match(r.stdout, /lgfx-font/);
+    assert.match(r.stdout, /lgfx-font-tool/);
   }
 });
 

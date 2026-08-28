@@ -13,7 +13,7 @@
   "jsdelivr": "dist/lgfx-font-tool.min.js",
   "types": "types/index.d.ts",
   "bin": {
-    "lgfx-font": "./bin/lgfx-font.js"
+    "lgfx-font-tool": "./bin/lgfx-font-tool.js"
   },
   "exports": {
     ".": {

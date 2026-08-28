@@ -156,7 +156,7 @@ async function googleTtf(family, opts) {
   if (!entry) {
     throw new CliError(
       `unknown Google Fonts family: ${family}\n` +
-        'Run `lgfx-font build --google --list` for the curated set, or download the\n' +
+        'Run `lgfx-font-tool build --google --list` for the curated set, or download the\n' +
         'font yourself and pass it with --ttf.',
       3,
     );
