@@ -85,7 +85,7 @@ npm view lgfx-font-tool version         # npm 上の最新（入っている版�
 
 npm i -D lgfx-font-tool@latest          # プロジェクトを最新に
 npm i -g lgfx-font-tool@latest          # グローバルを最新に
-npm i -D lgfx-font-tool@2.2.2           # 版を指定して固定
+npm i -D lgfx-font-tool@2.3.0           # 版を指定して固定
 ```
 
 **`npx` の結果は同じマシンでも一定しない。** 原因は 3 つあり、**上の 2 つは `-p` も版指定も
@@ -93,7 +93,7 @@ npm i -D lgfx-font-tool@2.2.2           # 版を指定して固定
 
 | | |
 | --- | --- |
-| PATH に同名のコマンドがあるとそれが勝つ | `npm i -g` で入れた `lgfx-font` があると、`npx -p lgfx-font-tool@2.2.2` と書いてもそのグローバル版が動く。**版指定は効かない** |
+| PATH に同名のコマンドがあるとそれが勝つ | `npm i -g` で入れた `lgfx-font` があると、`npx -p lgfx-font-tool@2.3.0` と書いてもそのグローバル版が動く。**版指定は効かない** |
 | cwd から上に `node_modules` があるとそれが勝つ | npx は `node_modules/.bin` を上へ探し、見つかれば取得もキャッシュも使わない。古い版を入れたディレクトリで実行すると、その版が動く |
 | キャッシュは spec 文字列で引き、再解決しない | 版を書かない `-p lgfx-font-tool` は、その時点の最新を解決して `^x.y.z` として `~/.npm/_npx/<hash>/` に置く。次からは**その木をそのまま使う**ので、後で新しい版が出ても上がらない |
 
@@ -476,7 +476,7 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
 
 ```
 // Rebuild with (add --out for wherever this file goes):
-//   npx -p lgfx-font-tool@2.2.2 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+//   npx -p lgfx-font-tool@2.3.0 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
 ```
 - **`--chars` の値は 1 文字でも必ず引用する。** `--chars ℃` はシェル的には引用が要らないが、
   引用が無いと片方が消えたように読める。内容を表す指定なので、どこまでが値かを示す。

@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 2.3.0
 - (EN) **Packaging fix: the package depended on itself.** `dependencies` carried `lgfx-font-tool: ^2.2.1`, shipped that way in 2.2.2, so installing it pulled a nested older copy of itself. Inside a checkout it was worse: `node_modules/.bin/lgfx-font` pointed at the published copy, so `npx lgfx-font` in this repository ran the release rather than the working tree. Removed, and `scripts/check-releasable.js` now refuses to release a package that lists its own name in any dependency field — one stray `npm i <own name>` is all it takes to bring it back.
 - (JA) **梱包の修正: パッケージが自分自身に依存していた。** `dependencies` に `lgfx-font-tool: ^2.2.1` が入ったまま 2.2.2 として公開されていて、インストールすると入れ子で古い自分も落ちてきていた。リポジトリ内ではさらに悪く、`node_modules/.bin/lgfx-font` が公開版を指すため、ここで `npx lgfx-font` を叩くと作業ツリーではなく公開版が動いていた。削除し、`scripts/check-releasable.js` が「依存欄に自分の名前がある状態ではリリースさせない」ようにした。`npm i <自分>` を一度打つだけで戻るため。
 - (EN) CLI: new `--pin-version`, which records the tool's version in the `Rebuild with` line (`npx -p lgfx-font-tool@2.2.2 lgfx-font build …`). Without it npx resolves the latest, so a rebuild can pick up a release that changes the shape of the output; with it that cannot happen, but every upgrade of the tool then rewrites every generated header. Which cost is worth paying is the project's call, so it is off by default. The flag records itself, so rerunning the recorded command reproduces the same header.

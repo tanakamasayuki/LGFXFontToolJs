@@ -91,7 +91,7 @@ npm view lgfx-font-tool version         # the latest on npm — not what you hav
 
 npm i -D lgfx-font-tool@latest          # bring the project up to date
 npm i -g lgfx-font-tool@latest          # bring the global install up to date
-npm i -D lgfx-font-tool@2.2.2           # pin an exact version
+npm i -D lgfx-font-tool@2.3.0           # pin an exact version
 ```
 
 **`npx` does not give the same answer twice, even on one machine.** Three things cause it,
@@ -99,7 +99,7 @@ and **the first two ignore `-p` and any version you name** (both observed in pra
 
 | | |
 | --- | --- |
-| A command of the same name on `PATH` wins | With `lgfx-font` installed by `npm i -g`, writing `npx -p lgfx-font-tool@2.2.2` still runs that global copy. **Naming the version has no effect** |
+| A command of the same name on `PATH` wins | With `lgfx-font` installed by `npm i -g`, writing `npx -p lgfx-font-tool@2.3.0` still runs that global copy. **Naming the version has no effect** |
 | A `node_modules` at or above the cwd wins | npx walks up looking for `node_modules/.bin`, and if it finds the binary it neither fetches nor uses its cache. Run it where an old version was installed and that is what runs |
 | The cache is keyed by the spec string and never re-resolved | `-p lgfx-font-tool` with no version resolves the latest at that moment and stores it as `^x.y.z` under `~/.npm/_npx/<hash>/`. Later runs **reuse that tree**, so a newer release does not take effect |
 
@@ -505,7 +505,7 @@ The comment at the top of C source output carries the command that produced the 
 
 ```
 // Rebuild with (add --out for wherever this file goes):
-//   npx -p lgfx-font-tool@2.2.2 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+//   npx -p lgfx-font-tool@2.3.0 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
 ```
 - **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
   quoting to run, but without quotes it reads as if one went missing; the value is text, and
