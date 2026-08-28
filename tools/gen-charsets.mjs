@@ -15,6 +15,7 @@
  * characters; run --check to see exactly which.
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +29,9 @@ const UNICODE_VERSION = '17.0.0';
 const SOURCES = {
   'Unihan.zip': `https://www.unicode.org/Public/${UNICODE_VERSION}/ucd/Unihan.zip`,
   'KSX1001.TXT': 'https://www.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/KSC/KSX1001.TXT',
+  // Japanese school grades are not in Unicode: kGradeLevel is the Hong Kong
+  // system, not 学年別漢字配当表. KANJIDIC2 carries MEXT's table as <grade>.
+  'kanjidic2.xml.gz': 'http://www.edrdg.org/kanjidic/kanjidic2.xml.gz',
 };
 
 const args = new Set(process.argv.slice(2));
@@ -60,6 +64,27 @@ function readUnihan() {
     }
   }
   return out;
+}
+
+/**
+ * KANJIDIC2 <grade> -> Map<grade, Set<codepoint>>.
+ * Grades 1-6 are MEXT's 学年別漢字配当表; 8 is the rest of Jōyō; 9-10 are Jinmeiyō.
+ * Verified against the official per-grade counts (80/160/200/202/193/191) and
+ * cross-checked against Unihan: grades 1-6 + 8 = 2,136 Jōyō, grades 9-10 = 863 Jinmeiyō.
+ */
+function readKanjidic() {
+  const xml = gunzipSync(readFileSync(resolve(CACHE, 'kanjidic2.xml.gz'))).toString('utf8');
+  /** @type {Map<number, Set<number>>} */
+  const byGrade = new Map();
+  for (const m of xml.matchAll(/<character>([\s\S]*?)<\/character>/g)) {
+    const lit = /<literal>(.*?)<\/literal>/.exec(m[1]);
+    const grade = /<grade>(\d+)<\/grade>/.exec(m[1]);
+    if (!lit || !grade) continue;
+    const g = Number(grade[1]);
+    if (!byGrade.has(g)) byGrade.set(g, new Set());
+    byGrade.get(g).add(/** @type {number} */ (lit[1].codePointAt(0)));
+  }
+  return byGrade;
 }
 
 /** KS X 1001 mapping -> the Unicode characters it encodes, split by kind. */
@@ -106,6 +131,17 @@ void bySource; // kept: the K-source route is the documented alternative to KSX1
 function buildSets() {
   const U = readUnihan();
   const ks = readKsx1001();
+  const kd = readKanjidic();
+
+  // 学年別漢字配当表, cumulative. G6 is exactly 教育漢字 (1,026) and is a
+  // subset of Jōyō, so these slot in as tiers below hanJa1.
+  /** @type {Record<string, Set<number>>} */
+  const grades = {};
+  let acc = new Set();
+  for (let g = 1; g <= 6; g++) {
+    acc = union(acc, kd.get(g) ?? new Set());
+    grades[`hanJaG${g}`] = acc;
+  }
 
   // Han tiers are CUMULATIVE unions. The underlying standards do not nest
   // (Jōyō kanji has characters outside JIS level 1), so each tier is everything
@@ -137,6 +173,7 @@ function buildSets() {
     greek: union(range(0x391, 0x3a9), range(0x3b1, 0x3c9)),
     cyrillic: union(new Set([0x401, 0x451]), range(0x410, 0x44f)),
     // Derived sets.
+    ...grades,
     hanJa1: ja1,
     hanJa2: ja2,
     hanJa3: ja3,
@@ -199,6 +236,10 @@ function render(sets) {
   L.push('// Derived from Unicode\'s own data (Unihan kJoyoKanji / kJinmeiyoKanji / kJis0 /');
   L.push('// kGB0 / kBigFive / kKoreanEducationHanja, plus KSX1001.TXT) so every set is');
   L.push('// auditable, and from the literal symbol lists in that generator.');
+  L.push('//');
+  L.push('// hanJaG1-G6 are 学年別漢字配当表 (MEXT), taken from KANJIDIC2 <grade> because');
+  L.push('// Unicode carries no Japanese grade data (kGradeLevel is the Hong Kong system).');
+  L.push('// KANJIDIC2 is (C) EDRDG, CC BY-SA 4.0 — see NOTICE.');
   L.push('//');
   L.push('// Han tiers are CUMULATIVE unions: the underlying standards do not nest (Jōyō kanji');
   L.push('// has 34 characters outside JIS level 1), so each tier is defined as everything');

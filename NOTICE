@@ -4,6 +4,20 @@
 LovyanGFX 1.2.26 (https://github.com/lovyan03/LovyanGFX/archive/refs/tags/1.2.26.tar.gz) から抽出したものです。
 ライブラリ本体のコード (MIT) とは別に、フォントごとに以下のライセンスが適用されます。
 
+## 文字集合データ (KANJIDIC2 由来)
+
+`src/charsets/charsets-data.js` の `hanJaG1`〜`hanJaG6`（学年別漢字配当表）は、
+KANJIDIC2 の `<grade>` から導出しています。ほかの集合は Unicode 由来です。
+
+- 出典: KANJIDIC2 — Electronic Dictionary Research and Development Group (EDRDG)
+- ライセンス: Creative Commons Attribution-ShareAlike 4.0 International
+- https://www.edrdg.org/wiki/index.php/KANJIDIC_Project
+- 元データ: 文部科学省「学年別漢字配当表」（小学校学習指導要領 別表）
+
+日本の学年別データは Unicode に存在しないため（`kGradeLevel` は香港の学校制度）、
+この出典を用いています。再生成は `node tools/gen-charsets.mjs --fetch`。
+
+
 ## lgfxJapanMincho / lgfxJapanGothic 系 (IPAex フォント由来)
 
 --------------------------------------------------

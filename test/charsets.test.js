@@ -10,6 +10,7 @@ import {
   countOf,
   ALL_SET_IDS,
 } from '../src/charsets/charsets.js';
+import { SET_RANGES } from '../src/charsets/charsets-data.js';
 
 test('parseRanges: 範囲と単独値、空白・不正の無視', () => {
   assert.deepEqual(parseRanges('30-33'), [0x30, 0x31, 0x32, 0x33]);
@@ -19,13 +20,27 @@ test('parseRanges: 範囲と単独値、空白・不正の無視', () => {
 });
 
 test('codepointsOfSet: 全集合が展開でき、宣言数と一致する', () => {
-  for (const id of ALL_SET_IDS) {
+  // ALL_SET_IDS は AXES 由来なので、UI に出していない定義済み集合も含めて検査する
+  for (const id of Object.keys(SET_RANGES)) {
     const cps = codepointsOfSet(id);
     assert.ok(cps.length > 0, id);
     assert.equal(cps.length, countOf(id), id);
     // 昇順・重複なし
     for (let i = 1; i < cps.length; i++) assert.ok(cps[i] > cps[i - 1], id);
   }
+});
+
+test('学年別漢字は累積で、教育漢字(G6)は常用漢字に含まれる', () => {
+  let prev = new Set();
+  for (let g = 1; g <= 6; g++) {
+    const cur = new Set(codepointsOfSet(`hanJaG${g}`));
+    assert.ok(cur.size > prev.size, `hanJaG${g}`);
+    for (const c of prev) assert.ok(cur.has(c), `hanJaG${g} U+${c.toString(16)}`);
+    prev = cur;
+  }
+  assert.equal(prev.size, 1026, '教育漢字は 1,026 字');
+  const joyo = new Set(codepointsOfSet('hanJa1'));
+  for (const c of prev) assert.ok(joyo.has(c), `常用漢字に含まれない U+${c.toString(16)}`);
 });
 
 test('han tier は累積（上の tier は下を包含する）', () => {
