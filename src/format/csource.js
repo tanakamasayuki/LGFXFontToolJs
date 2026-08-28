@@ -8,6 +8,8 @@
  *   LovyanGFX's EncodeRange extension and are therefore LovyanGFX-only.
  * - vlw / bff: embeds the binary unchanged as a uint8_t array for loading with
  *   LovyanGFX display.loadFont(array, font_type).
+ * - cellfont: CellFont structures (docs/formats/cellfont.ja.md). Compile-time
+ *   only, so this is the format's sole distribution form.
  *
  * Generated output always starts with attribution (spec §6.3 / §8.4). OFL and
  * Apache terms require notices to accompany derived font data.
@@ -16,6 +18,7 @@ import { encodeU8g2, decodeU8g2 } from './u8g2.js';
 import { encodeGfx, decodeGfx, unpackGfxContainer, packGfxContainer } from './gfxfont.js';
 import { encodeVlw } from './vlw.js';
 import { encodeBff } from './bff.js';
+import { packCellFont } from './cellfont.js';
 import { FormatError } from '../util/errors.js';
 
 /** @typedef {import('../model/font.js').Font} Font */
@@ -143,6 +146,7 @@ const HEADER_COMMENTS = {
     gfxPlain: 'Adafruit GFX compatible; use gfxfont.h with Adafruit_GFX, or include directly with LovyanGFX.',
     runtimeData:
       'Data only — no library header is needed to compile this. Load it at runtime with LovyanGFX (or M5GFX / M5Unified).',
+    cellfontNote: "The renderer provides <CellFont.h> with the CellFont / CellGlyph types.",
     usage: 'Usage',
     runtimeActive: 'On success, loadFont also selects this as the display\'s current font.',
   },
@@ -153,6 +157,7 @@ const HEADER_COMMENTS = {
     gfxPlain: 'Adafruit GFX 互換です。Adafruit_GFX では gfxfont.h、LovyanGFX ではそのまま使えます。',
     runtimeData:
       'データのみです。コンパイルにライブラリのヘッダは要りません。実行時に LovyanGFX（または M5GFX / M5Unified）から読み込んでください。',
+    cellfontNote: "型は描画器が提供する <CellFont.h>（CellFont / CellGlyph）にあります。",
     usage: '使い方',
     runtimeActive: 'loadFont は成功すると、このフォントを表示先の現在フォントに設定します。',
   },
@@ -163,6 +168,7 @@ const HEADER_COMMENTS = {
     gfxPlain: '兼容 Adafruit GFX；Adafruit_GFX 请使用 gfxfont.h，LovyanGFX 可直接使用。',
     runtimeData:
       '仅为数据，编译时无需包含库头文件。请在运行时通过 LovyanGFX（或 M5GFX / M5Unified）加载。',
+    cellfontNote: "类型由渲染器提供的 <CellFont.h>（CellFont / CellGlyph）定义。",
     usage: '用法',
     runtimeActive: 'loadFont 成功后还会将此字体设为显示设备的当前字体。',
   },
@@ -173,6 +179,7 @@ const HEADER_COMMENTS = {
     gfxPlain: '相容 Adafruit GFX；Adafruit_GFX 請使用 gfxfont.h，LovyanGFX 可直接使用。',
     runtimeData:
       '僅為資料，編譯時不需要包含函式庫標頭。請在執行時透過 LovyanGFX（或 M5GFX / M5Unified）載入。',
+    cellfontNote: "型別由繪製器提供的 <CellFont.h>（CellFont / CellGlyph）定義。",
     usage: '用法',
     runtimeActive: 'loadFont 成功後也會將此字型設為顯示裝置的目前字型。',
   },
@@ -321,10 +328,101 @@ function emitRuntimeHeader(font, ident, attribution, format, encodeOpts, languag
 }
 
 /**
+ * Emits a CellFont header (docs/formats/cellfont.ja.md §12).
+ *
+ * A chain is emitted tail first because C has no forward references; the names
+ * still run in chain order, so users only ever refer to `ident`.
+ * @param {Font} font
+ * @param {string} ident
+ * @param {Attribution | undefined} attribution
+ * @param {CSourceLanguage | undefined} language
+ * @param {{abi?: 'ilp32'|'avr', maxChain?: number}} opts
+ */
+function emitCellFontHeader(font, ident, attribution, language, opts) {
+  const packed = packCellFont(font, opts);
+  const comments = headerComments(language);
+  const guard = `LGFXFT_FONT_${ident.toUpperCase()}_H`;
+  const names = packed.chain.map((_, i) => (i === 0 ? ident : `${ident}_${i + 1}`));
+
+  const form = packed.chain
+    .map((f) => `${f.fixed ? 'fixed' : 'variable'}/${f.contiguous ? 'contiguous' : 'sparse'} ${f.width || '?'}x${f.height}`)
+    .join(' + ');
+
+  let s = asComment(
+    licenseNotice(font, {
+      ident,
+      format: `CellFont v1 — ${form}${packed.chain.length > 1 ? ` (chain of ${packed.chain.length})` : ''}`,
+      bytes: packed.bytes,
+      attribution,
+    }),
+  );
+  s += '\n';
+  s += '#pragma once\n';
+  s += '#include <CellFont.h>\n\n';
+  s += '#if !defined(CELLFONT_SPEC_VERSION) || CELLFONT_SPEC_VERSION != 1\n';
+  s += '#error "This font header requires CellFont spec version 1"\n';
+  s += '#endif\n\n';
+  s += `// ${comments.usage}:  display.setFont(&${ident});\n`;
+  s += `// ${comments.cellfontNote}\n\n`;
+  s += PROGMEM_GUARD + '\n';
+
+  // Tail first: the font that `next` points at must already be defined.
+  for (let i = packed.chain.length - 1; i >= 0; i--) {
+    const f = packed.chain[i];
+    const name = names[i];
+    if (f.bitmap.length > 0) {
+      s += `static const uint8_t ${name}Bitmaps[${f.bitmap.length}] LGFXFT_PROGMEM = {\n`;
+      s += hexTable(f.bitmap, '  ');
+      s += '};\n\n';
+    }
+    const recs = f.glyphs;
+    if (recs) {
+      s += `static const CellGlyph ${name}Glyphs[${recs.length}] LGFXFT_PROGMEM = {\n`;
+      recs.forEach((g, k) => {
+        s += `  { ${g.offset}, ${g.width}, ${g.xAdvance} }${k + 1 < recs.length ? ',' : ''}\n`;
+      });
+      s += '};\n\n';
+    }
+    if (f.codes && f.codes.length) {
+      s += `static const uint16_t ${name}Codes[${f.codes.length}] LGFXFT_PROGMEM = {\n`;
+      const PER = 8;
+      for (let k = 0; k < f.codes.length; k += PER) {
+        s +=
+          '  ' +
+          f.codes
+            .slice(k, k + PER)
+            .map((c) => '0x' + c.toString(16).toUpperCase().padStart(4, '0'))
+            .join(', ') +
+          (k + PER < f.codes.length ? ',' : '') +
+          '\n';
+      }
+      s += '};\n\n';
+    }
+    const next = i + 1 < packed.chain.length ? `&${names[i + 1]}` : 'NULL';
+    s += `static const CellFont ${name} LGFXFT_PROGMEM = {\n`;
+    s += `  ${f.bitmap.length > 0 ? `${name}Bitmaps` : 'NULL'},\n`;
+    s += `  ${recs ? `${name}Glyphs` : 'NULL'},\n`;
+    s += `  ${f.codes && f.codes.length ? `${name}Codes` : 'NULL'},\n`;
+    s += `  ${next},\n`;
+    s += `  0x${f.first.toString(16).toUpperCase()}, ${f.count},\n`;
+    s += `  ${f.width}, ${f.height}, ${f.xAdvance}, ${f.yAdvance},\n`;
+    s += `  ${f.xOffset}, ${f.yOffset},\n`;
+    s += `  ${f.bytesPerGlyph}, ${f.headCount},\n`;
+    s += '};\n\n';
+  }
+  s += `#endif // ${guard}\n`;
+  // #pragma once already guards; the trailing marker is dropped.
+  s = s.replace(`#endif // ${guard}\n`, '');
+  return s;
+}
+
+/**
  * Emits C/C++ source ready for inclusion in a sketch (spec §6.3).
  * @param {Font} font
  * @param {object} opts
- * @param {'u8g2' | 'gfx' | 'vlw' | 'bff'} opts.format
+ * @param {'u8g2' | 'gfx' | 'vlw' | 'bff' | 'cellfont'} opts.format
+ * @param {'ilp32'|'avr'} [opts.abi] - cellfont: target ABI for candidate comparison
+ * @param {number} [opts.maxChain] - cellfont: chain-length limit (default 2)
  * @param {string} opts.symbolName - C identifier for the font object/data
  * @param {Attribution} [opts.attribution]
  * @param {boolean} [opts.dropInvalid] - drop invalid glyphs instead of failing (default false)
@@ -343,6 +441,11 @@ export function encodeCSource(font, opts) {
     case 'vlw':
     case 'bff':
       return emitRuntimeHeader(font, ident, opts.attribution, opts.format, encodeOpts, opts.language);
+    case 'cellfont':
+      return emitCellFontHeader(font, ident, opts.attribution, opts.language, {
+        abi: opts.abi,
+        maxChain: opts.maxChain,
+      });
     default:
       throw new FormatError('UNKNOWN_FORMAT', `no C source emitter for ${opts.format}`, {
         format: opts.format,

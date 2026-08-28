@@ -365,27 +365,53 @@ When no glyph has ink (this overrides the ink-less rule above):
   xOffset = 0, yOffset = 0, height = 1, every width = 0, bitmap = NULL
 ```
 
-### Four candidates; build them all and compare
+### Building the candidates
 
-The cell/trim choice (§10.1) and the single/chained choice (§10.2) are **not independent.**
-Fixing one first can miss the minimum.
+**A candidate is a grouping; the policy is chosen per group.** Each font in a chain is
+independent, so cell-versus-trimmed is not one decision for the whole font.
 
-| # | Candidate |
-| --- | --- |
-| 1 | Cell candidate, single |
-| 2 | Cell candidate, chained by width class |
-| 3 | Trimmed candidate, single |
-| 4 | Trimmed candidate, chained by width class |
+```text
+Groupings (the candidates)
+  1. single             every glyph in one font
+  2. cell-width class    group by identical (cell width, xAdvance)
+  3. trimmed-width class group by identical (ink width, xAdvance)
 
-**Build all four representable candidates and take the one whose whole C object
-(`sizeof(CellFont)` × number of fonts, plus every array) is smallest.**
-Ties are broken in §10.4.
+Within each group, take the smaller of the cell and trimmed candidates.
+Size of a candidate = Σ (sizeof(CellFont) + every array)
+```
 
-Measured, deciding cell/trim before considering chaining cost up to 147 bytes
-(190 Japanese characters at 4x8: 1,620 B sequentially versus 1,473 B comparing all four).
+**Build every representable candidate and take the smallest.** Ties are broken in §10.4.
+
+Choosing per group matters. For 190 Japanese characters at 4x8, deciding cell/trim up front
+and then considering chaining gives 1,620 B; making the grouping the candidate and choosing
+per group gives **1,473 B**.
 
 **No other partitioning is searched.** Arbitrary set partitions and optimization beyond two
 stages are out of scope for v1.
+
+### Chain length is a generator policy
+
+**The format does not limit chain length.** A renderer walks `next` until `NULL`, and the
+code is the same for 2 fonts or 23. No invariant in §15.1 mentions the count.
+
+Length does, however, cost at run time. A glyph carried by a later font is found only after
+every earlier font has been searched and missed; an absent code point walks the whole chain
+every time, and again for the U+FFFD fallback (§7.2).
+
+So the limit is a **generator option**, called `maxChain`. **The default is 2.**
+
+Measured (190 Japanese characters, limit 2 versus unlimited):
+
+| Cells | Limit 2 | Unlimited | Font lookups per character |
+| --- | --- | --- | --- |
+| 4x8 / 8x9 | **1,473** (2 fonts) | 1,473 (2) | 1.5 → 1.5 |
+| 8x16 / 16x16 | **4,798** (2 fonts) | 4,501 (15) | 1.5 → 6.1 |
+| 12x24 / 24x22 | **9,257** (2 fonts) | 8,416 (18) | 1.5 → 7.1 |
+| 20x40 / 40x38 | **24,700** (2 fonts) | 22,320 (23) | 1.5 → 8.3 |
+
+**Six to ten percent of data buys four to six times the lookups.** At 8-12px — the sizes that
+actually fit the target devices — a limit of 2 gives up nothing, so 2 is the default.
+Users who want the smallest data can raise it.
 
 | 95 ASCII glyphs at 4x8 | Trimmed candidate | Cell candidate |
 | --- | --- | --- |
@@ -466,6 +492,7 @@ generator's job, not part of the input.
 | **The pre-normalization glyph set** | Each glyph carries a code point, pixels, ink width and height, `xAdvance`, `xOffset`, and `yOffset` |
 | **The font-wide `yAdvance`** | It cannot be derived from the glyphs, so it is part of the input |
 | **The target ABI's `sizeof(CellFont)`** | Used for candidate comparison (below). Defaults to 28, the ILP32 value |
+| **`maxChain`** | The chain-length limit (§10.2). Default 2. Changing it changes which candidate wins |
 
 **The target ABI is an input because it actually changes which candidate wins.**
 A chained candidate adds one header per font, so a different `H` reorders the results.
