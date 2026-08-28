@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 2.2.0
 - (EN) CLI: `lgfx-font --version` (also `-v` / `version`) prints the installed version. There was no way to ask the tool itself which version was running; `npm ls lgfx-font-tool` was the only answer. It is read from `package.json`, so `npm version` remains the one place a release number is written.
 - (JA) CLI: `lgfx-font --version`（`-v` / `version` も可）で入っている版を表示する。これまでツール自身に版を尋ねる方法がなく、`npm ls lgfx-font-tool` を使うしかなかった。値は `package.json` から読むので、版を書く場所は `npm version` の 1 箇所のままである。
 - (EN) Docs: the CLI reference and both READMEs now say how to install, check, pin, and upgrade the tool, including the warning that `npx` can hold on to an old version and that a CI using `--check` should pin the version, since a tool upgrade that changes the shape of the output reports a mismatch.

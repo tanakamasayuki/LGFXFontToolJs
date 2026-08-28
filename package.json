@@ -1,6 +1,6 @@
 {
   "name": "lgfx-font-tool",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "JavaScript toolkit for embedded bitmap fonts - decode, encode, convert, render and generate.",
   "type": "module",
   "license": "MIT",
