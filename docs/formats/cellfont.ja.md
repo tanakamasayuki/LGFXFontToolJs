@@ -550,12 +550,13 @@ CellFont が定める配布形はこれだけである。実行時に読み込�
 
 ### 12.1 描画器が提供するもの
 
-生成されたヘッダがどの描画器でも通るように、名前を固定する。
-**描画器は `<CellFont.h>` を提供し、その中で次を定義する。**
+生成されたヘッダがどの描画器でも通るように、**マクロと型の名前**を固定する。
+**描画器は次を定義するヘッダを提供する。ファイル名は問わない。**
 
 | 名前 | 内容 |
 | --- | --- |
 | `CellFont` / `CellGlyph` | §3 の構造体 |
+| （ヘッダのファイル名） | **仕様では定めない。** 描画器が自由に決める |
 | `CELLFONT_PROGMEM` | PROGMEM 属性。不要な環境では空に展開する |
 | `CELLFONT_READ_U8(p)` | PROGMEM 上の `uint8_t` を読む |
 | `CELLFONT_READ_U16(p)` | PROGMEM 上の `uint16_t` を読む |
@@ -573,9 +574,13 @@ CellFont が定める配布形はこれだけである。実行時に読み込�
 
 ```c
 #pragma once
-#include <CellFont.h>
+#include <stdint.h>
 
-#if !defined(CELLFONT_SPEC_VERSION) || CELLFONT_SPEC_VERSION != 1
+// 描画器のヘッダ（CellFont / CellGlyph 型を提供するもの）を先に include すること
+
+#if !defined(CELLFONT_SPEC_VERSION)
+#error "Include your renderer CellFont header before this font header"
+#elif CELLFONT_SPEC_VERSION != 1
 #error "This font header requires CellFont spec version 1"
 #endif
 
@@ -585,8 +590,13 @@ static const uint16_t  NameCodes[]   CELLFONT_PROGMEM = { /* ... */ };  /* 疎�
 static const CellFont  Name          CELLFONT_PROGMEM = { /* ... */ };
 ```
 
+- **生成ヘッダは描画器のヘッダを include しない。** ファイル名を決め打ちすると、
+  大域の include 名前空間で衝突しうるうえ、描画器に特定の配置を強制することになる。
+  利用者が自分の描画器のヘッダを先に include する
 - **版の確認はコンパイル時に行う。** 構造体に版を持たせない。
   焼き込み形式なので `#error` で足り、実行時のフィールド 4 バイトを払う理由がない
+- **ガードは 2 段に分ける。** `CELLFONT_SPEC_VERSION` が未定義なのは
+  「include を忘れた」、値が違うのは「版が合わない」で、原因が別なので言い分けたほうが早い
 - **PROGMEM 属性を 4 つすべてに付ける。** ハーバードアーキテクチャ（AVR など）では
   どれか 1 つでも抜けると化ける
 - **`#pragma once`（または include ガード）を必ず出す。**

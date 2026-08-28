@@ -151,7 +151,10 @@ test('同じ入力からバイト一致の C ソースが出る', () => {
   const b = encodeCSource(f, { format: 'cellfont', symbolName: 'F' });
   assert.equal(a, b);
   assert.match(a, /#pragma once/);
-  assert.match(a, /CELLFONT_SPEC_VERSION != 1/);
+  assert.match(a, /#include <stdint\.h>/);
+  assert.ok(!/#include <CellFont\.h>/.test(a), '描画器のヘッダは include しない');
+  assert.match(a, /#if !defined\(CELLFONT_SPEC_VERSION\)/, 'include 忘れを言い分ける');
+  assert.match(a, /#elif CELLFONT_SPEC_VERSION != 1/);
   assert.match(a, /static const CellFont F LGFXFT_PROGMEM/);
 });
 

@@ -580,12 +580,14 @@ loading exists.
 
 ### 12.1 What the renderer provides
 
-Names are fixed so that a generated header compiles against any renderer.
-**A renderer provides `<CellFont.h>`, defining:**
+The **macro and type names** are fixed so that a generated header compiles against any
+renderer. **A renderer provides a header defining the following; its filename is its own
+choice.**
 
 | Name | Contents |
 | --- | --- |
 | `CellFont` / `CellGlyph` | The structures in §3 |
+| (the header's filename) | **Not specified.** The renderer chooses it |
 | `CELLFONT_PROGMEM` | The PROGMEM attribute; expands to nothing where not needed |
 | `CELLFONT_READ_U8(p)` | Read a `uint8_t` from PROGMEM |
 | `CELLFONT_READ_U16(p)` | Read a `uint16_t` from PROGMEM |
@@ -604,9 +606,13 @@ On flat-memory targets all three may expand to plain dereferences, costing nothi
 
 ```c
 #pragma once
-#include <CellFont.h>
+#include <stdint.h>
 
-#if !defined(CELLFONT_SPEC_VERSION) || CELLFONT_SPEC_VERSION != 1
+// Include your renderer's header (the one providing CellFont / CellGlyph) first
+
+#if !defined(CELLFONT_SPEC_VERSION)
+#error "Include your renderer CellFont header before this font header"
+#elif CELLFONT_SPEC_VERSION != 1
 #error "This font header requires CellFont spec version 1"
 #endif
 
@@ -616,9 +622,15 @@ static const uint16_t  NameCodes[]   CELLFONT_PROGMEM = { /* ... */ };  /* spars
 static const CellFont  Name          CELLFONT_PROGMEM = { /* ... */ };
 ```
 
+- **A generated header never includes the renderer's header.** Hard-coding a filename
+  would claim a name in the global include namespace and force a particular layout on
+  every renderer. The user includes their own renderer's header first
 - **The version is checked at compile time.** The structure carries no version field.
   Because the format is baked in, `#error` is enough, and there is no reason to pay
   4 bytes per font at run time
+- **Use two guards, not one.** An undefined `CELLFONT_SPEC_VERSION` means the renderer
+  header was not included; a different value means the version does not match. They are
+  separate mistakes, so say which one it is
 - **Apply the PROGMEM attribute to all four.** On Harvard architectures (AVR and similar),
   omitting it from even one produces garbage
 - **Always emit `#pragma once` (or an include guard)** so that including the header more

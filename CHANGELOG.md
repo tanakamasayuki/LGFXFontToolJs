@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) A generated CellFont header no longer includes `<CellFont.h>`; it includes only `<stdint.h>` and asks the user to include their renderer's header first, matching the other emitters and the 1.1.0 decision to stop auto-including a graphics library. The format no longer names the renderer's header file at all. The version guard is split so that a missing include and a version mismatch report differently.
+- (JA) 生成した CellFont ヘッダが `<CellFont.h>` を include しなくなった。`<stdint.h>` だけを include し、描画器のヘッダは利用者が先に include する。他のエミッタおよび 1.1.0 の「描画ライブラリを自動 include しない」決定に揃えた。形式は描画器のヘッダのファイル名を定めない。版ガードは 2 段に分け、include 忘れと版の不一致を区別して報告する。
 - (EN) New `lgfx-font` CLI (`bin/`), shipped with the package. `build` / `inspect` / `charset` work from arguments alone, so a one-off needs no config file and CI is the same command with `--check`. Sources: a curated Google Fonts family by name, any TTF by path or URL, a bundled font, or a bitmap font file.
 - (JA) `lgfx-font` コマンドを追加（`bin/`、パッケージに同梱）。`build` / `inspect` / `charset` は引数だけで動くので、単発では設定ファイルが要らず、CI は同じコマンドに `--check` を付けるだけ。入力は Google Fonts の書体名、TTF（パス / URL）、同梱フォント、手元のビットマップフォントファイルの 4 系統。
 - (EN) TTF input in Node needs `@napi-rs/canvas`, declared as an **optional dependency** (33 MB of platform binaries). Running `--ttf` / `--google` without it prints the install command; bitmap sources work without it.

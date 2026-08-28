@@ -125,8 +125,9 @@ test('cellfont の C ソースは版ガードと include ガードを持つ', ()
   assert.equal(run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'ABC', '--format', 'cellfont', '--out', out, '--name', 'MyFont']).code, 0);
   const src = readFileSync(out, 'utf8');
   assert.match(src, /#pragma once/);
-  assert.match(src, /#include <CellFont\.h>/);
-  assert.match(src, /CELLFONT_SPEC_VERSION != 1/);
+  assert.match(src, /#include <stdint\.h>/);
+  assert.ok(!/#include <CellFont\.h>/.test(src), '描画器のヘッダは include しない');
+  assert.match(src, /#if !defined\(CELLFONT_SPEC_VERSION\)/);
   assert.match(src, /static const CellFont MyFont LGFXFT_PROGMEM/);
   assert.ok(!/[/\\]tmp[/\\]/.test(src), '絶対パスを出力に入れない（正準出力）');
 });

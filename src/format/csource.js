@@ -146,7 +146,8 @@ const HEADER_COMMENTS = {
     gfxPlain: 'Adafruit GFX compatible; use gfxfont.h with Adafruit_GFX, or include directly with LovyanGFX.',
     runtimeData:
       'Data only — no library header is needed to compile this. Load it at runtime with LovyanGFX (or M5GFX / M5Unified).',
-    cellfontNote: "The renderer provides <CellFont.h> with the CellFont / CellGlyph types.",
+    cellfontNote:
+      "Include your renderer's header (the one providing the CellFont / CellGlyph types) before this file.",
     usage: 'Usage',
     runtimeActive: 'On success, loadFont also selects this as the display\'s current font.',
   },
@@ -157,7 +158,8 @@ const HEADER_COMMENTS = {
     gfxPlain: 'Adafruit GFX 互換です。Adafruit_GFX では gfxfont.h、LovyanGFX ではそのまま使えます。',
     runtimeData:
       'データのみです。コンパイルにライブラリのヘッダは要りません。実行時に LovyanGFX（または M5GFX / M5Unified）から読み込んでください。',
-    cellfontNote: "型は描画器が提供する <CellFont.h>（CellFont / CellGlyph）にあります。",
+    cellfontNote:
+      "このファイルより前に、描画器のヘッダ（CellFont / CellGlyph 型を提供するもの）を include してください。",
     usage: '使い方',
     runtimeActive: 'loadFont は成功すると、このフォントを表示先の現在フォントに設定します。',
   },
@@ -168,7 +170,8 @@ const HEADER_COMMENTS = {
     gfxPlain: '兼容 Adafruit GFX；Adafruit_GFX 请使用 gfxfont.h，LovyanGFX 可直接使用。',
     runtimeData:
       '仅为数据，编译时无需包含库头文件。请在运行时通过 LovyanGFX（或 M5GFX / M5Unified）加载。',
-    cellfontNote: "类型由渲染器提供的 <CellFont.h>（CellFont / CellGlyph）定义。",
+    cellfontNote:
+      "请在此文件之前包含渲染器的头文件（提供 CellFont / CellGlyph 类型的那个）。",
     usage: '用法',
     runtimeActive: 'loadFont 成功后还会将此字体设为显示设备的当前字体。',
   },
@@ -179,7 +182,8 @@ const HEADER_COMMENTS = {
     gfxPlain: '相容 Adafruit GFX；Adafruit_GFX 請使用 gfxfont.h，LovyanGFX 可直接使用。',
     runtimeData:
       '僅為資料，編譯時不需要包含函式庫標頭。請在執行時透過 LovyanGFX（或 M5GFX / M5Unified）載入。',
-    cellfontNote: "型別由繪製器提供的 <CellFont.h>（CellFont / CellGlyph）定義。",
+    cellfontNote:
+      "請在此檔案之前包含繪製器的標頭（提供 CellFont / CellGlyph 型別的那個）。",
     usage: '用法',
     runtimeActive: 'loadFont 成功後也會將此字型設為顯示裝置的目前字型。',
   },
@@ -358,12 +362,16 @@ function emitCellFontHeader(font, ident, attribution, language, opts) {
   );
   s += '\n';
   s += '#pragma once\n';
-  s += '#include <CellFont.h>\n\n';
-  s += '#if !defined(CELLFONT_SPEC_VERSION) || CELLFONT_SPEC_VERSION != 1\n';
+  s += '#include <stdint.h>\n\n';
+  s += `// ${comments.cellfontNote}\n\n`;
+  // Two guards, not one: forgetting the renderer header is a different mistake
+  // from a version mismatch, and saying which saves the user the hunt.
+  s += '#if !defined(CELLFONT_SPEC_VERSION)\n';
+  s += '#error "Include your renderer CellFont header before this font header"\n';
+  s += '#elif CELLFONT_SPEC_VERSION != 1\n';
   s += '#error "This font header requires CellFont spec version 1"\n';
   s += '#endif\n\n';
-  s += `// ${comments.usage}:  display.setFont(&${ident});\n`;
-  s += `// ${comments.cellfontNote}\n\n`;
+  s += `// ${comments.usage}:  display.setFont(&${ident});\n\n`;
   s += PROGMEM_GUARD + '\n';
 
   // Tail first: the font that `next` points at must already be defined.
