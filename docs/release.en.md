@@ -43,7 +43,7 @@ It also updates every documented `lgfx-font-tool@<version>` CDN pin.
 npm view lgfx-font-tool version
 ```
 
-- CDN (may take a few minutes to propagate): <https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.2.0/dist/lgfx-font-tool.min.js>
+- CDN (may take a few minutes to propagate): <https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.2.1/dist/lgfx-font-tool.min.js>
 - npm page: <https://www.npmjs.com/package/lgfx-font-tool>
 
 ## Troubleshooting

@@ -79,7 +79,7 @@ npm view lgfx-font-tool version         # npm 上の最新（入っている版�
 
 npm i -D lgfx-font-tool@latest          # プロジェクトを最新に
 npm i -g lgfx-font-tool@latest          # グローバルを最新に
-npm i -D lgfx-font-tool@2.2.0           # 版を指定して固定
+npm i -D lgfx-font-tool@2.2.1           # 版を指定して固定
 ```
 
 **`npx` は古い版を握り続けることがある。** `npx lgfx-font --version` が期待と違うときは

@@ -41,7 +41,7 @@ git push --follow-tags
 npm view lgfx-font-tool version
 ```
 
-- CDN(反映まで数分かかることがある): <https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.2.0/dist/lgfx-font-tool.min.js>
+- CDN(反映まで数分かかることがある): <https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.2.1/dist/lgfx-font-tool.min.js>
 - npm ページ: <https://www.npmjs.com/package/lgfx-font-tool>
 
 ## 困ったとき

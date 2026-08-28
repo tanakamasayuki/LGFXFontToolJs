@@ -85,7 +85,7 @@ npm view lgfx-font-tool version         # the latest on npm — not what you hav
 
 npm i -D lgfx-font-tool@latest          # bring the project up to date
 npm i -g lgfx-font-tool@latest          # bring the global install up to date
-npm i -D lgfx-font-tool@2.2.0           # pin an exact version
+npm i -D lgfx-font-tool@2.2.1           # pin an exact version
 ```
 
 **`npx` can hold on to an old version.** If `npx lgfx-font --version` is not what you expect,
