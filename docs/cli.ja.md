@@ -63,10 +63,10 @@ lgfx-font charset  <file> --normalize        文字集合ファイルを正準�
 | --- | --- |
 | `--google <family>` | キュレーション済み書体を**名前だけ**で取得（§4.1） |
 | `--ttf <path\|url>` | 任意の TTF / OTF / WOFF / WOFF2 |
-| `--font <name>` | 同梱ビットマップフォント（186 本） |
+| `--font <name>` | 同梱ビットマップフォント（186 本）。§4.4 |
 
-`--google` と `--ttf` はラスタライザを使うので `--em` が要る（§4.3）。
-`--font` は既にビットマップなので不要。
+`--google` と `--ttf` はラスタライザを使うので `--em` が要る（§4.4）。
+`--font` は既にビットマップなので不要（§4.2）。
 
 ### 4.1 `--google`
 
@@ -94,12 +94,27 @@ TTF を返す User-Agent を使う。
 > **「書体に無い字」と「スライスを取り忘れた字」の区別がつかなくなる**危険がある。
 > v1 は 1 本まるごとを採る。後から最適化として差し替えても外から見た挙動は変わらない。
 
-### 4.2 キャッシュ
+### 4.2 `--font`（同梱フォント）
+
+`--font lgfxJapanGothic_16` のように名前で引く。既にビットマップなので `--em` は不要で、
+**ラスタライザも要らない**。3 系統の入力のうち、これだけが完全に決定的である
+（取得もラスタライズも挟まらない）。
+
+用途は 2 つ。
+
+- **形式変換**。既存の u8g2 フォントを CellFont や BDF に変換する（UC5）
+- **ラスタライザが動かない環境**での唯一の生成経路
+
+同梱データは npm パッケージに含まれないものがあり、その場合は GitHub Pages から取得する
+（`src/fonts/loader.js`）。CI で使うならフォントファイルを手元に置いて
+`--ttf` ではなくパス指定で読ませるほうが確実。
+
+### 4.3 キャッシュ
 
 取得したフォントは `node_modules/.cache/lgfx-font-tool/` に置く（`--cache-dir` で変更可）。
 `--offline` でキャッシュのみを使い、無ければエラーにする。
 
-### 4.3 サイズ — `--em`
+### 4.4 サイズ — `--em`
 
 **`--em N` は em（デザインサイズ）を画素で指定する。**
 
@@ -177,7 +192,8 @@ em は書体の設計上の 1 文字ぶんの正方形で、**全角 1 文字の
 | --- | --- |
 | ラテン | `digits`(10) `ascii`(95) `latinExt`(96) `greek`(50) `cyrillic`(66) |
 | かな | `hiragana`(91) `katakana`(95) `katakanaHalf`(63) `jaPunct`(31) |
-| 漢字 | `hanJa1`(2139) `hanJa2`(3002) `hanJa3`(3295) `hanJa4`(6463) `hanCn1`(3755) `hanCn2`(6763) `hanTw1`(5411) `hanTw2`(13064) `hanKo1`(1799) `hanKo2`(4899) `hanAll`(20992) |
+| 漢字（学年別・累積） | `hanJaG1`(80) `hanJaG2`(240) `hanJaG3`(440) `hanJaG4`(642) `hanJaG5`(835) `hanJaG6`(1026 = 教育漢字) |
+| 漢字 | `hanJa1`(2139 = 常用) `hanJa2`(3002) `hanJa3`(3295) `hanJa4`(6463) `hanCn1`(3755) `hanCn2`(6763) `hanTw1`(5411) `hanTw2`(13064) `hanKo1`(1799) `hanKo2`(4899) `hanAll`(20992) |
 | ハングル | `hangulKs`(2350) `hangulAll`(11172) |
 | 記号 | `symUnits`(44) `symMath`(41) `symArrows`(22) `symShapes`(56) `symCurrency`(20) `symEnclosed`(79) `symMisc`(35) |
 
@@ -194,7 +210,10 @@ em は書体の設計上の 1 文字ぶんの正方形で、**全角 1 文字の
 
 ## 6. 出力
 
-`--out <path>` と `--format <id>`。**容器は拡張子で決まる。**
+`--out <path>` と `--format <id>`。**`--format` は必須で、既定はない。**
+汎用ツールなので特定の形式に寄せない。省略したら形式一覧を出して終了する。
+
+**容器は拡張子で決まる。**
 
 | 拡張子 | 容器 |
 | --- | --- |
@@ -205,7 +224,7 @@ em は書体の設計上の 1 文字ぶんの正方形で、**全角 1 文字の
 
 | `--format` | C ソース | バイナリ | 備考 |
 | --- | --- | --- | --- |
-| `cellfont` | ○ | — | 既定。C ソースのみ（形式仕様 §12） |
+| `cellfont` | ○ | — | C ソースのみ（形式仕様 §12） |
 | `u8g2` | ○ | ○ | `lgfx::U8g2font` として使える |
 | `gfx` | ○ | ○ | Adafruit GFX 互換。疎な集合は LovyanGFX 拡張 |
 | `vlw` | ○ | ○ | 実行時 `loadFont` |
@@ -291,22 +310,23 @@ lgfx-font charset fonts/chars.txt --normalize
 
 ```sh
 # 単発。内蔵フォントから今欲しい文字だけ
-npx lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" --out font.h
+npx lgfx-font build --font lgfxJapanGothic_16 --chars "温度設定完了" \
+    --format cellfont --out font.h
 
 # Google Fonts から名前だけで
 npx lgfx-font build --google "Noto Sans JP" --em 16 \
-    --sets ascii,hiragana --chars "温度℃" --out font.h
+    --sets ascii,hiragana,hanJaG6 --chars "℃" --format cellfont --out font.h
 
 # 手持ちの TTF から、確認画像つき
 npx lgfx-font build --ttf ./MyFont.ttf --em 12 --charset chars.txt \
-    --out font.h --preview font.png
+    --format cellfont --out font.h --preview font.png
 
 # 形式を変えて
 npx lgfx-font build --ttf ./MyFont.ttf --em 12 --sets ascii --format u8g2 --out font.u8g2
 
 # 継続利用（package.json）
 "scripts": {
-  "font": "lgfx-font build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --out src/font.h --preview fonts/preview.png"
+  "font": "lgfx-font build --google 'Noto Sans JP' --em 16 --charset fonts/chars.txt --format cellfont --out src/font.h --preview fonts/preview.png"
 }
 ```
 
@@ -335,8 +355,6 @@ $ git add -A && git commit
 
 ## 13. まだ決めていないこと
 
-- `--format` の既定を `cellfont` にしてよいか（汎用ツールとして偏らないか）
-- `--font`（同梱フォント）を `build` の入力に残すか。`inspect` だけにする案もある
 - 複数ターゲットを 1 コマンドで出したくなったときの形（現状は npm script の `&&`）
-- `--em` への変更はライブラリ（`src/gen/rasterize.js`）と Web UI にも入る。
-  `measureTtf` / `pickProbe` / `PROBE_CANDIDATES` は不要になるので削除できる
+- 教育漢字・学年別を `--sets` の別名でも引けるようにするか
+  （`--sets kyoiku` を `hanJaG6` の別名にする、など）
