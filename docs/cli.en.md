@@ -491,9 +491,12 @@ The rasterizer is an **`optionalDependency`**.
 
 | | |
 | --- | --- |
-| By default | Not installed. `npm i lgfx-font-tool` pulls no extra binary |
-| To use TTF | The user adds `npm i @napi-rs/canvas` |
-| Using `--ttf` / `--google` without it | Prints the install command and stops (code 1) |
+| `npm i lgfx-font-tool` | **Installs it** (33 MB of platform binaries). TTF works straight away |
+| `npm i --omit=optional` | Does not. `--ttf` / `--google` print the install command and stop (code 1) |
+| An OS / CPU with no prebuilt binary | **`npm install` still succeeds**; the §13.2 message appears at run time |
+
+**`optionalDependencies` are installed by default.** "Optional" is not about *whether* it
+arrives; it means **a failure to install it does not fail `npm install`**.
 
 **The two failures are told apart.** The package being absent
 (`ERR_MODULE_NOT_FOUND`) is a different thing from it being present with no binary for this
@@ -507,17 +510,19 @@ binary absent     → @napi-rs/canvas has no prebuilt binary for this platform
                     Use --font or --input with a bitmap font, …
 ```
 
-**Two reasons not to make it required.**
+**Why not `dependencies`.** There is exactly one practical difference. Either way 33 MB
+arrives by default, so **all that changes is the behaviour where no prebuilt binary exists**.
 
-1. **The platform binaries come to 33 MB.** Anyone using the library alone, or working only
-   from bundled fonts and existing font files, does not need them
-2. **Requiring it would not improve the failure.** `@napi-rs/canvas` distributes its own
-   platform binaries through 11 `optionalDependencies`, so on an unsupported OS / CPU
-   **installation succeeds even as a hard dependency and the failure lands at run time**.
-   The "no prebuilt binary" case in §14 remains either way
+| Declaration | On an OS / CPU with no prebuilt binary |
+| --- | --- |
+| `dependencies` | `npm install` **can fail**, taking down people who only wanted the library |
+| `optionalDependencies` | **Installation succeeds**; only TTF input fails |
 
-So "run it, get an error, install the extra package" is the documented path, stated both in
-the README and in the error message.
+The rasterizer is needed by two of the four sources, so making its absence block the whole
+package is too heavy a penalty. Hence the optional dependency.
+
+For people who pass `--omit=optional`, and for platforms with no prebuilt binary, the path
+is "run it, get an error, install the extra package" (the §13.2 message).
 
 - **The library itself stays free of runtime dependencies** (spec §3, decision #2).
   `src/` never references `@napi-rs/canvas`; the shim lives in `bin/`

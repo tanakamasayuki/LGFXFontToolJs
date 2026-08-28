@@ -27,6 +27,7 @@
     "bin",
     "dist",
     "src",
+    "web/googlefonts.js",
     "!src/fonts/data",
     "types",
     "CHANGELOG.md",

@@ -3,3 +3,4 @@ dist/
 types/
 site/
 .cache/
+*.tgz

@@ -68,31 +68,29 @@ npx lgfx-font build ... --check
 
 Full reference: [docs/cli.en.md](docs/cli.en.md) ([日本語](docs/cli.ja.md)).
 
-### TTF input needs one extra install
+### About the TTF rasterizer
 
-`--ttf` and `--google` rasterize a TTF, which needs a rasterizer. It is an
-**optional dependency**, so it is not installed by default.
+`--ttf` and `--google` rasterize a TTF, which needs a rasterizer
+(`@napi-rs/canvas`). **`npm install lgfx-font-tool` brings it along**, so normally
+there is nothing to do (33 MB of platform binaries come with it).
 
-```sh
-npm install @napi-rs/canvas
-```
+| Source | Rasterizer |
+| --- | --- |
+| `--google <family>` / `--ttf <path\|url>` | **required** |
+| `--font <name>` (bundled) / `--input <path>` (a file) | not needed |
 
-Point the CLI at a TTF without it and it tells you:
+It is an **optional dependency** so that **`npm install` still succeeds on an OS or
+CPU with no prebuilt binary**. The rasterizer is needed by two of the four sources,
+so its absence should not block the whole package.
+
+If you installed with `--omit=optional`, or you are on a platform with no prebuilt
+binary, pointing the CLI at a TTF tells you what to do. Bitmap sources keep working.
 
 ```
 lgfx-font: TTF input needs the rasterizer. Install it with:
   npm install @napi-rs/canvas
 Bitmap sources (--font / --input) work without it.
 ```
-
-It is optional because the platform binaries come to **33 MB**. Anyone using the
-library alone, or working only from bundled fonts and existing font files, does
-not need it.
-
-| Source | Rasterizer |
-| --- | --- |
-| `--google <family>` / `--ttf <path\|url>` | **required** |
-| `--font <name>` (bundled) / `--input <path>` (a file) | not needed |
 
 ## Ten lines to first pixels
 

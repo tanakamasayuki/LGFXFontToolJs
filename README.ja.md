@@ -63,30 +63,29 @@ npx lgfx-font build ... --check
 
 くわしくは [docs/cli.ja.md](docs/cli.ja.md)。
 
-### TTF を使うときだけ追加のインストールが要る
+### TTF のラスタライザについて
 
-`--ttf` と `--google` は TTF をラスタライズするので、ラスタライザが要ります。
-これは**任意依存**なので、既定では入りません。
+`--ttf` と `--google` は TTF をラスタライズするので、ラスタライザ
+（`@napi-rs/canvas`）が要ります。**`npm install lgfx-font-tool` で一緒に入る**ので、
+通常は何もしなくて構いません（プラットフォーム別バイナリが 33 MB 入ります）。
 
-```sh
-npm install @napi-rs/canvas
-```
+| 入力 | ラスタライザ |
+| --- | --- |
+| `--google <family>` / `--ttf <path\|url>` | **要る** |
+| `--font <name>`（同梱） / `--input <path>`（手元のファイル） | 要らない |
 
-入れずに TTF を指定すると、その場で案内が出ます。
+**任意依存**にしてあるのは、**プリビルドが無い OS / CPU でも `npm install` を
+失敗させない**ためです。ラスタライザは 4 系統の入力のうち 2 つでしか使わないので、
+それが入らないからといってパッケージ全体を入れられなくするのは重すぎます。
+
+`--omit=optional` で入れなかった場合や、プリビルドが無い環境では、TTF を指定した時点で
+案内が出ます。ビットマップ入力はそのまま動きます。
 
 ```
 lgfx-font: TTF input needs the rasterizer. Install it with:
   npm install @napi-rs/canvas
 Bitmap sources (--font / --input) work without it.
 ```
-
-任意依存にしているのは、プラットフォーム別のバイナリが **33 MB** あるためです。
-ライブラリだけ使う人や、同梱フォント・既存のフォントファイルだけを扱う人には要りません。
-
-| 入力 | ラスタライザ |
-| --- | --- |
-| `--google <family>` / `--ttf <path\|url>` | **要る** |
-| `--font <name>`（同梱） / `--input <path>`（手元のファイル） | 要らない |
 
 ## 10 行で動かす
 

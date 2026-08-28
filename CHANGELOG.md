@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) Packaging fix: `web/googlefonts.js` is now included, so `--google` and `--list-google` work from an installed package (they failed with a module-resolution error before, which only shows up outside a repository checkout).
+- (JA) 梱包の修正: `web/googlefonts.js` を含めるようにした。公開版で `--google` / `--list-google` が動くようになる（従来はモジュール解決エラーで起動しなかった。リポジトリ内では相対パスで解決できるため気づけない類の不具合）。
 - (EN) CI gained a `rasterizer` matrix job that loads the native binding, builds a font from Google Fonts, and verifies byte-identical output on linux-x64, linux-arm64, darwin-arm64, darwin-x64 and win32-x64. `scripts/check-rasterizer.mjs` reports the same for one machine.
 - (JA) CI に `rasterizer` マトリクスジョブを追加した。ネイティブバインディングの読み込み、Google Fonts からの実生成、バイト一致の検証を linux-x64 / linux-arm64 / darwin-arm64 / darwin-x64 / win32-x64 で行う。手元 1 台ぶんの確認は `scripts/check-rasterizer.mjs`。
 - (EN) CLI: downloaded fonts now cache in the user's cache directory (`$XDG_CACHE_HOME/lgfx-font-tool`, else `~/.cache/...`) rather than under `node_modules`, so running from a subdirectory no longer re-fetches megabytes; `--cache-dir` overrides it. The source font's SHA-256 is recorded in the generated header, so a typeface that changed underneath appears as one line in `git diff`. A missing platform binary is now reported as such instead of telling you to install a package you already have.
@@ -9,8 +11,8 @@
 - (JA) 生成した CellFont ヘッダが `<CellFont.h>` を include しなくなった。`<stdint.h>` だけを include し、描画器のヘッダは利用者が先に include する。他のエミッタおよび 1.1.0 の「描画ライブラリを自動 include しない」決定に揃えた。形式は描画器のヘッダのファイル名を定めない。版ガードは 2 段に分け、include 忘れと版の不一致を区別して報告する。
 - (EN) New `lgfx-font` CLI (`bin/`), shipped with the package. `build` / `inspect` / `charset` work from arguments alone, so a one-off needs no config file and CI is the same command with `--check`. Sources: a curated Google Fonts family by name, any TTF by path or URL, a bundled font, or a bitmap font file.
 - (JA) `lgfx-font` コマンドを追加（`bin/`、パッケージに同梱）。`build` / `inspect` / `charset` は引数だけで動くので、単発では設定ファイルが要らず、CI は同じコマンドに `--check` を付けるだけ。入力は Google Fonts の書体名、TTF（パス / URL）、同梱フォント、手元のビットマップフォントファイルの 4 系統。
-- (EN) TTF input in Node needs `@napi-rs/canvas`, declared as an **optional dependency** (33 MB of platform binaries). Running `--ttf` / `--google` without it prints the install command; bitmap sources work without it.
-- (JA) Node での TTF 入力には `@napi-rs/canvas` が要る。プラットフォーム別バイナリが 33 MB あるため**任意依存**とした。未インストールで `--ttf` / `--google` を指定するとインストール方法を案内する。ビットマップ入力は不要。
+- (EN) TTF input in Node needs `@napi-rs/canvas`, declared as an **optional dependency** so that `npm install` still succeeds where no prebuilt binary exists. It is installed by default (33 MB of platform binaries), so TTF input works out of the box; `--omit=optional` skips it and the CLI then prints the install command. Bitmap sources never need it.
+- (JA) Node での TTF 入力には `@napi-rs/canvas` が要る。プリビルドが無い環境でも `npm install` を失敗させないために**任意依存**とした。既定でインストールされる（プラットフォーム別バイナリ 33 MB）ので TTF はそのまま使える。`--omit=optional` で入れなかった場合はインストール方法を案内する。ビットマップ入力には不要。
 - (EN) New CellFont v1 format (`docs/formats/cellfont.ja.md` / `.en.md`), a compile-time bitmap font format for 16-64 KB microcontrollers: shared cell metrics, optional glyph table, sparse index with a contiguous head block, and chaining. `encodeCSource({ format: 'cellfont' })` emits it.
 - (JA) CellFont v1 形式を追加（`docs/formats/cellfont.ja.md` / `.en.md`）。16〜64 KB のマイコン向けのコンパイル時フォント形式で、共通セルのメトリクス、グリフ表の省略、頭ブロック付き疎索引、連鎖を持つ。`encodeCSource({ format: 'cellfont' })` で出力する。
 - (EN) **Breaking:** `generateFont()` and `rasterizeSet()` take `em` (the typeface design size in pixels; a full-width character advances exactly this much) instead of `px`. The old `px` measured a reference glyph chosen from the requested repertoire, so adding one character rescaled the rest — measured at 92 of 95 ASCII glyphs changing when `日` was added. `sizing`, `measureTtf`, and the probe machinery are gone.
