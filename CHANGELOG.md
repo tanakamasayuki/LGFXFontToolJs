@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 2.2.2
 - (EN) CLI: the `Rebuild with` line no longer records `--out`. Where a file was written is not part of what it contains, and recording it turned one font placed in four directories into four different files — which defeats copying a generated header around, and strays from the format spec's "same input, same bytes" (the input being the character set, yAdvance, and target ABI). The comment now reads `Rebuild with (add --out for wherever this file goes)`, and `--name` is always recorded, resolved, so the one thing left to supply is the path you are already looking at. Reported by a user with the same clock font in four places and four different files.
 - (JA) CLI: `Rebuild with` の行に `--out` を載せないようにした。ファイルをどこに書いたかはファイルの中身ではなく、載せると同じフォントを 4 つのディレクトリに置いただけで 4 つとも中身の違うファイルになる。生成済みヘッダをコピーして使い回せず、形式仕様の「同じ入力なら同じバイト列」（入力＝文字集合・yAdvance・対象 ABI）からも外れていた。見出しを `Rebuild with (add --out for wherever this file goes)` に変え、`--name` は指定が無くても正準化後の実際の識別子を必ず載せるようにしたので、書き足すのは今見ているパス 1 か所だけになる。同じ時計フォントを 4 か所に置いて 4 ファイルとも別物になった、という報告を受けての修正。
 - (EN) CLI: the `Rebuild with` line, and every example in the READMEs and the CLI reference, now use `npx -p lgfx-font-tool lgfx-font` instead of a bare `npx lgfx-font`. There is no package called `lgfx-font` (`npm view lgfx-font` is a 404), so the short form works only where npm resolves the command name to a package or where it is already in `node_modules`, and 404s elsewhere. §3 explains this and notes that an installed copy needs no `npx` at all.

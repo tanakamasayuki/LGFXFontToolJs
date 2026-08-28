@@ -40,7 +40,7 @@ npm install lgfx-font-tool
 ```html
 <script type="module">
   import { loadFont, drawString }
-    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.2.1/dist/lgfx-font-tool.min.js';
+    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.2.2/dist/lgfx-font-tool.min.js';
 </script>
 ```
 
