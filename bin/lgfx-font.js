@@ -11,7 +11,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { dirname, basename, resolve, relative, isAbsolute } from 'node:path';
+import { dirname, basename, resolve, relative } from 'node:path';
 import { subset } from '../src/model/subset.js';
 import { encode, listFormats } from '../src/format/registry.js';
 import { encodeCSource, sanitizeIdent } from '../src/format/csource.js';
@@ -53,22 +53,43 @@ const REPRO_FLAGS = /** @type {const} */ ([
 const REPRO_PATHS = new Set(['ttf', 'input', 'charset', 'template', 'out', 'fallback']);
 
 /**
- * A path under the working directory stays relative; anything else is reduced
- * to its file name. The line then neither leaks nor depends on one machine's
- * layout — the cost is that a font from elsewhere has to be put back by hand,
- * which is unavoidable for a local file anyway.
+ * A path under the working directory is recorded relative to it; anything else
+ * is reduced to its file name. The line then neither leaks nor depends on one
+ * machine's layout — the cost is that a font from elsewhere has to be put back
+ * by hand, which is unavoidable for a local file anyway.
+ *
+ * The decision is made after resolving, so how the path was written does not
+ * matter: `../../elsewhere/x.ttf` is outside the working directory just as
+ * `/home/someone/x.ttf` is, and both come out as `x.ttf`. Separators are
+ * normalized so the line reads the same whichever OS produced it.
  * @param {string} v
  */
 function tidyPath(v) {
   if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return v; // URL, or google:family
-  if (!isAbsolute(v)) return v;
-  const rel = relative(process.cwd(), v);
-  return rel === '' || rel.startsWith('..') ? basename(v) : rel;
+  const rel = relative(process.cwd(), resolve(v));
+  const out = rel === '' || rel.startsWith('..') ? basename(v) : rel;
+  return out.replaceAll('\\', '/');
 }
 
 const NEEDS_QUOTE = /[\s"'\\$&|;<>()*?\[\]{}!#`~]/;
-/** @param {string} v */
-const shellArg = (v) => (NEEDS_QUOTE.test(v) ? `'${v.split("'").join(`'\\''`)}'` : v);
+
+/**
+ * Flags whose value is literal text rather than an identifier, path, or id.
+ * These are always quoted: `--chars ℃` needs no quoting to run, but it reads as
+ * if one went missing, and the quotes are what show where the text ends.
+ */
+const QUOTE_ALWAYS = new Set(['chars']);
+
+/**
+ * @param {string} v
+ * @param {boolean} [always]
+ */
+const shellArg = (v, always) =>
+  // A value starting with `-` would be read back as a flag, and an empty one
+  // would vanish, so both are quoted whatever they contain.
+  always || v === '' || v.startsWith('-') || NEEDS_QUOTE.test(v)
+    ? `'${v.split("'").join(`'\\''`)}'`
+    : v;
 
 /**
  * The command that reproduces the output file.
@@ -90,7 +111,8 @@ function reproCommand(v) {
       continue;
     }
     for (const one of Array.isArray(val) ? val : [val]) {
-      parts.push(`--${flag} ${shellArg(REPRO_PATHS.has(flag) ? tidyPath(one) : one)}`);
+      const value = REPRO_PATHS.has(flag) ? tidyPath(one) : one;
+      parts.push(`--${flag} ${shellArg(value, QUOTE_ALWAYS.has(flag))}`);
     }
   }
   return parts.join(' ');

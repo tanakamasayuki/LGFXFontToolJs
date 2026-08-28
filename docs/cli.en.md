@@ -456,9 +456,19 @@ The comment at the top of C source output carries the command that produced the 
   being copied: the continuation lines are still inside the `//` comment, so what reaches the
   shell is commented out.
 - `npx` prefixes it because that runs whether or not the package is installed globally.
-- An absolute path outside the working directory is **reduced to its file name**, so no home
-  directory layout leaks into the output and the line is the same across machines. The cost
-  is that a font of your own has to be put back by hand.
+- **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
+  quoting to run, but without quotes it reads as if one went missing; the value is text, and
+  the quotes are what show where it ends. A value starting with `-` and an empty value are
+  quoted too, since they would otherwise be read back as a flag or vanish.
+- **A path pointing outside the working directory is reduced to its file name.** How it was
+  written does not matter — the decision is made after resolving, so `/home/someone/x.ttf`
+  and `../../elsewhere/x.ttf` both come out as `x.ttf`. No home directory layout leaks into
+  the output and the line is the same across machines; the cost is that a font of your own
+  has to be put back by hand.
+- **A path inside the working directory is kept.** A project-relative `--out
+  examples/OledI2C/font.h` is not something leaking out — it is what rebuilding that file
+  needs. Separators and a leading `./` are normalized, so `examples/x.h` and `./examples/x.h`
+  produce the same line.
 
 ## 7. Verification mode
 

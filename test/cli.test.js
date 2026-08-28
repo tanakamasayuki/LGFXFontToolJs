@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCharsetFile } from '../bin/lgfx-font.js';
 import { encodePng, renderSheet, renderText } from '../bin/render.js';
@@ -123,6 +123,7 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
   assert.match(text, /npx lgfx-font build --font lgfxJapanGothic_12/, 'npx 付きで動く形');
   assert.doesNotMatch(text, /\\\n/, 'コメント内で折り返すとコピーしても動かないので 1 行');
   assert.match(text, /--chars 'A B'/, '空白を含む値は引用される');
+  assert.match(text, /--format cellfont/, '識別子は引用しない');
   assert.match(text, /--out repro\.h/, '作業ディレクトリ外の絶対パスはファイル名だけになる');
   assert.doesNotMatch(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '絶対パスは残らない');
   // 出力に影響しない指定は載せない。
@@ -136,6 +137,50 @@ test('--version は版だけを標準出力に出す', () => {
     assert.equal(r.code, 0, flag);
     assert.equal(r.stdout.trim(), pkg.version, flag);
   }
+});
+
+test('作業ディレクトリの外を指すパスは、書き方に関わらず丸められる', () => {
+  // `..` で外へ出る相対パスも、同じ場所を指す絶対パスと同じ扱いにする。
+  const out = tmp('escape.h');
+  const viaDots = relative(process.cwd(), out);
+  assert.ok(viaDots.startsWith('..'), '前提: 作業ディレクトリの外を指している');
+  assert.equal(run(['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format', 'cellfont',
+    '--out', viaDots]).code, 0);
+  const text = readFileSync(out, 'utf8');
+  assert.match(text, /--out escape\.h/, 'ファイル名だけになる');
+  assert.doesNotMatch(text, /\.\.\//, '上位ディレクトリの構成は残らない');
+});
+
+test('同じ場所を指す別の書き方は同じ 1 行になる', () => {
+  // `examples/x.h` と `./examples/x.h` が違う出力になると正準性が崩れる。
+  const a = 'examples/repro-a.h';
+  /** @param {string} out */
+  const args = (out) => ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format',
+    'cellfont', '--name', 'R', '--out', out];
+  try {
+    assert.equal(run(args(a)).code, 0);
+    const plain = readFileSync(a, 'utf8');
+    assert.equal(run(args('./' + a)).code, 0);
+    assert.deepEqual(readFileSync(a, 'utf8'), plain);
+  } finally {
+    rmSync(a, { force: true });
+  }
+});
+
+test('--chars は 1 文字でも常に引用する', () => {
+  // 引用が要らない値でも、引用が無いと「消えた」ように読める。内容を表す指定なので
+  // 常に引用して、どこまでが値かを示す。
+  const out = tmp('quote.h');
+  assert.equal(run(['build', '--font', 'lgfxJapanGothic_12', '--chars', '℃', '--format',
+    'cellfont', '--out', out, '--allow-missing']).code, 0);
+  assert.match(readFileSync(out, 'utf8'), /--chars '℃'/);
+});
+
+test('先頭が - の値は引用する（読み戻すとフラグになるため）', () => {
+  const out = tmp('dash.h');
+  assert.equal(run(['build', '--font', 'lgfxJapanGothic_12', '--chars', '-', '--format',
+    'cellfont', '--out', out]).code, 0);
+  assert.match(readFileSync(out, 'utf8'), /--chars '-'/);
 });
 
 test('--fallback は --em を要求する（3）', () => {

@@ -1,6 +1,10 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) CLI: the `Rebuild with` line always quotes a `--chars` value, even a single character. `--chars ℃` needs no quoting to run, but without quotes it reads as if one went missing, and the value is text rather than an identifier — the quotes show where it ends. A value starting with `-` and an empty value are quoted whatever they contain, since they would otherwise be read back as a flag or disappear.
+- (JA) CLI: `Rebuild with` の行で、`--chars` の値を 1 文字でも必ず引用するようにした。`--chars ℃` はシェル的には引用が要らないが、引用が無いと片方が消えたように読める。識別子ではなく内容を表す指定なので、どこまでが値かを引用で示す。先頭が `-` の値と空文字は、読み戻すとフラグになったり消えたりするので中身に関わらず引用する。
+- (EN) CLI: the `Rebuild with` line reduces any path pointing outside the working directory to its file name, not just paths written absolutely. A relative `../../elsewhere/font.ttf` used to be recorded verbatim, which leaked the layout above the project the absolute form was already protected from. The decision is now made after resolving, and separators and a leading `./` are normalized so two spellings of one path give the same line. Paths inside the working directory are still kept: those are what rebuilding needs.
+- (JA) CLI: `Rebuild with` の行が、作業ディレクトリの外を指すパスを、絶対パスで書かれたものだけでなくすべてファイル名に丸めるようにした。`../../どこか/font.ttf` のような相対パスはそのまま記録されていて、絶対パスでは守られていたはずのプロジェクト外の構成が漏れていた。判断を解決後に行うようにし、区切り文字と先頭の `./` も正規化したので、同じ場所を指す別の書き方が同じ 1 行になる。作業ディレクトリの中のパスは従来どおり残す。作り直しに必要な情報だから。
 
 ## 2.2.0
 - (EN) CLI: `lgfx-font --version` (also `-v` / `version`) prints the installed version. There was no way to ask the tool itself which version was running; `npm ls lgfx-font-tool` was the only answer. It is read from `package.json`, so `npm version` remains the one place a release number is written.
