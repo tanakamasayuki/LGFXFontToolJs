@@ -94,20 +94,33 @@ npm i -g lgfx-font-tool@latest          # bring the global install up to date
 npm i -D lgfx-font-tool@2.2.2           # pin an exact version
 ```
 
-**`npx` does not give the same answer twice, even on one machine.** Two things cause it.
+**`npx` does not give the same answer twice, even on one machine.** Three things cause it,
+and **the first two ignore `-p` and any version you name** (both observed in practice).
 
 | | |
 | --- | --- |
-| A `node_modules` at or above the cwd wins | npx walks up from the cwd looking for `node_modules/.bin`, and if it finds the binary it neither fetches nor uses its cache. **`-p` is ignored.** Run it in a directory where an old version was installed and that is what runs |
+| A command of the same name on `PATH` wins | With `lgfx-font` installed by `npm i -g`, writing `npx -p lgfx-font-tool@2.2.2` still runs that global copy. **Naming the version has no effect** |
+| A `node_modules` at or above the cwd wins | npx walks up looking for `node_modules/.bin`, and if it finds the binary it neither fetches nor uses its cache. Run it where an old version was installed and that is what runs |
 | The cache is keyed by the spec string and never re-resolved | `-p lgfx-font-tool` with no version resolves the latest at that moment and stores it as `^x.y.z` under `~/.npm/_npx/<hash>/`. Later runs **reuse that tree**, so a newer release does not take effect |
 
-Name the version when it has to be certain.
+**Naming a version does not make it deterministic.** It only addresses the third case;
+anything that wins earlier still wins. The quickest way to find out what actually ran is to
+ask it.
 
 ```sh
-npx -p lgfx-font-tool@2.2.2 lgfx-font --version   # the only deterministic form
-npx clear-npx-cache                               # drop the cache
-ls node_modules/.bin/lgfx-font                    # check nothing local is winning
+lgfx-font --version                  # what actually runs
+which -a lgfx-font                   # anything on PATH?
+ls node_modules/.bin/lgfx-font       # anything local?
+npm ls -g --depth=0                  # what is installed globally
+
+npm i -g lgfx-font-tool@latest       # upgrade the global copy
+npm rm -g lgfx-font-tool             # or remove it and let npx decide
+npx clear-npx-cache                  # drop the cache
 ```
+
+**Install it if it has to be certain.** With `npm i -D lgfx-font-tool` and `npm ci`, the
+version is decided by `package-lock.json` rather than by npx's resolution order. Do that in
+CI.
 
 **Pin the version in CI.** `--check` assumes the same input gives the same bytes, so a new
 version of the tool that changes the shape of the output will report a mismatch (read the

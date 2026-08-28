@@ -88,20 +88,31 @@ npm i -g lgfx-font-tool@latest          # グローバルを最新に
 npm i -D lgfx-font-tool@2.2.2           # 版を指定して固定
 ```
 
-**`npx` の結果は同じマシンでも一定しない。** 原因は 2 つある。
+**`npx` の結果は同じマシンでも一定しない。** 原因は 3 つあり、**上の 2 つは `-p` も版指定も
+無視する**（実測で確認）。
 
 | | |
 | --- | --- |
-| cwd に `node_modules` があるとそれが勝つ | npx は cwd から上へ `node_modules/.bin` を探し、見つかれば取得もキャッシュも使わない。**`-p` を付けても無視される。** 古い版を入れたディレクトリで実行すると、その版が動く |
+| PATH に同名のコマンドがあるとそれが勝つ | `npm i -g` で入れた `lgfx-font` があると、`npx -p lgfx-font-tool@2.2.2` と書いてもそのグローバル版が動く。**版指定は効かない** |
+| cwd から上に `node_modules` があるとそれが勝つ | npx は `node_modules/.bin` を上へ探し、見つかれば取得もキャッシュも使わない。古い版を入れたディレクトリで実行すると、その版が動く |
 | キャッシュは spec 文字列で引き、再解決しない | 版を書かない `-p lgfx-font-tool` は、その時点の最新を解決して `^x.y.z` として `~/.npm/_npx/<hash>/` に置く。次からは**その木をそのまま使う**ので、後で新しい版が出ても上がらない |
 
-はっきりさせたいときは版を書く。
+**版を書いても決定的にはならない。** 効くのは 3 つ目に対してだけで、先に勝つものがあれば
+そちらが動く。実際に何が走ったかは `--version` で確かめるのが早い。
 
 ```sh
-npx -p lgfx-font-tool@2.2.2 lgfx-font --version   # これだけが決定的
-npx clear-npx-cache                               # キャッシュを捨てる
-ls node_modules/.bin/lgfx-font                    # cwd 側が勝っていないか見る
+lgfx-font --version                  # まず実際に動くものの版を見る
+which -a lgfx-font                   # PATH に何かあるか
+ls node_modules/.bin/lgfx-font       # cwd 側に何かあるか
+npm ls -g --depth=0                  # グローバルに何が入っているか
+
+npm i -g lgfx-font-tool@latest       # グローバルを上げる
+npm rm -g lgfx-font-tool             # または消して npx に任せる
+npx clear-npx-cache                  # キャッシュを捨てる
 ```
+
+**確実にしたいならインストールする。** `npm i -D lgfx-font-tool` + `npm ci` なら
+`package-lock.json` が版を決めるので、npx の解決順に左右されない。CI ではこちら。
 
 **CI では版を固定する。** `--check` は「同じ入力なら同じバイト列」を前提にしているので、
 ツールの版が上がって出力の形が変わると不一致になる（[CHANGELOG](../CHANGELOG.md) を見て
