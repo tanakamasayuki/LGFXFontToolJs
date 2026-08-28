@@ -188,6 +188,22 @@ test('同じフォントを別の場所へ書いてもバイト一致する', ()
   assert.deepEqual(readFileSync(a), readFileSync(b));
 });
 
+test('--pin-version でツールの版が入り、自分自身も記録される', () => {
+  const pkg = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
+  const args = ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'A', '--format', 'cellfont', '--name', 'P'];
+
+  const plain = tmp('nopin.h');
+  assert.equal(run([...args, '--out', plain]).code, 0);
+  assert.match(readFileSync(plain, 'utf8'), /npx -p lgfx-font-tool lgfx-font build/, '既定では版を書かない');
+
+  const pinned = tmp('pin.h');
+  assert.equal(run([...args, '--pin-version', '--out', pinned]).code, 0);
+  const text = readFileSync(pinned, 'utf8');
+  assert.match(text, new RegExp(`npx -p lgfx-font-tool@${pkg.version.replace(/\./g, '\\.')} lgfx-font build`));
+  // 自分自身を記録しないと、書かれたコマンドを回した結果が元と違ってしまう。
+  assert.match(text, /--pin-version/);
+});
+
 test('--chars は 1 文字でも常に引用する', () => {
   // 引用が要らない値でも、引用が無いと「消えた」ように読める。内容を表す指定なので
   // 常に引用して、どこまでが値かを示す。

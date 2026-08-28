@@ -88,9 +88,20 @@ npm i -g lgfx-font-tool@latest          # グローバルを最新に
 npm i -D lgfx-font-tool@2.2.2           # 版を指定して固定
 ```
 
-**`npx` は古い版を握り続けることがある。** `npx -p lgfx-font-tool lgfx-font --version` が期待と違うときは
-`npx lgfx-font-tool@latest lgfx-font ...` のように版を明示するか、`npx clear-npx-cache`
-でキャッシュを捨てる。
+**`npx` の結果は同じマシンでも一定しない。** 原因は 2 つある。
+
+| | |
+| --- | --- |
+| cwd に `node_modules` があるとそれが勝つ | npx は cwd から上へ `node_modules/.bin` を探し、見つかれば取得もキャッシュも使わない。**`-p` を付けても無視される。** 古い版を入れたディレクトリで実行すると、その版が動く |
+| キャッシュは spec 文字列で引き、再解決しない | 版を書かない `-p lgfx-font-tool` は、その時点の最新を解決して `^x.y.z` として `~/.npm/_npx/<hash>/` に置く。次からは**その木をそのまま使う**ので、後で新しい版が出ても上がらない |
+
+はっきりさせたいときは版を書く。
+
+```sh
+npx -p lgfx-font-tool@2.2.2 lgfx-font --version   # これだけが決定的
+npx clear-npx-cache                               # キャッシュを捨てる
+ls node_modules/.bin/lgfx-font                    # cwd 側が勝っていないか見る
+```
 
 **CI では版を固定する。** `--check` は「同じ入力なら同じバイト列」を前提にしているので、
 ツールの版が上がって出力の形が変わると不一致になる（[CHANGELOG](../CHANGELOG.md) を見て
@@ -377,6 +388,7 @@ lgfx-font charset --list      集合 ID・テンプレート ID と現在の字�
 | `--name <ident>` | C のシンボル名。省略時は `--out` の basename を C 識別子へ正準化 |
 | `--target ilp32\|avr` | CellFont の候補比較に使う `sizeof(CellFont)`（28 / 20）。既定 `ilp32` |
 | `--no-wrapper` | u8g2 の `lgfx::U8g2font` 宣言を出さない |
+| `--pin-version` | 再現コマンドにツールの版を書き込む（既定は書かない） |
 
 `--target` が要るのは CellFont だけ。**対象 ABI で勝つ候補が変わる**ため、形式仕様 §10.4 が
 これを生成器の入力の一部と定めている。他の形式では無視する。
@@ -445,6 +457,16 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
   中なので、コピーするとシェルに渡るのはコメントだけになる。
 - **`npx -p lgfx-font-tool lgfx-font` の形で出す。** 素の `npx lgfx-font` は環境によって
   404 になる（§3）。
+- **ツールの版は既定では書かない。`--pin-version` で書く。** 版を書かないと npx が最新を
+  解決するので、出力の形が変わる版が出ていれば作り直しの結果が変わる。書けばそれは
+  起きないが、代わりにツールを上げるたび全ヘッダが書き換わる。どちらの費用を払うかは
+  プロジェクト次第なので、既定にせずフラグにした。`--pin-version` は**自分自身も
+  記録する**ので、書かれたコマンドをそのまま回せば同じヘッダになる。
+
+```
+// Rebuild with (add --out for wherever this file goes):
+//   npx -p lgfx-font-tool@2.2.2 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+```
 - **`--chars` の値は 1 文字でも必ず引用する。** `--chars ℃` はシェル的には引用が要らないが、
   引用が無いと片方が消えたように読める。内容を表す指定なので、どこまでが値かを示す。
   先頭が `-` の値と空文字も、読み戻すとフラグになったり消えたりするので引用する。

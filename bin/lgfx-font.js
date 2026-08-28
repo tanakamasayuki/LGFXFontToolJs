@@ -54,7 +54,7 @@ const REPRO_FLAGS = /** @type {const} */ ([
   'google', 'ttf', 'font', 'input', 'input-format', 'input-symbol',
   'em', 'chars', 'charset', 'sets', 'template', 'fallback',
   'format', 'name', 'target', 'max-chain', 'no-wrapper', 'bpp', 'threshold',
-  'allow-missing',
+  'allow-missing', 'pin-version',
 ]);
 
 /** Values that name a file, and so need shortening. */
@@ -110,11 +110,19 @@ const shellArg = (v, always) =>
  * called `lgfx-font`, so the short form works only where npm happens to resolve
  * the binary name, and 404s elsewhere. Naming the package always works.
  *
+ * The tool version is left out unless `--pin-version` asks for it. Without a
+ * version npx resolves the latest, so a rebuild can pick up a release that
+ * changes the shape of the output; with one it cannot, but then every upgrade
+ * rewrites every generated header. Which of those costs is worth paying is the
+ * project's call, so it is a flag rather than a default. The flag records itself,
+ * so rerunning the recorded command reproduces the same header.
+ *
  * @param {Record<string, any>} v parsed options
  * @param {string} ident the C symbol name actually used
  */
 function reproCommand(v, ident) {
-  const parts = ['npx -p lgfx-font-tool lgfx-font build'];
+  const pin = v['pin-version'] ? `@${VERSION}` : '';
+  const parts = [`npx -p lgfx-font-tool${pin} lgfx-font build`];
   for (const flag of REPRO_FLAGS) {
     // Always the resolved symbol name, whether or not --name was given.
     const val = flag === 'name' ? ident : v[flag];
@@ -153,6 +161,7 @@ const OPTIONS = /** @type {const} */ ({
   target: { type: 'string' },
   'max-chain': { type: 'string' },
   'no-wrapper': { type: 'boolean' },
+  'pin-version': { type: 'boolean' },
   bpp: { type: 'string' },
   threshold: { type: 'string' },
   // modes
@@ -205,6 +214,8 @@ build — output
   --max-chain <n>       cellfont: chain-length limit (default 2)
   --no-wrapper          u8g2: emit the data array only, without the
                         lgfx::U8g2font object, for use with upstream u8g2
+  --pin-version         record this tool's version in the rebuild command, so
+                        the rebuild cannot pick up a different one
   --bpp <n>             output depth where the format allows it
   --threshold <n>       1bpp threshold when rasterizing (default 128)
 

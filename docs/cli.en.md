@@ -94,9 +94,20 @@ npm i -g lgfx-font-tool@latest          # bring the global install up to date
 npm i -D lgfx-font-tool@2.2.2           # pin an exact version
 ```
 
-**`npx` can hold on to an old version.** If `npx -p lgfx-font-tool lgfx-font --version` is not what you expect,
-name the version — `npx lgfx-font-tool@latest lgfx-font ...` — or drop the cache with
-`npx clear-npx-cache`.
+**`npx` does not give the same answer twice, even on one machine.** Two things cause it.
+
+| | |
+| --- | --- |
+| A `node_modules` at or above the cwd wins | npx walks up from the cwd looking for `node_modules/.bin`, and if it finds the binary it neither fetches nor uses its cache. **`-p` is ignored.** Run it in a directory where an old version was installed and that is what runs |
+| The cache is keyed by the spec string and never re-resolved | `-p lgfx-font-tool` with no version resolves the latest at that moment and stores it as `^x.y.z` under `~/.npm/_npx/<hash>/`. Later runs **reuse that tree**, so a newer release does not take effect |
+
+Name the version when it has to be certain.
+
+```sh
+npx -p lgfx-font-tool@2.2.2 lgfx-font --version   # the only deterministic form
+npx clear-npx-cache                               # drop the cache
+ls node_modules/.bin/lgfx-font                    # check nothing local is winning
+```
 
 **Pin the version in CI.** `--check` assumes the same input gives the same bytes, so a new
 version of the tool that changes the shape of the output will report a mismatch (read the
@@ -399,6 +410,7 @@ raw form, and `bdf` has no C source form).
 | `--name <ident>` | The C symbol name. Defaults to the basename of `--out`, canonicalized into an identifier |
 | `--target ilp32\|avr` | The `sizeof(CellFont)` used for candidate comparison (28 / 20). Default `ilp32` |
 | `--no-wrapper` | u8g2: leave out the `lgfx::U8g2font` declaration |
+| `--pin-version` | record this tool's version in the rebuild command (off by default) |
 
 `--target` matters only for CellFont. **The winning candidate changes with the target ABI**,
 which is why format spec §10.4 makes it part of the generator's input. Other formats ignore
@@ -471,6 +483,17 @@ The comment at the top of C source output carries the command that produced the 
   shell is commented out.
 - **The form is `npx -p lgfx-font-tool lgfx-font`.** A bare `npx lgfx-font` 404s in some
   environments (§3).
+- **The tool's version is not recorded unless `--pin-version` asks for it.** Without a
+  version npx resolves the latest, so a rebuild can pick up a release that changes the shape
+  of the output; with one it cannot, but then every upgrade of the tool rewrites every
+  generated header. Which cost is worth paying is the project's call, so it is a flag rather
+  than a default. `--pin-version` **records itself**, so rerunning the recorded command
+  reproduces the same header.
+
+```
+// Rebuild with (add --out for wherever this file goes):
+//   npx -p lgfx-font-tool@2.2.2 lgfx-font build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+```
 - **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
   quoting to run, but without quotes it reads as if one went missing; the value is text, and
   the quotes are what show where it ends. A value starting with `-` and an empty value are
