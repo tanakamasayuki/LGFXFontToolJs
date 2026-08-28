@@ -458,17 +458,19 @@ static const uint8_t myfont[71] LGFXFT_PROGMEM = { ... };
 C ソース出力の先頭コメントに、そのファイルを作ったコマンドが入る。
 
 ```
-// Rebuild with (add --out for wherever this file goes):
-//   npx lgfx-font-tool build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
+// Rebuild with:
+//   npx lgfx-font-tool build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --out myFont.h --name myFont
 ```
 
-- **`--out` は載せない。** ファイルをどこに書いたかは、ファイルの中身ではない。載せると
-  同じフォントを 4 つのディレクトリに置いただけで 4 つとも中身が違うファイルになり、
-  生成済みヘッダをコピーして使い回せなくなる。形式仕様の「同じ入力なら同じバイト列」
-  （入力＝文字集合・yAdvance・対象 ABI）からも外れる。書き足すのは 1 か所だけで、
-  そのファイル自身を見れば分かる。
-- **`--name` は指定が無くても必ず載せる。** シンボル名は出力そのものの一部だし、`--out` を
-  載せないなら他に導く材料が無い。正準化した後の実際の識別子を書く。
+- **`--out` はファイル名だけを載せ、パスは載せない。** 名前は載せる価値がある。行をその
+  まま回せば、回した場所にそのファイルが出来る。どのディレクトリから来たかは違う。それは
+  実行した人のものだし、行に入れると同じフォントを 4 つのディレクトリに置いただけで
+  4 つとも中身が違うファイルになり、生成済みヘッダをコピーして使い回せなくなる。形式仕様の
+  「同じ入力なら同じバイト列」（入力＝文字集合・yAdvance・対象 ABI）からも外れる。
+  絶対パスでも相対パスでも `../../elsewhere/font.h` でも、出るのは `font.h` だけ。
+- **`--name` は指定が無くても必ず載せる。** シンボル名は出力そのものの一部で、既定値は
+  ファイル名から取る。つまり元からファイル名で変わる値なので、ファイル名を載せても
+  ぶれは増えない。正準化した後の実際の識別子を書く。
 - 出力に影響しない指定（`--check` `--preview` `--preview-text` `--max-height`
   `--offline` `--cache-dir` `--json`）は載せない。`--allow-missing` は、無いと
   作り直しが止まるので載せる。
@@ -486,8 +488,8 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
   記録する**ので、書かれたコマンドをそのまま回せば同じヘッダになる。
 
 ```
-// Rebuild with (add --out for wherever this file goes):
-//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+// Rebuild with:
+//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --out f.h --name f --pin-version
 ```
 - **`--chars` の値は 1 文字でも必ず引用する。** `--chars ℃` はシェル的には引用が要らないが、
   引用が無いと片方が消えたように読める。内容を表す指定なので、どこまでが値かを示す。
@@ -535,6 +537,11 @@ lgfx-font-tool build ... --check
 | --- | --- |
 | `--preview <path.png>` | グリフ一覧（頼んだ文字が入ったか） |
 | `--preview <path.png> --preview-text "文字列"` | 文字列見本（実際の文言が読めるか） |
+
+グリフ一覧は 1 行 16 セル、コードポイント順で、各セルに薄い枠が付く。**最後のグリフより
+後ろのセルには斜線を引く。** 何も引かないと、何も描かないグリフ — スペース — と見分けが
+つかず、最終行が途中まで埋まっている絵が、どちらを見せているのか言えなくなるため。
+白いセルに枠があれば「何も描かないグリフ」、斜線なら「そこにグリフは無い」。
 
 出力先はプロジェクトが決める。**コミットするか、`.gitignore` に入れるか、
 CI のアーティファクトに上げるかはツールの関知するところではない。**

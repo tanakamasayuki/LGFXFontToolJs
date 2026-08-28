@@ -482,18 +482,21 @@ from `--google <family>`.
 The comment at the top of C source output carries the command that produced the file.
 
 ```
-// Rebuild with (add --out for wherever this file goes):
-//   npx lgfx-font-tool build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --name myFont
+// Rebuild with:
+//   npx lgfx-font-tool build --google Roboto --em 16 --chars 'AB温度' --fallback 'google:Noto Sans JP' --format cellfont --out myFont.h --name myFont
 ```
 
-- **`--out` is not recorded.** Where the file was written is not part of what the file
-  contains. Recording it made one font placed in four directories into four different files,
-  which defeats copying a generated header around, and strays from the format spec's "same
-  input, same bytes" (the input being the character set, yAdvance, and target ABI). There is
-  exactly one thing to add back, and the file you are reading tells you what it is.
+- **`--out` is recorded as a bare file name, never a path.** What the file is called is
+  worth having — the line runs as it stands, and lands the file where you ran it. Which
+  directory it came from is not: it belongs to whoever ran the command, and putting it in
+  the line would make one font written to four directories into four different files, which
+  defeats copying a generated header around and strays from the format spec's "same input,
+  same bytes" (the input being the character set, yAdvance, and target ABI). An absolute
+  path, a relative one, `../../elsewhere/font.h` — all come out as `font.h`.
 - **`--name` is always recorded, given or not.** The symbol name really is part of the
-  output, and with no `--out` there is nothing left to derive it from. The identifier written
-  is the one actually used, after canonicalization.
+  output, and it defaults to the file name, so it already varies with it — recording the
+  file name adds no variation that was not there. The identifier written is the one
+  actually used, after canonicalization.
 - Flags that do not change the file are left out (`--check`, `--preview`, `--preview-text`,
   `--max-height`, `--offline`, `--cache-dir`, `--json`). `--allow-missing` is kept, because
   without it the rebuild would stop.
@@ -513,8 +516,8 @@ The comment at the top of C source output carries the command that produced the 
   reproduces the same header.
 
 ```
-// Rebuild with (add --out for wherever this file goes):
-//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --name f --pin-version
+// Rebuild with:
+//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --out f.h --name f --pin-version
 ```
 - **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
   quoting to run, but without quotes it reads as if one went missing; the value is text, and
@@ -567,6 +570,12 @@ does not match).
 | --- | --- |
 | `--preview <path.png>` | A glyph sheet (did the characters you asked for arrive?) |
 | `--preview <path.png> --preview-text "text"` | A sample line (does the real wording read?) |
+
+The sheet is 16 cells per row, in code point order, with a light border around each. **Cells
+past the last glyph are hatched**, because a blank cell would otherwise read exactly like a
+glyph that draws nothing — a space — and a partly filled last row could not say which of the
+two it was showing. So: white cell with a border, a glyph that draws nothing; hatched cell,
+no glyph there at all.
 
 Where it goes is the project's decision. **Whether to commit it, add it to `.gitignore`, or
 upload it as a CI artifact is none of the tool's business.**

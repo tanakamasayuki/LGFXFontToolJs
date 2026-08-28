@@ -140,5 +140,20 @@ export function renderSheet(font, opts = {}) {
       if (out.gray[i] === 255) out.gray[i] = 200;
     }
   }
+
+  // Cells past the last glyph are hatched. Left blank they read exactly like a
+  // glyph that draws nothing — a space — so a partly filled last row could not
+  // say which of the two it was showing. Diagonals rather than a flat tone: the
+  // difference has to survive being looked at quickly, and on a screen that
+  // auto-adjusts levels.
+  for (let i = cps.length; i < rows * cols; i++) {
+    const x0 = (i % cols) * cw * zoom;
+    const y0 = Math.floor(i / cols) * ch * zoom;
+    for (let y = y0; y < Math.min(y0 + ch * zoom, out.height); y++) {
+      for (let x = x0; x < Math.min(x0 + cw * zoom, out.width); x++) {
+        if ((x + y) % 8 < 2) out.gray[y * out.width + x] = 200;
+      }
+    }
+  }
   return out;
 }

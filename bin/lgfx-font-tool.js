@@ -42,23 +42,35 @@ const VERSION = JSON.parse(
  * --max-height, --offline, --cache-dir, --json. --allow-missing is kept because
  * without it the rebuild would stop.
  *
- * `--out` is deliberately absent. Where the file is written is not part of what
- * the file contains, and recording it made one font put in four directories into
- * four different files — which defeats copying a generated header around, and
- * strays from the format spec's "same input, same bytes" (the input being the
- * character set, yAdvance, and target ABI). `--name` is recorded instead, and
- * always: the symbol name really is part of the emitted source, and without
- * `--out` there is nothing left to derive it from.
+ * `--out` is recorded as a bare file name, never a path. The name is worth having
+ * — without it the reader has to supply the one thing the file already knows it
+ * is called — but the directory is not: it belongs to whoever ran the command,
+ * and putting it in the line would make the same font written to four
+ * directories into four different files, which defeats copying a generated
+ * header around and strays from the format spec's "same input, same bytes".
+ * Dropping to the file name keeps both: rerun the line anywhere and the file
+ * lands there, under the name it had.
+ *
+ * The file name adds no variation that was not already there, because `--name`
+ * defaults to it (see `sanitizeIdent` at the call site) and `--name` is always
+ * recorded. Two files that differ only in name already differ in their symbol.
  */
 const REPRO_FLAGS = /** @type {const} */ ([
   'google', 'ttf', 'font', 'input', 'input-format', 'input-symbol',
   'em', 'chars', 'charset', 'sets', 'template', 'fallback',
-  'format', 'name', 'target', 'max-chain', 'no-wrapper', 'bpp', 'threshold',
+  'format', 'out', 'name', 'target', 'max-chain', 'no-wrapper', 'bpp', 'threshold',
   'allow-missing', 'pin-version',
 ]);
 
 /** Values that name a file, and so need shortening. */
 const REPRO_PATHS = new Set(['ttf', 'input', 'charset', 'template', 'fallback']);
+
+/**
+ * Values reduced to a bare file name even when they point inside the working
+ * directory. `--out` says what the file is called; where it goes is the caller's
+ * business, and a rebuild run anywhere should write it there.
+ */
+const REPRO_BASENAME = new Set(['out']);
 
 /**
  * A path under the working directory is recorded relative to it; anything else
@@ -133,7 +145,11 @@ function reproCommand(v, ident) {
       continue;
     }
     for (const one of Array.isArray(val) ? val : [val]) {
-      const value = REPRO_PATHS.has(flag) ? tidyPath(one) : one;
+      const value = REPRO_BASENAME.has(flag)
+        ? basename(one)
+        : REPRO_PATHS.has(flag)
+          ? tidyPath(one)
+          : one;
       parts.push(`--${flag} ${shellArg(value, QUOTE_ALWAYS.has(flag))}`);
     }
   }

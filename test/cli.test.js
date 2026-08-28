@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,6 +102,17 @@ test('--check: 一致で 0、不一致で 2、出力が無ければ 2。いず�
   assert.deepEqual(readFileSync(out), written, '--check は上書きしない');
 });
 
+test('同じファイル名なら、置き場所が違ってもバイト一致の出力が出る', () => {
+  // 置き場所を載せないのはこのため。同じフォントを 4 か所に置いて 4 つとも
+  // 中身が違う、という状態を防ぐ。
+  const one = join(dir, 'a'); const two = join(dir, 'b');
+  mkdirSync(one, { recursive: true }); mkdirSync(two, { recursive: true });
+  const args = ['build', '--font', 'lgfxJapanGothic_12', '--chars', 'AB', '--format', 'cellfont'];
+  assert.equal(run([...args, '--out', join(one, 'same.h')]).code, 0);
+  assert.equal(run([...args, '--out', join(two, 'same.h')]).code, 0);
+  assert.deepEqual(readFileSync(join(one, 'same.h')), readFileSync(join(two, 'same.h')));
+});
+
 test('同じコマンドを二度走らせるとバイト一致の出力が出る', () => {
   // 出力先の名前はヘッダの再現コマンドに載るので、比較は同じ --out で行う。
   const a = tmp('det.h');
@@ -119,7 +130,7 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
     0,
   );
   const text = readFileSync(out, 'utf8');
-  assert.match(text, /Rebuild with \(add --out /, '--out は自分で足すと言う');
+  assert.match(text, /Rebuild with:/);
   assert.match(
     text,
     /npx lgfx-font-tool build --font lgfxJapanGothic_12/,
@@ -131,7 +142,7 @@ test('再現コマンドが記録され、絶対パスはファイル名に丸�
   assert.match(text, /--name repro\b/, '省略しても実際の識別子を載せる');
   const command = /** @type {string[]} */ (text.match(/^\/\/ +npx .*$/m));
   assert.ok(command, '再現コマンドの行が見つからない');
-  assert.doesNotMatch(command[0], /--out/, '置き場所は中身ではないので載せない');
+  assert.match(command[0], /--out repro\.h\b/, '名前は載せ、置き場所は載せない');
   assert.doesNotMatch(text, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '絶対パスは残らない');
   // 出力に影響しない指定は載せない。
   assert.doesNotMatch(text, /--cache-dir|--preview|--check/);
