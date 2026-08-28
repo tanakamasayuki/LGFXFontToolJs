@@ -532,8 +532,22 @@ the README and in the error message.
 | A remote that changes | The cache is the pin in practice; **the source SHA-256 is recorded in the header** so it shows in the diff (§4.4) |
 | Cache location | **The user's cache directory**, overridable with `--cache-dir` (§4.4) |
 
-One thing is left.
+### Platform coverage
 
-- **Testing on something other than Linux x64.** Platforms where `@napi-rs/canvas` does ship
-  a prebuilt binary (macOS / Windows / arm64) have not been exercised. If one is broken the
-  §13.2 message should appear, but that has not been confirmed
+The `rasterizer` job in `.github/workflows/ci.yml` runs on five runners every time, loading
+the binding, generating a real font from `--google`, and confirming byte-identical output
+with `--check`.
+
+| Runner | Prebuilt binary | State |
+| --- | --- | --- |
+| `ubuntu-latest` | linux-x64-gnu | **confirmed** |
+| `ubuntu-24.04-arm` | linux-arm64-gnu | **confirmed** |
+| `macos-latest` | darwin-arm64 | **confirmed** |
+| `macos-15-intel` | darwin-x64 | being verified (`macos-13` was retired; the label was replaced) |
+| `windows-latest` | win32-x64-msvc | **confirmed** |
+
+**Not exercised**: `win32-arm64-msvc`, `linux-x64-musl`, `linux-arm64-musl`,
+`linux-arm-gnueabihf`, `linux-riscv64-gnu`, `android-arm64`. GitHub hosts no runner for
+them, so CI cannot reach them. A broken one produces the §13.2 message.
+
+Running `node scripts/check-rasterizer.mjs` locally settles it for one environment.

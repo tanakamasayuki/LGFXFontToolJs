@@ -506,7 +506,21 @@ README とエラーメッセージの両方に書く。
 | リモートが変わったとき | キャッシュが実質の固定。**取得元の SHA-256 をヘッダに記録**して差分に出す（§4.4） |
 | キャッシュの位置 | **ユーザのキャッシュディレクトリ**。`--cache-dir` で変更（§4.4） |
 
-残っているのは 1 つだけ。
+### プラットフォームの確認状況
 
-- **Linux x64 以外の実機確認。** `@napi-rs/canvas` のプリビルドがある環境（macOS / Windows /
-  arm64）での動作は未確認。壊れていれば §13.2 のメッセージが出るはずだが、確かめていない
+CI の `rasterizer` ジョブ（`.github/workflows/ci.yml`）が毎回 5 つのランナーで
+バインディングの読み込みと `--google` からの実生成、`--check` によるバイト一致まで通す。
+
+| ランナー | プリビルド | 状態 |
+| --- | --- | --- |
+| `ubuntu-latest` | linux-x64-gnu | **確認済み** |
+| `ubuntu-24.04-arm` | linux-arm64-gnu | **確認済み** |
+| `macos-latest` | darwin-arm64 | **確認済み** |
+| `macos-15-intel` | darwin-x64 | 検証中（`macos-13` は提供終了。ラベルを差し替えた） |
+| `windows-latest` | win32-x64-msvc | **確認済み** |
+
+**未検証のプリビルド**: `win32-arm64-msvc` / `linux-x64-musl` / `linux-arm64-musl` /
+`linux-arm-gnueabihf` / `linux-riscv64-gnu` / `android-arm64`。
+GitHub のホストランナーに無いので CI では踏めない。壊れていれば §13.2 のメッセージが出る。
+
+`node scripts/check-rasterizer.mjs` を手元で走らせれば、その環境だけ確かめられる。
