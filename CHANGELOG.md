@@ -3,6 +3,8 @@
 ## Unreleased
 - (EN) CLI: `lgfx-font --version` (also `-v` / `version`) prints the installed version. There was no way to ask the tool itself which version was running; `npm ls lgfx-font-tool` was the only answer. It is read from `package.json`, so `npm version` remains the one place a release number is written.
 - (JA) CLI: `lgfx-font --version`（`-v` / `version` も可）で入っている版を表示する。これまでツール自身に版を尋ねる方法がなく、`npm ls lgfx-font-tool` を使うしかなかった。値は `package.json` から読むので、版を書く場所は `npm version` の 1 箇所のままである。
+- (EN) Docs: the CLI reference and both READMEs now say how to install, check, pin, and upgrade the tool, including the warning that `npx` can hold on to an old version and that a CI using `--check` should pin the version, since a tool upgrade that changes the shape of the output reports a mismatch.
+- (JA) ドキュメント: CLI 仕様書と README（英日）に、導入・版の確認・固定・更新のコマンドを載せた。`npx` が古い版を握り続けることがある点と、`--check` を使う CI では版を固定すべき点（ツールが上がって出力の形が変わると不一致になる）も書いた。
 
 ## 2.1.0
 - (EN) CI's `rasterizer` job now also runs `scripts/check-coverage.mjs` on all five runners: it asks a typeface for a character it does not have, requires that to fail rather than silently substitute, then fills it from a second typeface and checks both are credited. Presence detection depends on the host's installed fonts, so this is a per-platform fact a unit test cannot establish.

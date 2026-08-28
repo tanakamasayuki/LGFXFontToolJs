@@ -65,6 +65,38 @@ Three. `build` is the tool; the other two support it. **Everything on `build` is
 — it takes no positionals, and the source, the characters, and the output are combined from
 flags.
 
+### Installing, checking the version, upgrading
+
+No install is needed; `npx` fetches it each time.
+
+```sh
+npx lgfx-font build ...                 # use it without installing
+npm i -D lgfx-font-tool                 # pin it in the project (do this for CI)
+npm i -g lgfx-font-tool                 # call lgfx-font from anywhere
+```
+
+Checking and upgrading:
+
+```sh
+lgfx-font --version                     # the version that is running (-v / version too)
+npm ls lgfx-font-tool                   # the version installed in this project
+npm ls -g lgfx-font-tool                # the version installed globally
+npm view lgfx-font-tool version         # the latest on npm — not what you have
+
+npm i -D lgfx-font-tool@latest          # bring the project up to date
+npm i -g lgfx-font-tool@latest          # bring the global install up to date
+npm i -D lgfx-font-tool@2.1.0           # pin an exact version
+```
+
+**`npx` can hold on to an old version.** If `npx lgfx-font --version` is not what you expect,
+name the version — `npx lgfx-font-tool@latest lgfx-font ...` — or drop the cache with
+`npx clear-npx-cache`.
+
+**Pin the version in CI.** `--check` assumes the same input gives the same bytes, so a new
+version of the tool that changes the shape of the output will report a mismatch (read the
+[CHANGELOG](../CHANGELOG.md) and regenerate). Pin with `npm ci` plus `package-lock.json`, or
+by naming `lgfx-font-tool@<version>`.
+
 ## 4. Source (the typeface)
 
 Four kinds. Give exactly one.

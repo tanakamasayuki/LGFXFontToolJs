@@ -59,6 +59,38 @@ lgfx-font charset <file> [オプション]       文字集合ファイルの正�
 3 つ。`build` が本体で、他の 2 つは補助。**`build` の指定はすべてオプション**で、
 位置引数は取らない（入力・文字・出力の 3 種をフラグで組み合わせる）。
 
+### 導入と版の確認・更新
+
+インストールは要らない。`npx` が都度取ってくる。
+
+```sh
+npx lgfx-font build ...                 # 入れずに使う
+npm i -D lgfx-font-tool                 # プロジェクトに固定（CI で使うならこちら）
+npm i -g lgfx-font-tool                 # どこからでも lgfx-font で呼ぶ
+```
+
+版の確認と更新。
+
+```sh
+lgfx-font --version                     # 動いているツールの版（-v / version も同じ）
+npm ls lgfx-font-tool                   # プロジェクトに入っている版
+npm ls -g lgfx-font-tool                # グローバルに入っている版
+npm view lgfx-font-tool version         # npm 上の最新（入っている版ではない）
+
+npm i -D lgfx-font-tool@latest          # プロジェクトを最新に
+npm i -g lgfx-font-tool@latest          # グローバルを最新に
+npm i -D lgfx-font-tool@2.1.0           # 版を指定して固定
+```
+
+**`npx` は古い版を握り続けることがある。** `npx lgfx-font --version` が期待と違うときは
+`npx lgfx-font-tool@latest lgfx-font ...` のように版を明示するか、`npx clear-npx-cache`
+でキャッシュを捨てる。
+
+**CI では版を固定する。** `--check` は「同じ入力なら同じバイト列」を前提にしているので、
+ツールの版が上がって出力の形が変わると不一致になる（[CHANGELOG](../CHANGELOG.md) を見て
+生成物を作り直す）。`npm ci` + `package-lock.json` か、`lgfx-font-tool@<版>` の明示で
+固定するのがよい。
+
 ## 4. 入力（書体）
 
 4 系統。いずれか 1 つを指定する。

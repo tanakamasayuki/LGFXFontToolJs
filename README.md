@@ -66,6 +66,15 @@ npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
 npx lgfx-font build ... --check
 ```
 
+Installing is optional — `npx` fetches it. To pin it, check it, or upgrade it:
+
+```sh
+npm i -D lgfx-font-tool          # pin it in the project (do this for CI)
+lgfx-font --version              # the version that is running
+npm ls lgfx-font-tool            # the version installed here
+npm i -D lgfx-font-tool@latest   # upgrade
+```
+
 Full reference: [docs/cli.en.md](docs/cli.en.md) ([日本語](docs/cli.ja.md)).
 
 ### About the TTF rasterizer

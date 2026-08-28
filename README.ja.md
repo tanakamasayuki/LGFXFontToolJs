@@ -61,6 +61,15 @@ npx lgfx-font build --font lgfxJapanGothic_12 --sets ascii,hiragana \
 npx lgfx-font build ... --check
 ```
 
+インストールは任意です（`npx` が都度取ってきます）。固定・確認・更新はこちら。
+
+```sh
+npm i -D lgfx-font-tool          # プロジェクトに固定（CI で使うならこちら）
+lgfx-font --version              # 動いているツールの版
+npm ls lgfx-font-tool            # ここに入っている版
+npm i -D lgfx-font-tool@latest   # 最新に上げる
+```
+
 くわしくは [docs/cli.ja.md](docs/cli.ja.md)。
 
 ### TTF のラスタライザについて
