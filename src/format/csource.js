@@ -69,6 +69,7 @@ export function summarizeRanges(cps, limit = 24) {
  * @property {string} [license]  - license name, e.g. 'SIL Open Font License 1.1'
  * @property {string} [licenseUrl]
  * @property {string} [origin]   - source location
+ * @property {string} [sourceHash] - sha256 of the source font file
  */
 
 /**
@@ -96,6 +97,9 @@ export function licenseNotice(font, info) {
     L.push('           embedded and redistributed in compiled firmware.');
   }
   if (a.origin) L.push(`Obtained : ${a.origin}`);
+  // Records which bytes produced this font, so a silently updated remote shows
+  // up in the diff as a one-line change rather than only as changed glyph data.
+  if (a.sourceHash) L.push(`Source   : sha256:${a.sourceHash}`);
   if (font.meta.copyright) L.push(`Copyright: ${font.meta.copyright}`);
   L.push('');
   L.push('This file contains glyphs rasterized from the typeface above and is a');

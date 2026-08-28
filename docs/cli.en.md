@@ -132,8 +132,36 @@ neither a rasterizer nor a download involved, it is the most reproducible of the
 
 ### 4.4 Cache
 
-Downloaded fonts go under `node_modules/.cache/lgfx-font-tool/` (`--cache-dir` changes it).
-`--offline` uses only the cache and fails when something is missing.
+Downloaded fonts go in the **user's cache directory**: `$XDG_CACHE_HOME/lgfx-font-tool`, or
+`~/.cache/lgfx-font-tool` when that is unset.
+
+**Not under the project (`node_modules/.cache`).** A typeface is material shared across
+projects, not one project's build artifact. Keying it to the working directory means
+**running from a subdirectory re-fetches megabytes**.
+
+`--cache-dir <path>` changes it. In CI, point it inside the workspace so `actions/cache` can
+pick it up. `--offline` uses only the cache and fails when something is missing.
+
+### When the remote changes
+
+The cache is keyed by URL, so **once fetched, the same bytes come back forever**. An updated
+remote does not reach an existing checkout. That is what you want for reproducibility, but it
+is a problem if you cannot tell that your machine and CI are using different typefaces.
+
+So **the SHA-256 of the source font is recorded in the generated header's comment.**
+
+```
+// Obtained : Google Fonts: Noto Sans JP
+// Source   : sha256:ae7b7855e115a5966d8b1b3f80f254cc…
+```
+
+The same input gives the same value, so canonical output (format spec §10.4) is intact, and a
+typeface that changed underneath **shows up as one line in `git diff`** — which is why
+`--check` failed.
+
+Stricter options already exist: `--offline` confines you to the cache, or put the `.ttf` in
+your own repository and use `--ttf ./font.ttf`. **No dedicated flag (an `--expect-sha256` or
+similar) is added** — record it first, and add one when the need is real.
 
 ### 4.5 Size — `--em`
 
@@ -467,6 +495,18 @@ The rasterizer is an **`optionalDependency`**.
 | To use TTF | The user adds `npm i @napi-rs/canvas` |
 | Using `--ttf` / `--google` without it | Prints the install command and stops (code 1) |
 
+**The two failures are told apart.** The package being absent
+(`ERR_MODULE_NOT_FOUND`) is a different thing from it being present with no binary for this
+platform (`Cannot find native binding`), and telling someone in the second case to install it
+**sends them back to the same error**.
+
+```
+package absent    → npm install @napi-rs/canvas
+binary absent     → @napi-rs/canvas has no prebuilt binary for this platform
+                    (linux/x64). Reinstalling will not help.
+                    Use --font or --input with a bitmap font, …
+```
+
 **Two reasons not to make it required.**
 
 1. **The platform binaries come to 33 MB.** Anyone using the library alone, or working only
@@ -484,10 +524,16 @@ the README and in the error message.
 - The network is touched by `--google`, `--ttf <url>`, and `--font` (fetching bundled data).
   **`--offline` applies to all three**
 
-## 14. Still undecided
+## 14. Decided, and what is left
 
-- What happens on an OS / CPU with no `@napi-rs/canvas` prebuilt binary (only Linux x64 has
-  been checked; §13.1)
-- Whether a change in remote content should update silently or fail (and whether the input
-  font's SHA-256 should be pinnable)
-- Whether the cache location should be relative to the working directory or to the package
+| Question | Decision |
+| --- | --- |
+| An OS / CPU with no prebuilt binary | It does not work, and **says so** (§13.2). `--font` / `--input` still do |
+| A remote that changes | The cache is the pin in practice; **the source SHA-256 is recorded in the header** so it shows in the diff (§4.4) |
+| Cache location | **The user's cache directory**, overridable with `--cache-dir` (§4.4) |
+
+One thing is left.
+
+- **Testing on something other than Linux x64.** Platforms where `@napi-rs/canvas` does ship
+  a prebuilt binary (macOS / Windows / arm64) have not been exercised. If one is broken the
+  §13.2 message should appear, but that has not been confirmed

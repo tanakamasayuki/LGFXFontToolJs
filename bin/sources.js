@@ -8,7 +8,8 @@
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { resolve, join } from 'node:path';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { decode } from '../src/format/registry.js';
 import { decodeCSource } from '../src/format/csource.js';
 import { loadFont } from '../src/fonts/loader.js';
@@ -40,11 +41,23 @@ async function installRasterizer() {
   let canvas;
   try {
     canvas = await import('@napi-rs/canvas');
-  } catch {
+  } catch (e) {
+    // Two different failures: the package is absent, or it is present but has
+    // no prebuilt binary for this platform. Telling someone to install what
+    // they already have sends them in a circle.
+    const err = /** @type {any} */ (e);
+    if (err?.code === 'ERR_MODULE_NOT_FOUND') {
+      throw new CliError(
+        'TTF input needs the rasterizer. Install it with:\n' +
+          '  npm install @napi-rs/canvas\n' +
+          'Bitmap sources (--font / --input) work without it.',
+      );
+    }
     throw new CliError(
-      'TTF input needs the rasterizer. Install it with:\n' +
-        '  npm install @napi-rs/canvas\n' +
-        'Bitmap sources (--font / --input) work without it.',
+      `TTF input needs the rasterizer, and @napi-rs/canvas has no prebuilt binary for\n` +
+        `this platform (${process.platform}/${process.arch}). Reinstalling will not help.\n` +
+        'Use --font or --input with a bitmap font, or rasterize on a supported platform.\n' +
+        `Underlying error: ${err?.message ?? err}`,
     );
   }
   const { createCanvas, GlobalFonts } = canvas;
@@ -88,8 +101,22 @@ async function installRasterizer() {
 
 //--- fetching -----------------------------------------------------------------
 
+/**
+ * Where downloaded fonts live. A typeface is shared material rather than a
+ * per-project build artifact, so it belongs in the user's cache rather than in
+ * one project's node_modules — otherwise running from a subdirectory re-fetches
+ * megabytes. CI overrides it with --cache-dir to put it inside the workspace.
+ */
+export function defaultCacheDir() {
+  const base = process.env.XDG_CACHE_HOME || join(homedir(), '.cache');
+  return join(base, 'lgfx-font-tool');
+}
+
 /** Google Fonts serves TTF only to a non-browser User-Agent; browsers get sliced woff2. */
 const TTF_UA = 'Wget/1.20';
+
+/** @param {Buffer|Uint8Array} bytes */
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 /** @param {string} dir */
 const cacheDir = (dir) => {
@@ -172,13 +199,17 @@ export async function resolveSource(opts) {
   if (opts.font !== undefined || opts.input !== undefined) {
     let font;
     let origin;
+    /** @type {string|undefined} */
+    let hash;
     if (opts.font !== undefined) {
       font = await loadFont(opts.font);
       origin = `bundled:${opts.font}`;
     } else {
       const path = /** @type {string} */ (opts.input);
       const bytes = new Uint8Array(readFileSync(path));
-      origin = path;
+      // A relative path stays stable across machines; an absolute one would not.
+      origin = path.startsWith('/') ? path.replace(process.cwd() + '/', '') : path;
+      hash = sha256(bytes);
       if (opts.inputFormat === 'csource' || /\.(h|hpp|c|cpp)$/i.test(path)) {
         const found = decodeCSource(Buffer.from(bytes).toString('utf8'));
         const list = Array.isArray(found) ? found : [found];
@@ -200,7 +231,7 @@ export async function resolveSource(opts) {
       font,
       missing: [],
       origin,
-      attribution: { typeface: font.familyName || undefined, origin },
+      attribution: { typeface: font.familyName || undefined, origin, sourceHash: hash },
     };
   }
 
@@ -223,6 +254,10 @@ export async function resolveSource(opts) {
       license: entry.license.name,
       licenseUrl: entry.license.url,
       origin,
+      // Which bytes produced this font. Stable for the same input, so it does
+      // not break canonical output, and a silently updated remote shows up in
+      // the diff instead of only as changed glyph data.
+      sourceHash: sha256(bytes),
     };
   } else {
     const ref = /** @type {string} */ (opts.ttf);
@@ -232,7 +267,7 @@ export async function resolveSource(opts) {
     source = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     // A relative path stays stable across machines; an absolute one would not.
     origin = /^https?:/.test(ref) ? ref : ref.replace(process.cwd() + '/', '');
-    attribution = { origin };
+    attribution = { origin, sourceHash: sha256(bytes) };
   }
 
   const r = await generateFont({

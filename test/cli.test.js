@@ -12,6 +12,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCharsetFile } from '../bin/lgfx-font.js';
 import { encodePng, renderSheet, renderText } from '../bin/render.js';
+import { defaultCacheDir } from '../bin/sources.js';
 import { loadFont } from '../src/fonts/loader.js';
 import { subset } from '../src/model/subset.js';
 
@@ -252,6 +253,37 @@ test('引数なし / --help で使い方を出して 0', () => {
     assert.equal(r.code, 0, args.join(' '));
     assert.match(r.stdout, /lgfx-font/);
   }
+});
+
+test('既定のキャッシュはユーザのキャッシュ配下で、カレントに依存しない', () => {
+  const a = defaultCacheDir();
+  const before = process.cwd();
+  try {
+    process.chdir(dir);
+    assert.equal(defaultCacheDir(), a, 'カレントを変えても同じ場所');
+  } finally {
+    process.chdir(before);
+  }
+  assert.ok(a.endsWith('lgfx-font-tool'));
+  assert.ok(!a.includes('node_modules'), 'プロジェクト配下ではない');
+});
+
+test('取得元の SHA-256 が生成ヘッダに残り、中身が変われば値も変わる', () => {
+  const src = tmp('src.u8g2');
+  const out = tmp('hash.h');
+  assert.equal(run(['build', '--font', 'DejaVu9', '--chars', 'ABC', '--format', 'u8g2', '--out', src]).code, 0);
+  assert.equal(run(['build', '--input', src, '--chars', 'ABC', '--format', 'cellfont', '--out', out]).code, 0);
+  const first = /Source   : sha256:([0-9a-f]{64})/.exec(readFileSync(out, 'utf8'));
+  assert.ok(first, '生成ヘッダに sha256 が入る');
+
+  // 元のフォントが差し替わったら、ハッシュが変わって diff に出る
+  const src2 = tmp('src2.u8g2');
+  assert.equal(run(['build', '--font', 'DejaVu9', '--chars', 'AB', '--format', 'u8g2', '--out', src2]).code, 0);
+  const out2 = tmp('hash2.h');
+  assert.equal(run(['build', '--input', src2, '--chars', 'AB', '--format', 'cellfont', '--out', out2]).code, 0);
+  const second = /Source   : sha256:([0-9a-f]{64})/.exec(readFileSync(out2, 'utf8'));
+  assert.ok(second);
+  assert.notEqual(first[1], second[1], '別の入力なら別のハッシュ');
 });
 
 test('--list-google はキュレーション済みの書体を出す', () => {

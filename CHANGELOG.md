@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) CLI: downloaded fonts now cache in the user's cache directory (`$XDG_CACHE_HOME/lgfx-font-tool`, else `~/.cache/...`) rather than under `node_modules`, so running from a subdirectory no longer re-fetches megabytes; `--cache-dir` overrides it. The source font's SHA-256 is recorded in the generated header, so a typeface that changed underneath appears as one line in `git diff`. A missing platform binary is now reported as such instead of telling you to install a package you already have.
+- (JA) CLI: 取得したフォントのキャッシュを `node_modules` 配下からユーザのキャッシュディレクトリ（`$XDG_CACHE_HOME/lgfx-font-tool`、無ければ `~/.cache/...`）へ移した。サブディレクトリから実行しても数 MB を取り直さなくなる。`--cache-dir` で変更可。取得元フォントの SHA-256 を生成ヘッダに記録するようにし、書体が入れ替わったことが `git diff` の 1 行として見えるようにした。プリビルドのバイナリが無い場合は、既に入っているパッケージの再インストールを促すのではなく、その旨を報告する。
 - (EN) A generated CellFont header no longer includes `<CellFont.h>`; it includes only `<stdint.h>` and asks the user to include their renderer's header first, matching the other emitters and the 1.1.0 decision to stop auto-including a graphics library. The format no longer names the renderer's header file at all. The version guard is split so that a missing include and a version mismatch report differently.
 - (JA) 生成した CellFont ヘッダが `<CellFont.h>` を include しなくなった。`<stdint.h>` だけを include し、描画器のヘッダは利用者が先に include する。他のエミッタおよび 1.1.0 の「描画ライブラリを自動 include しない」決定に揃えた。形式は描画器のヘッダのファイル名を定めない。版ガードは 2 段に分け、include 忘れと版の不一致を区別して報告する。
 - (EN) New `lgfx-font` CLI (`bin/`), shipped with the package. `build` / `inspect` / `charset` work from arguments alone, so a one-off needs no config file and CI is the same command with `--check`. Sources: a curated Google Fonts family by name, any TTF by path or URL, a bundled font, or a bitmap font file.

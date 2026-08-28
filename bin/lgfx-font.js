@@ -20,7 +20,7 @@ import { inspect as inspectFont, coverage } from '../src/inspect/inspect.js';
 import { parseRanges, codepointsOfSet, TEMPLATES, ALL_SET_IDS, countOf } from '../src/charsets/charsets.js';
 import { SET_RANGES } from '../src/charsets/charsets-data.js';
 import { packCellFont } from '../src/format/cellfont.js';
-import { resolveSource, CliError } from './sources.js';
+import { resolveSource, defaultCacheDir, CliError } from './sources.js';
 import { encodePng, renderSheet, renderText } from './render.js';
 
 const C_EXT = /\.(h|hpp|c|cpp)$/i;
@@ -101,6 +101,7 @@ build — modes
   --max-height <n>      fail when the line box exceeds n pixels
   --allow-missing       warn instead of failing on absent characters
   --offline             use only cached downloads
+  --cache-dir <path>    where downloads are cached (default: the user cache dir)
 
 build — listing
   --list-google         print the curated Google Fonts families
@@ -205,7 +206,7 @@ async function cmdBuild(v) {
   const codepoints = collectCodepoints(v);
   if (codepoints.length === 0) fail('no characters selected (--chars / --charset / --sets / --template)', 1);
 
-  const cache = v['cache-dir'] ?? resolve('node_modules/.cache/lgfx-font-tool');
+  const cache = v['cache-dir'] ?? defaultCacheDir();
   const src = await resolveSource({
     google: v.google,
     ttf: v.ttf,
