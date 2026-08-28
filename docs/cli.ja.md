@@ -516,7 +516,7 @@ CI の `rasterizer` ジョブ（`.github/workflows/ci.yml`）が毎回 5 つの�
 | `ubuntu-latest` | linux-x64-gnu | **確認済み** |
 | `ubuntu-24.04-arm` | linux-arm64-gnu | **確認済み** |
 | `macos-latest` | darwin-arm64 | **確認済み** |
-| `macos-15-intel` | darwin-x64 | 検証中（`macos-13` は提供終了。ラベルを差し替えた） |
+| `macos-15-intel` | darwin-x64 | **確認済み**（`macos-13` は提供終了。ラベルを差し替えた） |
 | `windows-latest` | win32-x64-msvc | **確認済み** |
 
 **未検証のプリビルド**: `win32-arm64-msvc` / `linux-x64-musl` / `linux-arm64-musl` /

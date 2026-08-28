@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) CI gained a `rasterizer` matrix job that loads the native binding, builds a font from Google Fonts, and verifies byte-identical output on linux-x64, linux-arm64, darwin-arm64, darwin-x64 and win32-x64. `scripts/check-rasterizer.mjs` reports the same for one machine.
+- (JA) CI に `rasterizer` マトリクスジョブを追加した。ネイティブバインディングの読み込み、Google Fonts からの実生成、バイト一致の検証を linux-x64 / linux-arm64 / darwin-arm64 / darwin-x64 / win32-x64 で行う。手元 1 台ぶんの確認は `scripts/check-rasterizer.mjs`。
 - (EN) CLI: downloaded fonts now cache in the user's cache directory (`$XDG_CACHE_HOME/lgfx-font-tool`, else `~/.cache/...`) rather than under `node_modules`, so running from a subdirectory no longer re-fetches megabytes; `--cache-dir` overrides it. The source font's SHA-256 is recorded in the generated header, so a typeface that changed underneath appears as one line in `git diff`. A missing platform binary is now reported as such instead of telling you to install a package you already have.
 - (JA) CLI: 取得したフォントのキャッシュを `node_modules` 配下からユーザのキャッシュディレクトリ（`$XDG_CACHE_HOME/lgfx-font-tool`、無ければ `~/.cache/...`）へ移した。サブディレクトリから実行しても数 MB を取り直さなくなる。`--cache-dir` で変更可。取得元フォントの SHA-256 を生成ヘッダに記録するようにし、書体が入れ替わったことが `git diff` の 1 行として見えるようにした。プリビルドのバイナリが無い場合は、既に入っているパッケージの再インストールを促すのではなく、その旨を報告する。
 - (EN) A generated CellFont header no longer includes `<CellFont.h>`; it includes only `<stdint.h>` and asks the user to include their renderer's header first, matching the other emitters and the 1.1.0 decision to stop auto-including a graphics library. The format no longer names the renderer's header file at all. The version guard is split so that a missing include and a version mismatch report differently.

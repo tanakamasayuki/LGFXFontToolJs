@@ -543,7 +543,7 @@ with `--check`.
 | `ubuntu-latest` | linux-x64-gnu | **confirmed** |
 | `ubuntu-24.04-arm` | linux-arm64-gnu | **confirmed** |
 | `macos-latest` | darwin-arm64 | **confirmed** |
-| `macos-15-intel` | darwin-x64 | being verified (`macos-13` was retired; the label was replaced) |
+| `macos-15-intel` | darwin-x64 | **confirmed** (`macos-13` was retired; the label was replaced) |
 | `windows-latest` | win32-x64-msvc | **confirmed** |
 
 **Not exercised**: `win32-arm64-msvc`, `linux-x64-musl`, `linux-arm64-musl`,
