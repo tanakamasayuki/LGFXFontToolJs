@@ -160,7 +160,7 @@ import { generateFont, resolveCharset, encodeCSource } from 'lgfx-font-tool';
 
 const { font, missing, filled } = await generateFont({
   source: ttfArrayBuffer,          // または URL。登録済み CSS ファミリ名なら family: '...'
-  px: 24,                          // 文字インクの高さ
+  em: 24,                          // em サイズ（全角 1 文字の送り幅）
   bpp: 8,                          // 1: 二値 / 8: AA被覆値（VLW・BFF向け）
   codepoints: resolveCharset({
     sets: ['ascii', 'hiragana', 'katakana', 'jaPunct', 'hanJa1'],
@@ -176,15 +176,14 @@ console.log('どの補完が何を埋めたか:', filled);
 console.log('どこにも無かった文字:', missing.map((cp) => String.fromCodePoint(cp)));
 ```
 
-補完を別の呼び出しに分ける場合は、主生成が返した `sizing` を渡せます。
+補完を別の呼び出しに分ける場合は、**同じ `em` を渡すだけ**で尺度が揃います。
 
 ```js
-const primary = await generateFont({ source: ttfArrayBuffer, px: 24, codepoints });
+const primary = await generateFont({ source: ttfArrayBuffer, em: 24, codepoints });
 const filler = await generateFont({
   family: 'MyRegisteredFallback',
-  px: 24,
+  em: 24,
   codepoints: primary.missing,
-  sizing: primary.sizing,
 });
 ```
 

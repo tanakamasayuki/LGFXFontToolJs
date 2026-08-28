@@ -167,7 +167,7 @@ import { generateFont, resolveCharset, encodeCSource } from 'lgfx-font-tool';
 
 const { font, missing, filled } = await generateFont({
   source: ttfArrayBuffer,          // or a URL. For a registered CSS family name, use family: '...'
-  px: 24,                          // height of the character ink
+  em: 24,                          // em size (a full-width character advances this much)
   bpp: 8,                          // 1: binary; 8: AA coverage for VLW/BFF
   codepoints: resolveCharset({
     sets: ['ascii', 'hiragana', 'katakana', 'jaPunct', 'hanJa1'],
@@ -183,16 +183,15 @@ console.log('which fallback filled what:', filled);
 console.log('characters found nowhere:', missing.map((cp) => String.fromCodePoint(cp)));
 ```
 
-When the fill is a separate call, pass the sizing returned by the primary
-generation to keep the same CSS em scale.
+When the fill is a separate call, **passing the same `em` is all it takes** for the scales
+to line up.
 
 ```js
-const primary = await generateFont({ source: ttfArrayBuffer, px: 24, codepoints });
+const primary = await generateFont({ source: ttfArrayBuffer, em: 24, codepoints });
 const filler = await generateFont({
   family: 'MyRegisteredFallback',
-  px: 24,
+  em: 24,
   codepoints: primary.missing,
-  sizing: primary.sizing,
 });
 ```
 

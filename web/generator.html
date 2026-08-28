@@ -93,11 +93,13 @@
           <input id="symbol" type="text" value="MyFont24">
         </label>
       </div>
-      <p class="sub" data-i18n="gen.sizeNote">The size is the character height in pixels — the
-        ink height of a reference glyph (an ideograph for CJK-capable fonts, a capital
-        otherwise), so "24" looks the same size in every typeface. The line height is derived
-        from the glyphs and reported next to the preview. For 1bpp output, the threshold decides
-        how much anti-aliased coverage counts as "on"; AA output preserves the coverage.</p>
+      <p class="sub" data-i18n="gen.sizeNote">The size is the em — the typeface's design size.
+        A full-width character advances exactly this much, so it is a horizontal measurement,
+        not a vertical one. "24" still looks about the same size in any typeface (cap heights
+        differ by roughly a pixel). The line height is derived from the glyphs the font ends up
+        containing and is normally larger than the em; it is shown next to the preview together
+        with the tallest ink. For 1bpp output, the threshold decides how much anti-aliased
+        coverage counts as "on"; AA output preserves the coverage.</p>
 
       <div class="controls">
         <label class="grow"><span data-i18n="gen.previewText">Preview text</span>
