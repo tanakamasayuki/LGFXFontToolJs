@@ -57,7 +57,14 @@ if (filled.code === 0) {
   const text = readFileSync(out, 'utf8');
   expect('both typefaces are named in the notice', text.includes('Silkscreen') && text.includes('Tiny5'));
   expect('the fallback gets its own licence block', /were taken from:/.test(text));
-  expect('the rebuild command is recorded', /Rebuild with:/.test(text));
+  // Match the command, not the label: the label's wording has drifted before
+  // (it gained the --out note) while the line that matters stayed put.
+  const rebuild = /Rebuild with[^\n]*:\n\/\/\s+(\S[^\n]*)/.exec(text);
+  expect(
+    'the rebuild command is recorded',
+    !!rebuild && /lgfx-font build/.test(rebuild[1]) && rebuild[1].includes('--fallback google:Tiny5'),
+    rebuild ? rebuild[1] : 'no "Rebuild with" line',
+  );
 }
 
 rmSync(out, { force: true });
