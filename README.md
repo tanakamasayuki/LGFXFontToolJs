@@ -45,7 +45,7 @@ cannot change your application without a code change:
 ```html
 <script type="module">
   import { loadFont, drawString }
-    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.0.0/dist/lgfx-font-tool.min.js';
+    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.1.0/dist/lgfx-font-tool.min.js';
 </script>
 ```
 

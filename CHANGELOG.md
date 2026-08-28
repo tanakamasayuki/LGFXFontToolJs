@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 2.1.0
 - (EN) CI's `rasterizer` job now also runs `scripts/check-coverage.mjs` on all five runners: it asks a typeface for a character it does not have, requires that to fail rather than silently substitute, then fills it from a second typeface and checks both are credited. Presence detection depends on the host's installed fonts, so this is a per-platform fact a unit test cannot establish.
 - (JA) CI の `rasterizer` ジョブが 5 ランナーで `scripts/check-coverage.mjs` も回すようにした。書体が持たない文字を要求して、黙って代替されずに失敗することを確かめ、次に別の書体から補完して両方が権利表記に載ることを確かめる。収録判定はホストに入っているフォントに依存するため、単体テストでは押さえられないプラットフォーム別の事実である。
 - (EN) **CLI bug fix: presence detection.** Skia's font registry has no equivalent of a browser `FontFace`'s `unicode-range`, so it silently substituted a system font for any character the requested typeface lacks — asking DejaVu Sans, which has no kanji, for `温` produced a 152 px glyph drawn by whatever the host had installed. Every character therefore looked present: `missing` was under-reported, `--allow-missing` never fired, and the output depended on the machine's installed fonts. The CLI now reads the font file's own `cmap` (`bin/coverage.js`, formats 0/4/6/12) and rasterizes only what the typeface actually contains. Isolating the registry was tried first and is strictly worse (measured). The browser path was always correct and is unchanged, as is format spec §2.3 — this lives entirely in `bin/`. A compressed WOFF / WOFF2 cannot be read this way; that case warns and proceeds unfiltered.
