@@ -93,9 +93,16 @@ size formulas and comparison tables in this document assume **ILP32**.
 For fixed pitch, `bytesPerGlyph` equals `ceil(width * height / 8)`. It exists so that the
 renderer performs no multiplication or division at run time.
 
-**On the common ABIs in the table above**, `headCount` fits in the alignment padding, so
-**this byte does not grow the header** (`CellGlyph` is 4 bytes with alignment 2, and with
-32-bit pointers `CellFont` has alignment 4 and no trailing padding).
+**What `headCount` costs depends on the ABI.**
+
+| ABI | Without `headCount` | With | Difference |
+| --- | --- | --- | --- |
+| ILP32 (natural alignment) | 28 | 28 | **0** — it fits the trailing padding |
+| 16-bit pointers (alignment 1 throughout) | 19 | 20 | **+1** — there is no padding to absorb it |
+
+It is effectively free on ILP32, but on an ABI with alignment 1 such as AVR it simply adds a
+byte. `CellGlyph` is 4 bytes on both (alignment 2 on ILP32).
+
 These are not guarantees of the C language, so a renderer should confirm them on its target
 ABI with, for example, `static_assert(sizeof(CellGlyph) == 4, ...)`.
 
@@ -106,7 +113,8 @@ ABI with, for example, `static_assert(sizeof(CellGlyph) == 4, ...)`.
 | Fixed pitch (`glyphs == NULL`) | none |
 | Variable pitch | `width`, `xAdvance`, `bytesPerGlyph` |
 | Contiguous index (`codes == NULL`) | `headCount` |
-| Sparse index with no head block | `first`, `headCount` |
+
+A sparse index always uses both `first` and `headCount` (`headCount >= 1`, §10.3).
 
 ## 4. Drawing coordinate system
 
@@ -424,13 +432,20 @@ Do not make the user choose. **Look at the input and take the smaller.**
 | All glyphs share `width` and `xAdvance`, and `ceil(width * height / 8) <= 255` | `glyphs = NULL`, set `bytesPerGlyph` |
 | Width and advance are shared but `ceil(width * height / 8) > 255` | **Use variable pitch** (not an error) |
 | Code points are contiguous | `codes = NULL`, `headCount = 0` |
-| Sparse, longest consecutive run ≥ 2 | Make that run the head block (`first` = its start) |
-| Sparse with no consecutive run | `headCount = 0`, all codes in `codes` |
+| Sparse | Make the **longest consecutive run** the head block (`first` = its start). A run of 1 counts |
 
 **`bytesPerGlyph` is 8 bits, so fixed pitch tops out at 255 bytes per glyph**
 (`width * height <= 2040`, roughly 45×45). 46×46 and 32×64 exceed it and cannot use fixed
 pitch even when the widths match. Variable pitch does not use `bytesPerGlyph`, so it can
 represent them.
+
+**A head block of length 1 is still worth it.** `first` and `headCount` already exist, so it
+costs nothing, and `codes` loses one entry (2 bytes). The decoder is unchanged. A sparse
+index therefore always has `headCount >= 1` (always possible, since `count >= 1`).
+
+Conversely `headCount == count` never occurs: if every code point runs consecutively from
+`first`, the font is contiguous rather than sparse. **A sparse tail therefore always holds at
+least one entry**, and `codes` is never a zero-length array.
 
 If the head block would exceed 255, clamp it to 255. The remainder goes into the tail and
 still works correctly.
@@ -750,7 +765,7 @@ Generators guarantee these; renderers may assume them.
 | --- | --- |
 | `count` | `count >= 1`. **An empty font is invalid** |
 | Contiguous index | `first + count <= 0x10000` |
-| Head block | `headCount <= count`, `first + headCount <= 0x10000` |
+| Head block | `1 <= headCount < count`, `first + headCount <= 0x10000` |
 | `codes` | Strictly ascending, no duplicates. Length is `count - headCount` |
 | | Contains no head-block code point. **May contain code points below `first`** |
 | `glyphs` | Non-`NULL` with `count` elements for variable pitch |
@@ -786,6 +801,13 @@ break renderers.
   of the chain
 - **Render absent code points as specified in §7** (draw U+FFFD if present, otherwise draw
   nothing and advance 0). Do not apply an implementation-specific default
+- **Fall back to U+FFFD only after the outermost chain has been searched.**
+  In an implementation that chains further fonts beyond CellFont's own `next` — a chain that
+  spans formats — **the fallback must not live inside the CellFont decoder.** A U+FFFD in the
+  CellFont part alone would then block access to glyphs carried by a later font in another
+  format: the same accident §7.2 warns about, one level up. The CellFont decoder should
+  report only found/not-found, and **whoever owns the complete font chain decides the
+  fallback**
 - Use the first font's `yAdvance` for the whole chain
 - Handle a glyph of `width = 0` by advancing without reading any bitmap bytes
 - **Perform every read through `CELLFONT_READ_*`** (§12.1), including the `NULL` tests on
