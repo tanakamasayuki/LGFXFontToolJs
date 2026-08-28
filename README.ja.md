@@ -42,7 +42,7 @@ npx lgfx-font-tool build --font lgfxJapanGothic_12 --sets ascii,hiragana \
 
 # CI: 生成物が最新かどうかだけ見る（何も書かない）。版を書いておくと、後のリリースで
 # 出力の形が変わって検査が落ちることがなくなる
-npx lgfx-font-tool@2.3.0 build ... --check
+npx lgfx-font-tool@3.0.0 build ... --check
 ```
 
 `--google` と `--ttf` は TTF をラスタライズするので `@napi-rs/canvas`（プラットフォーム別
@@ -68,7 +68,7 @@ npm install lgfx-font-tool
 ```html
 <script type="module">
   import { loadFont, drawString }
-    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.3.0/dist/lgfx-font-tool.min.js';
+    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@3.0.0/dist/lgfx-font-tool.min.js';
 </script>
 ```
 

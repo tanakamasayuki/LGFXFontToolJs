@@ -89,7 +89,7 @@ npm view lgfx-font-tool version    # the latest on npm — not what you have
 
 npm i -D lgfx-font-tool@latest     # bring the project up to date
 npm i -g lgfx-font-tool@latest     # bring the global install up to date
-npm i -D lgfx-font-tool@2.3.0      # pin an exact version
+npm i -D lgfx-font-tool@3.0.0      # pin an exact version
 ```
 
 **`npx` does not give the same answer twice, even on one machine.** Three things cause it,
@@ -517,7 +517,7 @@ The comment at the top of C source output carries the command that produced the 
 
 ```
 // Rebuild with:
-//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --out f.h --name f --pin-version
+//   npx lgfx-font-tool@3.0.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --out f.h --name f --pin-version
 ```
 - **A `--chars` value is always quoted, even a single character.** `--chars ℃` needs no
   quoting to run, but without quotes it reads as if one went missing; the value is text, and

@@ -83,7 +83,7 @@ npm view lgfx-font-tool version    # npm 上の最新（入っている版では
 
 npm i -D lgfx-font-tool@latest     # プロジェクトを最新に
 npm i -g lgfx-font-tool@latest     # グローバルを最新に
-npm i -D lgfx-font-tool@2.3.0      # 版を指定して固定
+npm i -D lgfx-font-tool@3.0.0      # 版を指定して固定
 ```
 
 **`npx` の結果は同じマシンでも一定しない。** 原因は 3 つあり、上から順に効く
@@ -489,7 +489,7 @@ C ソース出力の先頭コメントに、そのファイルを作ったコマ
 
 ```
 // Rebuild with:
-//   npx lgfx-font-tool@2.3.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --out f.h --name f --pin-version
+//   npx lgfx-font-tool@3.0.0 build --font lgfxJapanGothic_8 --sets digits --format cellfont --out f.h --name f --pin-version
 ```
 - **`--chars` の値は 1 文字でも必ず引用する。** `--chars ℃` はシェル的には引用が要らないが、
   引用が無いと片方が消えたように読める。内容を表す指定なので、どこまでが値かを示す。

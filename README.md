@@ -47,7 +47,7 @@ npx lgfx-font-tool build --font lgfxJapanGothic_12 --sets ascii,hiragana \
 
 # CI: check the committed output is current, writing nothing. Naming the version keeps a
 # later release from failing the check by changing the shape of the output
-npx lgfx-font-tool@2.3.0 build ... --check
+npx lgfx-font-tool@3.0.0 build ... --check
 ```
 
 `--google` and `--ttf` rasterize a TTF, so they need `@napi-rs/canvas` (33 MB of platform
@@ -73,7 +73,7 @@ cannot change your application without a code change:
 ```html
 <script type="module">
   import { loadFont, drawString }
-    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@2.3.0/dist/lgfx-font-tool.min.js';
+    from 'https://cdn.jsdelivr.net/npm/lgfx-font-tool@3.0.0/dist/lgfx-font-tool.min.js';
 </script>
 ```
 

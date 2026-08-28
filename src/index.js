@@ -94,4 +94,4 @@ export {
 } from './util/errors.js';
 
 // Updated by scripts/sync-version.js during npm version.
-export const VERSION = '2.3.0';
+export const VERSION = '3.0.0';
